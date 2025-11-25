@@ -2,11 +2,8 @@ import React, { useEffect, useState } from "react";
 import ArticleCard from "./ArticleCard.jsx";
 import FilterBar from "./FilterBar.jsx";
 
-// Ako frontend hostuješ na istom domenu kao backend, možeš samo:
-// const API_BASE = "";
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://TVOJ-RAILWAY-BACKEND-URL"; 
-// ↑ OVDE ubaci pravi backend URL
+// Backend URL — hardcoded da radi odmah
+const API_BASE = "https://allball-backend-production.up.railway.app";
 
 function App() {
   const [articles, setArticles] = useState([]);
