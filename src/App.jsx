@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import ArticleCard from "./components/ArticleCard.jsx";
-import FilterBar from "./components/FilterBar.jsx";
+import ArticleCard from "./ArticleCard.jsx";
+import FilterBar from "./FilterBar.jsx";
 
-// Ako frontend hostuješ na istom domainu kao backend, možeš i samo:
+// Ako frontend hostuješ na istom domenu kao backend, možeš samo:
 // const API_BASE = "";
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://TVOJ-RAILWAY-URL"; // <- OVDE STAVI SVOJ URL
+  import.meta.env.VITE_API_BASE_URL || "https://TVOJ-RAILWAY-BACKEND-URL"; 
+// ↑ OVDE ubaci pravi backend URL
 
 function App() {
   const [articles, setArticles] = useState([]);
@@ -21,8 +22,8 @@ function App() {
   const [sort, setSort] = useState("newest");
   const [limit, setLimit] = useState(20);
 
+  // load sports & leagues metadata
   useEffect(() => {
-    // povuci sports i leagues za filter drop-down
     const fetchMeta = async () => {
       try {
         const [sportsRes, leaguesRes] = await Promise.all([
@@ -73,7 +74,7 @@ function App() {
     }
   };
 
-  // automatski load pri prvom otvaranju
+  // automatically load on first page load
   useEffect(() => {
     fetchArticles();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
