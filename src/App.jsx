@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
 import ArticleCard from "./ArticleCard.jsx";
 import FilterBar from "./FilterBar.jsx";
+import ArticlePage from "./ArticlePage.jsx";
 
 // Backend URL — hardcoded da radi odmah
 const API_BASE = "https://allball-backend-production.up.railway.app";
 
-function App() {
+// 👉 Ovo je tvoja stara App logika, sada kao HomePage
+function HomePage() {
   const [articles, setArticles] = useState([]);
   const [sports, setSports] = useState([]);
   const [leagues, setLeagues] = useState([]);
@@ -25,7 +28,7 @@ function App() {
       try {
         const [sportsRes, leaguesRes] = await Promise.all([
           fetch(`${API_BASE}/meta/sports`),
-          fetch(`${API_BASE}/meta/leagues`)
+          fetch(`${API_BASE}/meta/leagues`),
         ]);
 
         const sportsData = await sportsRes.json();
@@ -74,7 +77,8 @@ function App() {
   // automatically load on first page load
   useEffect(() => {
     fetchArticles();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="page-root">
@@ -111,6 +115,16 @@ function App() {
         ))}
       </main>
     </div>
+  );
+}
+
+// 👉 Glavni App sada samo definiše rute
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/article/:slug" element={<ArticlePage apiBase={API_BASE} />} />
+    </Routes>
   );
 }
 
