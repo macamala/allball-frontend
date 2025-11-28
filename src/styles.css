@@ -17,7 +17,7 @@ body {
   padding: 16px 16px 40px;
 }
 
-/* ================= HERO BANNER – LOGO LEVO, TEKST DESNO ================= */
+/* ================= HERO BANNER ================= */
 
 .hero-banner {
   width: 100%;
@@ -30,8 +30,9 @@ body {
 .hero-banner-inner.horizontal-layout {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;   /* PRAVI RAZLAZ — LEVO LOGO, DESNO TEKST */
   gap: 24px;
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -39,12 +40,14 @@ body {
 .hero-banner-logo {
   width: 80px;
   height: auto;
+  flex-shrink: 0;
 }
 
 .hero-banner-text {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  justify-content: center;
+  flex: 1;   /* OVO PUNI PROSTOR desno */
 }
 
 .hero-banner-title {
@@ -60,12 +63,9 @@ body {
   margin-top: 6px;
 }
 
-/* RESPONSIVE */
-
 @media (max-width: 768px) {
   .hero-banner-inner.horizontal-layout {
     flex-direction: column;
-    align-items: center;
     text-align: center;
   }
 
@@ -75,10 +75,6 @@ body {
 
   .hero-banner-title {
     font-size: 2rem;
-  }
-
-  .hero-banner-subtitle {
-    font-size: 0.9rem;
   }
 
   .hero-banner-logo {
@@ -193,7 +189,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
 
 .article-content {
@@ -234,15 +229,13 @@ body {
 .article-summary {
   font-size: 0.85rem;
   color: #d1d5db;
-  margin: 0 0 8px;
+  margin-bottom: 8px;
   flex: 1;
 }
 
 .article-footer {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 6px;
   font-size: 0.75rem;
   color: #9ca3af;
 }
