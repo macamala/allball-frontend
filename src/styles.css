@@ -31,14 +31,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;   /* PRAVI RAZLAZ — LEVO LOGO, DESNO TEKST */
-  gap: 24px;
+  gap: 2px;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .hero-banner-logo {
-  width: 80px;
+  width: 300px;
   height: auto;
   flex-shrink: 0;
 }
