@@ -1,6 +1,4 @@
-/* ========================= */
 /* GLOBAL */
-/* ========================= */
 
 * {
   box-sizing: border-box;
@@ -17,23 +15,21 @@ body {
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: 16px 16px 40px;
 }
 
-/* ========================= */
-/* HERO SECTION (NOVO) */
-/* ========================= */
+/* ================= HERO (logo + title + tagline) ================= */
 
 .hero-section {
   width: 100%;
   text-align: center;
-  padding: 100px 20px 70px; /* dovoljno visine kao na tvojoj slici */
+  padding: 60px 20px 40px; /* manje gore da nema praznine */
 }
 
 .hero-logo {
-  width: 140px; /* veci logo */
+  width: 130px;
   height: auto;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .hero-title {
@@ -44,13 +40,11 @@ body {
 
 .hero-subtitle {
   font-size: 1.2rem;
-  margin-top: 12px;
+  margin-top: 10px;
   color: #9ca3af;
 }
 
-/* ========================= */
 /* FILTER BAR */
-/* ========================= */
 
 .filter-bar {
   background: #111827;
@@ -93,6 +87,10 @@ body {
   color: #f9fafb;
 }
 
+.filter-group input::placeholder {
+  color: #6b7280;
+}
+
 .apply-btn {
   align-self: flex-end;
   padding: 8px 16px;
@@ -110,9 +108,7 @@ body {
   background: #1d4ed8;
 }
 
-/* ========================= */
 /* INFO / ERROR */
-/* ========================= */
 
 .info-text {
   color: #9ca3af;
@@ -124,9 +120,7 @@ body {
   margin-top: 8px;
 }
 
-/* ========================= */
 /* ARTICLES GRID */
-/* ========================= */
 
 .articles-grid {
   margin-top: 20px;
@@ -135,9 +129,7 @@ body {
   gap: 16px;
 }
 
-/* ========================= */
 /* ARTICLE CARD */
-/* ========================= */
 
 .article-card {
   background: #0b1120;
