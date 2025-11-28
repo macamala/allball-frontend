@@ -21,7 +21,6 @@ function HomePage() {
   const [sort, setSort] = useState("newest");
   const [limit, setLimit] = useState(20);
 
-  // meta podaci
   useEffect(() => {
     const fetchMeta = async () => {
       try {
@@ -38,7 +37,6 @@ function HomePage() {
     fetchMeta();
   }, []);
 
-  // artikli
   const fetchArticles = async () => {
     setLoading(true);
     setError("");
@@ -64,19 +62,20 @@ function HomePage() {
 
   useEffect(() => {
     fetchArticles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="page-root">
-      {/* HERO BANNER – kao na slici */}
+      {/* HERO BANNER – LOGO LEVO, TEKST DESNO */}
       <section className="hero-banner">
-        <div className="hero-banner-inner">
+        <div className="hero-banner-inner horizontal-layout">
           <img src={logo} alt="NinkoSports logo" className="hero-banner-logo" />
-          <h1 className="hero-banner-title">NinkoSports</h1>
-          <p className="hero-banner-subtitle">
-            Your home for fast &amp; clean sports news
-          </p>
+          <div className="hero-banner-text">
+            <h1 className="hero-banner-title">NinkoSports</h1>
+            <p className="hero-banner-subtitle">
+              Your home for fast &amp; clean sports news
+            </p>
+          </div>
         </div>
       </section>
 
