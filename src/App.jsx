@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import ArticleCard from "./ArticleCard.jsx";
 import FilterBar from "./FilterBar.jsx";
 import ArticlePage from "./ArticlePage.jsx";
+import logo from "./assets/logo-ninkosports.png"; // ⬅️ NOVO
 
 // Backend URL — hardcoded da radi odmah
 const API_BASE = "https://allball-backend-production.up.railway.app";
@@ -83,8 +84,17 @@ function HomePage() {
   return (
     <div className="page-root">
       <header className="header">
-        <h1>AllBallSports</h1>
-        <p>Live sports news feed from your AI backend</p>
+        <div className="brand">
+          <img
+            src={logo}
+            alt="NinkoSports logo"
+            className="brand-logo"
+          />
+          <div className="brand-text">
+            <h1>NinkoSports</h1>
+            <p>Your home for fast &amp; clean sports news</p>
+          </div>
+        </div>
       </header>
 
       <FilterBar
