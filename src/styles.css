@@ -35,7 +35,7 @@ body {
 .brand-logo {
   width: 410px;
   height: 410px;
-  border-radius: 3px;
+  border-radius: 0px;
   object-fit: contain;
 }
 
@@ -43,7 +43,7 @@ body {
 
 .brand-text h1 {
   margin: 0;
-  font-size: 3.6rem;          /* veliki NinkoSports */
+  font-size: 2.6rem;          /* veliki NinkoSports */
   font-weight: 1300;
 }
 
