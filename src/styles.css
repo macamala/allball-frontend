@@ -17,7 +17,7 @@ body {
   padding: 16px 16px 40px;
 }
 
-/* ================= HERO BANNER ================= */
+/* ================= HERO BANNER – kao na slici ================= */
 
 .hero-banner {
   width: 100%;
@@ -27,18 +27,18 @@ body {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
-.hero-banner-inner.horizontal-layout {
+.hero-banner-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;   /* PRAVI RAZLAZ — LEVO LOGO, DESNO TEKST */
-  gap: 1000px;
-  width: 400%;
-  max-width: 8200px;
+  justify-content: space-between;
+  max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  gap: 24px;
 }
 
 .hero-banner-logo {
-  width: 300px;
+  width: 90px;
   height: auto;
   flex-shrink: 0;
 }
@@ -46,26 +46,30 @@ body {
 .hero-banner-text {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
-  flex: 1;   /* OVO PUNI PROSTOR desno */
+  flex: 1;
 }
 
 .hero-banner-title {
-  font-size: 3.8rem;
-  font-weight: 1900;
+  font-size: 2.8rem;
+  font-weight: 800;
   color: #ffffff;
   margin: 0;
 }
 
 .hero-banner-subtitle {
-  font-size: 2rem;
+  font-size: 1rem;
   color: #9ca3af;
   margin-top: 6px;
 }
 
-@media (max-width: 968px) {
-  .hero-banner-inner.horizontal-layout {
+/* RESPONSIVE – STACK ON SMALL SCREENS */
+
+@media (max-width: 768px) {
+  .hero-banner-inner {
     flex-direction: column;
+    align-items: center;
     text-align: center;
   }
 
@@ -74,15 +78,19 @@ body {
   }
 
   .hero-banner-title {
-    font-size: 4rem;
+    font-size: 2rem;
+  }
+
+  .hero-banner-subtitle {
+    font-size: 0.9rem;
   }
 
   .hero-banner-logo {
-    width: 164px;
+    width: 70px;
   }
 }
 
-/* FILTER BAR */
+/* ================= FILTER BAR ================= */
 
 .filter-bar {
   background: #111827;
@@ -189,6 +197,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .article-content {
@@ -229,13 +238,15 @@ body {
 .article-summary {
   font-size: 0.85rem;
   color: #d1d5db;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
   flex: 1;
 }
 
 .article-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 6px;
   font-size: 0.75rem;
   color: #9ca3af;
 }
