@@ -13,24 +13,24 @@ body {
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 16px 16px 40px;
+  padding: 8px 16px 40px;
 }
 
-/* ================= HEADER / BRAND (logo levo, tekst desno) ================= */
+/* ================= HEADER / BRAND ================= */
 
 .header {
-  margin-bottom: 16px;
-  padding: 12px 0 20px;
+  padding: 32px 0 28px;       /* visina hero bara kao na tvojoj slici */
+  margin-bottom: 20px;
 }
 
 .brand {
   display: flex;
-  align-items: center;       /* vertikalno centrirano */
-  justify-content: center;   /* sve u sredini širine */
-  gap: 24px;                 /* razmak logo – tekst */
+  align-items: center;
+  justify-content: center;    /* centrirano vodoravno */
+  gap: 24px;
 }
 
-/* logo levo */
+/* logo */
 
 .brand-logo {
   width: 110px;
@@ -39,17 +39,17 @@ body {
   object-fit: contain;
 }
 
-/* tekst desno */
+/* tekst */
 
 .brand-text h1 {
   margin: 0;
-  font-size: 3.4rem;         /* veliki NinkoSports */
+  font-size: 3.6rem;          /* veliki NinkoSports */
   font-weight: 800;
 }
 
 .brand-text p {
-  margin: 4px 0 0;
-  font-size: 1.05rem;
+  margin: 6px 0 0;
+  font-size: 1.1rem;
   color: #cbd5e1;
 }
 
@@ -224,16 +224,16 @@ body {
   text-decoration: underline;
 }
 
-/* =============== RESPONSIVE (PHONE) =============== */
+/* ================= RESPONSIVE – TABLET & PHONE ================= */
 
-@media (max-width: 640px) {
-  .page-root {
-    padding: 8px 10px 28px;
+@media (max-width: 900px) {
+  .header {
+    padding: 20px 0 16px;       /* malo manji header */
   }
 
   .brand {
-    flex-direction: column;   /* na mobilnom logo iznad teksta da stane lepo */
-    gap: 6px;
+    flex-direction: column;     /* logo iznad teksta na užim ekranima */
+    gap: 8px;
   }
 
   .brand-logo {
@@ -242,10 +242,34 @@ body {
   }
 
   .brand-text h1 {
-    font-size: 2.4rem;
+    font-size: 2.6rem;
   }
 
   .brand-text p {
     font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .header {
+    padding: 16px 0 12px;
+    margin-bottom: 14px;
+  }
+
+  .page-root {
+    padding: 4px 10px 28px;
+  }
+
+  .brand-logo {
+    width: 72px;
+    height: 72px;
+  }
+
+  .brand-text h1 {
+    font-size: 2.1rem;
+  }
+
+  .brand-text p {
+    font-size: 0.9rem;
   }
 }
