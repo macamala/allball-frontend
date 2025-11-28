@@ -1,3 +1,7 @@
+/* ========================= */
+/* GLOBAL */
+/* ========================= */
+
 * {
   box-sizing: border-box;
 }
@@ -13,47 +17,40 @@ body {
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 8px 16px 40px;
+  padding: 24px 16px 40px;
 }
 
-/* ================= HEADER / BRAND ================= */
+/* ========================= */
+/* HERO SECTION (NOVO) */
+/* ========================= */
 
-.header {
-  padding: 38px 0 28px;       /* visina hero bara kao na tvojoj slici */
-  margin-bottom: 20px;
+.hero-section {
+  width: 100%;
+  text-align: center;
+  padding: 100px 20px 70px; /* dovoljno visine kao na tvojoj slici */
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;    /* centrirano vodoravno */
-  gap: 3px;
+.hero-logo {
+  width: 140px; /* veci logo */
+  height: auto;
+  margin-bottom: 25px;
 }
 
-/* logo */
-
-.brand-logo {
-  width: 210px;
-  height: 210px;
-  border-radius: 0px;
-  object-fit: contain;
-}
-
-/* tekst */
-
-.brand-text h1 {
+.hero-title {
+  font-size: 3.2rem;
+  font-weight: 800;
   margin: 0;
-  font-size: 2.6rem;          /* veliki NinkoSports */
-  font-weight: 1100;
 }
 
-.brand-text p {
-  margin: 0px 0 0;
-  font-size: 2.1rem;
-  color: #cbd5e1;
+.hero-subtitle {
+  font-size: 1.2rem;
+  margin-top: 12px;
+  color: #9ca3af;
 }
 
-/* ================= FILTER BAR ================= */
+/* ========================= */
+/* FILTER BAR */
+/* ========================= */
 
 .filter-bar {
   background: #111827;
@@ -96,10 +93,6 @@ body {
   color: #f9fafb;
 }
 
-.filter-group input::placeholder {
-  color: #6b7280;
-}
-
 .apply-btn {
   align-self: flex-end;
   padding: 8px 16px;
@@ -117,7 +110,9 @@ body {
   background: #1d4ed8;
 }
 
-/* ================= INFO / ERROR ================= */
+/* ========================= */
+/* INFO / ERROR */
+/* ========================= */
 
 .info-text {
   color: #9ca3af;
@@ -129,7 +124,9 @@ body {
   margin-top: 8px;
 }
 
-/* ================= ARTICLES GRID ================= */
+/* ========================= */
+/* ARTICLES GRID */
+/* ========================= */
 
 .articles-grid {
   margin-top: 20px;
@@ -138,7 +135,9 @@ body {
   gap: 16px;
 }
 
-/* ================= ARTICLE CARD ================= */
+/* ========================= */
+/* ARTICLE CARD */
+/* ========================= */
 
 .article-card {
   background: #0b1120;
@@ -222,54 +221,4 @@ body {
 
 .article-link:hover {
   text-decoration: underline;
-}
-
-/* ================= RESPONSIVE – TABLET & PHONE ================= */
-
-@media (max-width: 900px) {
-  .header {
-    padding: 20px 0 16px;       /* malo manji header */
-  }
-
-  .brand {
-    flex-direction: column;     /* logo iznad teksta na užim ekranima */
-    gap: 8px;
-  }
-
-  .brand-logo {
-    width: 90px;
-    height: 90px;
-  }
-
-  .brand-text h1 {
-    font-size: 2.6rem;
-  }
-
-  .brand-text p {
-    font-size: 0.95rem;
-  }
-}
-
-@media (max-width: 540px) {
-  .header {
-    padding: 16px 0 12px;
-    margin-bottom: 14px;
-  }
-
-  .page-root {
-    padding: 4px 10px 28px;
-  }
-
-  .brand-logo {
-    width: 72px;
-    height: 72px;
-  }
-
-  .brand-text h1 {
-    font-size: 2.1rem;
-  }
-
-  .brand-text p {
-    font-size: 0.9rem;
-  }
 }
