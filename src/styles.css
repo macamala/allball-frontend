@@ -16,50 +16,54 @@ body {
   padding: 24px 16px 40px;
 }
 
-/* HEADER + BRAND */
+/* ========================================================= */
+/* HEADER + BRAND – LARGE, BEAUTIFUL, PROFESSIONAL */
+/* ========================================================= */
 
 .header {
   width: 100%;
-  padding: 22px 32px;
+  padding: 28px 32px;
   display: flex;
   justify-content: center;
   background: #050816;
   position: sticky;
   top: 0;
   z-index: 10;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  margin-bottom: 32px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
 }
 
 .brand-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+  width: 90px;     /* BIGGER LOGO */
+  height: 90px;
+  border-radius: 16px;
   object-fit: contain;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.6rem;    /* BIGGER TITLE */
+  font-weight: 800;
   color: #ffffff;
 }
 
 .brand-text p {
   margin: 0;
-  margin-top: 3px;
-  font-size: 0.95rem;
+  margin-top: 4px;
+  font-size: 1.05rem;   /* SLIGHTLY BIGGER TAGLINE */
   color: #cbd4e1;
   opacity: 0.9;
 }
 
-/* Filter bar */
+/* ========================================================= */
+/* FILTER BAR */
+/* ========================================================= */
 
 .filter-bar {
   background: #111827;
@@ -123,7 +127,9 @@ body {
   background: #1d4ed8;
 }
 
-/* Info / error */
+/* ========================================================= */
+/* INFO / ERROR */
+/* ========================================================= */
 
 .info-text {
   color: #9ca3af;
@@ -135,7 +141,9 @@ body {
   margin-top: 8px;
 }
 
-/* Articles grid */
+/* ========================================================= */
+/* ARTICLES GRID */
+/* ========================================================= */
 
 .articles-grid {
   margin-top: 20px;
@@ -144,7 +152,9 @@ body {
   gap: 16px;
 }
 
-/* Article card */
+/* ========================================================= */
+/* ARTICLE CARD */
+/* ========================================================= */
 
 .article-card {
   background: #0b1120;
