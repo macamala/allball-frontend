@@ -31,9 +31,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;   /* PRAVI RAZLAZ — LEVO LOGO, DESNO TEKST */
-  gap: 2px;
-  width: 100%;
-  max-width: 1200px;
+  gap: 50px;
+  width: 200%;
+  max-width: 2200px;
   margin: 0 auto;
 }
 
