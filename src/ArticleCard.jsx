@@ -1,15 +1,16 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 function ArticleCard({ article }) {
   const {
     title,
     summary,
     image_url,
-    source_url,
     sport,
     league,
     country,
-    created_at
+    created_at,
+    slug
   } = article;
 
   const dateStr = created_at
@@ -17,7 +18,11 @@ function ArticleCard({ article }) {
     : "";
 
   return (
-    <article className="article-card">
+    <Link
+      to={`/article/${slug}`}
+      className="article-card"
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
       {image_url && (
         <div className="article-image-wrapper">
           <img src={image_url} alt={title} className="article-image" />
@@ -37,19 +42,9 @@ function ArticleCard({ article }) {
 
         <div className="article-footer">
           {dateStr && <span className="article-date">{dateStr}</span>}
-          {source_url && (
-            <a
-              href={source_url}
-              target="_blank"
-              rel="noreferrer"
-              className="article-link"
-            >
-              Read source
-            </a>
-          )}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 
