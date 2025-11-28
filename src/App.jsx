@@ -21,6 +21,7 @@ function HomePage() {
   const [sort, setSort] = useState("newest");
   const [limit, setLimit] = useState(20);
 
+  // Fetch meta
   useEffect(() => {
     const fetchMeta = async () => {
       try {
@@ -37,6 +38,7 @@ function HomePage() {
     fetchMeta();
   }, []);
 
+  // Fetch articles
   const fetchArticles = async () => {
     setLoading(true);
     setError("");
@@ -66,10 +68,12 @@ function HomePage() {
 
   return (
     <div className="page-root">
-      {/* HERO BANNER – LOGO LEVO, TEKST DESNO */}
+
+      {/* HEADER (logo levo, tekst desno, sve ispunjava header) */}
       <section className="hero-banner">
         <div className="hero-banner-inner horizontal-layout">
           <img src={logo} alt="NinkoSports logo" className="hero-banner-logo" />
+
           <div className="hero-banner-text">
             <h1 className="hero-banner-title">NinkoSports</h1>
             <p className="hero-banner-subtitle">
@@ -115,10 +119,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route
-        path="/article/:slug"
-        element={<ArticlePage apiBase={API_BASE} />}
-      />
+      <Route path="/article/:slug" element={<ArticlePage apiBase={API_BASE} />} />
     </Routes>
   );
 }
