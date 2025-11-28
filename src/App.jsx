@@ -68,12 +68,12 @@ function HomePage() {
 
   return (
     <div className="page-root">
-
-      {/* HEADER (logo levo, tekst desno, sve ispunjava header) */}
+      {/* HERO BANNER */}
       <section className="hero-banner">
-        <div className="hero-banner-inner horizontal-layout">
-          <img src={logo} alt="NinkoSports logo" className="hero-banner-logo" />
-
+        <div className="hero-banner-inner">
+          <div className="hero-banner-logo">
+            <img src={logo} alt="NinkoSports logo" />
+          </div>
           <div className="hero-banner-text">
             <h1 className="hero-banner-title">NinkoSports</h1>
             <p className="hero-banner-subtitle">
@@ -83,7 +83,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* FILTERI */}
+      {/* FILTER BAR */}
       <FilterBar
         sports={sports}
         leagues={leagues}
@@ -100,12 +100,12 @@ function HomePage() {
         onApply={fetchArticles}
       />
 
+      {/* ARTICLE GRID */}
       {loading && <p className="info-text">Loading articles...</p>}
       {error && <p className="error-text">{error}</p>}
       {!loading && !error && articles.length === 0 && (
         <p className="info-text">No articles found for this filter.</p>
       )}
-
       <main className="articles-grid">
         {articles.map((article) => (
           <ArticleCard key={article.id} article={article} />
