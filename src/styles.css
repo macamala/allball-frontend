@@ -1,3 +1,4 @@
+/* GLOBAL RESET */
 * {
   box-sizing: border-box;
 }
@@ -10,66 +11,60 @@ body {
   color: #f9fafb;
 }
 
+/* PAGE ROOT */
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 4px 16px 40px; /* još manje gore da sve krene ranije */
+  padding: 24px 16px 40px;
 }
 
-/* ========================================================= */
-/* HEADER + BRAND – PUN POJAS, SKORO BEZ PRAZNINE */
-/* ========================================================= */
+/* ============================= */
+/*         HERO HEADER           */
+/* ============================= */
 
 .header {
   width: 100%;
-  padding: 14px 0;                 /* MALI padding gore/dole, nema praznog */
+  padding: 40px 0 35px;
   display: flex;
   justify-content: center;
   background: #050816;
   position: sticky;
   top: 0;
   z-index: 10;
-  margin-bottom: 16px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  margin-bottom: 26px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
 
 .brand {
-  max-width: 1200px;
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;          /* sve tačno u sredini */
-  gap: 20px;
-  padding: 0 16px;
+  justify-content: center;
+  gap: 28px;
+  padding: 0 20px;
 }
 
 .brand-logo {
-  width: 130px;                     /* JOŠ veći logo */
-  height: 130px;
-  border-radius: 24px;
-  object-fit: contain;
+  width: 170px;
+  height: 170px;
+  border-radius: 26px;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 3.4rem;                /* velik naslov da ispuni pojas */
+  font-size: 4rem;
   font-weight: 800;
-  color: #ffffff;
 }
 
 .brand-text p {
-  margin: 0;
-  margin-top: 6px;
-  font-size: 1.2rem;                /* veći tagline */
-  color: #cbd4e1;
-  opacity: 0.9;
+  margin: 6px 0 0;
+  font-size: 1.35rem;
+  color: #cbd5e1;
 }
 
-/* ========================================================= */
 /* FILTER BAR */
-/* ========================================================= */
-
 .filter-bar {
   background: #111827;
   border-radius: 12px;
@@ -132,10 +127,7 @@ body {
   background: #1d4ed8;
 }
 
-/* ========================================================= */
-/* INFO / ERROR */
-/* ========================================================= */
-
+/* INFO & ERROR TEXT */
 .info-text {
   color: #9ca3af;
   margin-top: 8px;
@@ -146,10 +138,7 @@ body {
   margin-top: 8px;
 }
 
-/* ========================================================= */
 /* ARTICLES GRID */
-/* ========================================================= */
-
 .articles-grid {
   margin-top: 20px;
   display: grid;
@@ -157,10 +146,7 @@ body {
   gap: 16px;
 }
 
-/* ========================================================= */
 /* ARTICLE CARD */
-/* ========================================================= */
-
 .article-card {
   background: #0b1120;
   border-radius: 12px;
@@ -243,173 +229,4 @@ body {
 
 .article-link:hover {
   text-decoration: underline;
-}
-
-/* ========================================================= */
-/* SINGLE ARTICLE PAGE */
-/* ========================================================= */
-
-.article-page-root {
-  display: flex;
-  justify-content: center;
-  padding: 16px 12px 40px;
-}
-
-.article-container {
-  width: 100%;
-  max-width: 900px;
-  background: #020617;
-  border-radius: 16px;
-  border: 1px solid #1f2937;
-  padding: 16px 18px 24px;
-}
-
-.article-back-link {
-  display: inline-block;
-  margin-bottom: 12px;
-  font-size: 0.9rem;
-  color: #60a5fa;
-  text-decoration: none;
-}
-
-.article-back-link:hover {
-  text-decoration: underline;
-}
-
-.article-hero {
-  width: 100%;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 14px;
-  max-height: 220px;
-}
-
-.article-hero-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.article-page-title {
-  font-size: 1.8rem;
-  margin: 4px 0 10px;
-}
-
-.article-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.article-meta-chip {
-  font-size: 0.75rem;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: #1f2937;
-  color: #e5e7eb;
-}
-
-.article-meta-chip.secondary {
-  background: #0f766e;
-}
-
-.article-meta-chip.country-chip {
-  background: #7c2d12;
-}
-
-.article-meta-date {
-  font-size: 0.8rem;
-  color: #9ca3af;
-  margin-left: auto;
-}
-
-.article-full-body {
-  margin-top: 6px;
-  margin-bottom: 16px;
-}
-
-.article-full-paragraph {
-  font-size: 0.98rem;
-  line-height: 1.6;
-  color: #e5e7eb;
-  margin: 0 0 10px;
-}
-
-.article-source-link {
-  display: inline-block;
-  margin-top: 4px;
-  font-size: 0.9rem;
-  color: #93c5fd;
-  text-decoration: none;
-}
-
-.article-source-link:hover {
-  text-decoration: underline;
-}
-
-/* RELATED ARTICLES SECTION */
-
-.related-section {
-  margin-top: 26px;
-}
-
-.related-title {
-  font-size: 1.2rem;
-  margin-bottom: 12px;
-}
-
-.related-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-/* ========================================================= */
-/* MOBILNA PODESAVANJA */
-/* ========================================================= */
-
-@media (max-width: 640px) {
-  .page-root {
-    padding: 4px 10px 28px;
-  }
-
-  .header {
-    padding: 10px 0;
-  }
-
-  .brand {
-    gap: 14px;
-  }
-
-  .brand-logo {
-    width: 90px;
-    height: 90px;
-    border-radius: 18px;
-  }
-
-  .brand-text h1 {
-    font-size: 2.4rem;
-  }
-
-  .brand-text p {
-    font-size: 1rem;
-  }
-
-  .article-container {
-    padding: 14px 12px 20px;
-    border-radius: 12px;
-  }
-
-  .article-page-title {
-    font-size: 1.4rem;
-  }
-
-  .article-meta-date {
-    width: 100%;
-    margin-left: 0;
-    margin-top: 4px;
-  }
 }
