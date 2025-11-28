@@ -3,12 +3,11 @@ import { Routes, Route } from "react-router-dom";
 import ArticleCard from "./ArticleCard.jsx";
 import FilterBar from "./FilterBar.jsx";
 import ArticlePage from "./ArticlePage.jsx";
-import logo from "./assets/logo-ninkosports.png"; // ⬅️ NOVO
+import logo from "./assets/logo-ninkosports.png";
 
-// Backend URL — hardcoded da radi odmah
+// Backend URL
 const API_BASE = "https://allball-backend-production.up.railway.app";
 
-// 👉 Ovo je tvoja stara App logika, sada kao HomePage
 function HomePage() {
   const [articles, setArticles] = useState([]);
   const [sports, setSports] = useState([]);
@@ -16,27 +15,22 @@ function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // filter state
   const [sport, setSport] = useState("");
   const [league, setLeague] = useState("");
   const [country, setCountry] = useState("");
   const [sort, setSort] = useState("newest");
   const [limit, setLimit] = useState(20);
 
-  // load sports & leagues metadata
   useEffect(() => {
     const fetchMeta = async () => {
       try {
         const [sportsRes, leaguesRes] = await Promise.all([
           fetch(`${API_BASE}/meta/sports`),
-          fetch(`${API_BASE}/meta/leagues`),
+          fetch(`${API_BASE}/meta/leagues`)
         ]);
 
-        const sportsData = await sportsRes.json();
-        const leaguesData = await leaguesRes.json();
-
-        setSports(sportsData || []);
-        setLeagues(leaguesData || []);
+        setSports(await sportsRes.json());
+        setLeagues(await leaguesRes.json());
       } catch (err) {
         console.error("Error fetching meta:", err);
       }
@@ -51,52 +45,83 @@ function HomePage() {
 
     try {
       const params = new URLSearchParams();
-
       if (sport) params.append("sport", sport);
       if (league) params.append("league", league);
       if (country) params.append("country", country);
       if (sort) params.append("sort", sort);
       if (limit) params.append("limit", String(limit));
 
-      const url = `${API_BASE}/articles?${params.toString()}`;
-      const res = await fetch(url);
+      const res = await fetch(`${API_BASE}/articles?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      setArticles(data || []);
+      setArticles(await res.json());
     } catch (err) {
       console.error("Error fetching articles:", err);
-      setError("Failed to load articles.");
+      setError("Failed to load articles");
     } finally {
       setLoading(false);
     }
   };
 
-  // automatically load on first page load
   useEffect(() => {
     fetchArticles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="page-root">
-      <header className="header">
-        <div className="brand">
-          <img
-            src={logo}
-            alt="NinkoSports logo"
-            className="brand-logo"
-          />
-          <div className="brand-text">
-            <h1>NinkoSports</h1>
-            <p>Your home for fast &amp; clean sports news</p>
-          </div>
-        </div>
-      </header>
 
+      {/* --------------------------------------  
+          HERO BANNER – TAČNO KAO TVOJA SLIKA  
+      --------------------------------------- */}
+      <div
+        style={{
+          width: "100%",
+          padding: "60px 20px",
+          background: "linear-gradient(180deg, #020617, #0b1120)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: "20px",
+          borderBottom: "2px solid #1e293b",
+        }}
+      >
+        <img
+          src={logo}
+          alt="Logo"
+          style={{
+            width: "150px",
+            height: "150px",
+            objectFit: "contain",
+            marginBottom: "15px",
+          }}
+        />
+
+        <h1
+          style={{
+            fontSize: "4rem",
+            fontWeight: "900",
+            color: "white",
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          NinkoSports
+        </h1>
+
+        <p
+          style={{
+            fontSize: "1.4rem",
+            color: "#cbd5e1",
+            marginTop: "10px",
+            textAlign: "center",
+          }}
+        >
+          Your home for fast & clean sports news
+        </p>
+      </div>
+
+      {/* FILTER BAR */}
       <FilterBar
         sports={sports}
         leagues={leagues}
@@ -116,7 +141,7 @@ function HomePage() {
       {loading && <p className="info-text">Loading articles...</p>}
       {error && <p className="error-text">{error}</p>}
       {!loading && !error && articles.length === 0 && (
-        <p className="info-text">No articles found for this filter.</p>
+        <p className="info-text">No articles found.</p>
       )}
 
       <main className="articles-grid">
@@ -128,14 +153,15 @@ function HomePage() {
   );
 }
 
-// 👉 Glavni App sada samo definiše rute
-function App() {
+// MAIN ROUTER
+export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/article/:slug" element={<ArticlePage apiBase={API_BASE} />} />
+      <Route
+        path="/article/:slug"
+        element={<ArticlePage apiBase={API_BASE} />}
+      />
     </Routes>
   );
 }
-
-export default App;
