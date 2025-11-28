@@ -239,3 +239,153 @@ body {
 .article-link:hover {
   text-decoration: underline;
 }
+
+/* ========================================================= */
+/* SINGLE ARTICLE PAGE */
+/* ========================================================= */
+
+.article-page-root {
+  display: flex;
+  justify-content: center;
+  padding: 16px 12px 40px;
+}
+
+.article-container {
+  width: 100%;
+  max-width: 900px;
+  background: #020617;
+  border-radius: 16px;
+  border: 1px solid #1f2937;
+  padding: 16px 18px 24px;
+}
+
+.article-back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.article-back-link:hover {
+  text-decoration: underline;
+}
+
+.article-hero {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  max-height: 260px;
+}
+
+.article-hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.article-page-title {
+  font-size: 1.8rem;
+  margin: 4px 0 10px;
+}
+
+.article-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.article-meta-chip {
+  font-size: 0.75rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+.article-meta-chip.secondary {
+  background: #0f766e;
+}
+
+.article-meta-chip.country-chip {
+  background: #7c2d12;
+}
+
+.article-meta-date {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-left: auto;
+}
+
+.article-full-body {
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+
+.article-full-paragraph {
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: #e5e7eb;
+  margin: 0 0 10px;
+}
+
+.article-source-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.article-source-link:hover {
+  text-decoration: underline;
+}
+
+/* RELATED ARTICLES SECTION */
+
+.related-section {
+  margin-top: 26px;
+}
+
+.related-title {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+}
+
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* MOBILNA PODESAVANJA */
+
+@media (max-width: 640px) {
+  .article-container {
+    padding: 14px 12px 20px;
+    border-radius: 12px;
+  }
+
+  .article-page-title {
+    font-size: 1.4rem;
+  }
+
+  .article-meta-date {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+
+  .brand-text h1 {
+    font-size: 2.1rem; /* da i header lepo izgleda na mobu */
+  }
+
+  .brand-logo {
+    width: 80px;
+    height: 80px;
+  }
+}
