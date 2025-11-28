@@ -31,14 +31,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;   /* PRAVI RAZLAZ — LEVO LOGO, DESNO TEKST */
-  gap: 50px;
-  width: 200%;
-  max-width: 2200px;
+  gap: 1000px;
+  width: 400%;
+  max-width: 8200px;
   margin: 0 auto;
 }
 
 .hero-banner-logo {
-  width: 100px;
+  width: 300px;
   height: auto;
   flex-shrink: 0;
 }
@@ -51,19 +51,19 @@ body {
 }
 
 .hero-banner-title {
-  font-size: 2.8rem;
-  font-weight: 1400;
+  font-size: 3.8rem;
+  font-weight: 1900;
   color: #ffffff;
   margin: 0;
 }
 
 .hero-banner-subtitle {
-  font-size: 1rem;
+  font-size: 2rem;
   color: #9ca3af;
   margin-top: 6px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 968px) {
   .hero-banner-inner.horizontal-layout {
     flex-direction: column;
     text-align: center;
@@ -74,11 +74,11 @@ body {
   }
 
   .hero-banner-title {
-    font-size: 2rem;
+    font-size: 4rem;
   }
 
   .hero-banner-logo {
-    width: 64px;
+    width: 164px;
   }
 }
 
