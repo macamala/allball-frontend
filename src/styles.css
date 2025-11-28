@@ -6,8 +6,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #050816;
   color: #f9fafb;
 }
@@ -18,33 +17,64 @@ body {
   padding: 16px 16px 40px;
 }
 
-/* ================= HERO (logo + title + tagline) ================= */
+/* ================= HERO BANNER – kao sa tvoje slike ================= */
 
-.hero-section {
+.hero-banner {
   width: 100%;
+  background: linear-gradient(90deg, #030712 0%, #0f172a 100%);
+  padding: 40px 20px;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.hero-banner-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding: 60px 20px 40px; /* manje gore da nema praznine */
 }
 
-.hero-logo {
-  width: 130px;
+.hero-banner-logo {
+  width: 80px;
   height: auto;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
-.hero-title {
-  font-size: 3.2rem;
+.hero-banner-title {
+  font-size: 2.8rem;
   font-weight: 800;
+  color: #ffffff;
   margin: 0;
 }
 
-.hero-subtitle {
-  font-size: 1.2rem;
-  margin-top: 10px;
+.hero-banner-subtitle {
+  font-size: 1rem;
   color: #9ca3af;
+  margin-top: 8px;
 }
 
-/* FILTER BAR */
+/* RESPONSIVE HERO */
+
+@media (max-width: 768px) {
+  .hero-banner {
+    padding: 30px 15px;
+  }
+
+  .hero-banner-logo {
+    width: 60px;
+    margin-bottom: 10px;
+  }
+
+  .hero-banner-title {
+    font-size: 2rem;
+  }
+
+  .hero-banner-subtitle {
+    font-size: 0.9rem;
+  }
+}
+
+/* ================= FILTER BAR ================= */
 
 .filter-bar {
   background: #111827;
@@ -108,7 +138,7 @@ body {
   background: #1d4ed8;
 }
 
-/* INFO / ERROR */
+/* ================= INFO / ERROR ================= */
 
 .info-text {
   color: #9ca3af;
@@ -120,7 +150,7 @@ body {
   margin-top: 8px;
 }
 
-/* ARTICLES GRID */
+/* ================= ARTICLES GRID ================= */
 
 .articles-grid {
   margin-top: 20px;
@@ -129,7 +159,7 @@ body {
   gap: 16px;
 }
 
-/* ARTICLE CARD */
+/* ================= ARTICLE CARD ================= */
 
 .article-card {
   background: #0b1120;
