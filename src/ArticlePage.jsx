@@ -1,80 +1,187 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import ArticleCard from "./ArticleCard.jsx";
 
 function ArticlePage({ apiBase }) {
   const { slug } = useParams();
   const [article, setArticle] = useState(null);
+  const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setLoading(true);
-    setError("");
+    const fetchArticle = async () => {
+      setLoading(true);
+      setError("");
 
-    fetch(`${apiBase}/articles/${slug}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Article not found");
-        return res.json();
-      })
-      .then((data) => {
-        setArticle(data);
+      try {
+        const res = await fetch(`${apiBase}/articles/${slug}`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        setArticle(data || null);
+
+        // nakon što dobijemo članak, povlačimo related
+        if (data) {
+          fetchRelated(data);
+        }
+      } catch (err) {
+        console.error("Error fetching article:", err);
+        setError("Failed to load article.");
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Article not found or error loading article.");
-        setLoading(false);
+      }
+    };
+
+    const fetchRelated = async (mainArticle) => {
+      try {
+        const params = new URLSearchParams();
+        if (mainArticle.sport) params.append("sport", mainArticle.sport);
+        if (mainArticle.league) params.append("league", mainArticle.league);
+        params.append("limit", "6");
+
+        const url = `${apiBase}/articles?${params.toString()}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
+
+        // izbacujemo trenutni članak i uzimamo 3 random / prva
+        const filtered = data.filter((a) => a.id !== mainArticle.id);
+        setRelated(filtered.slice(0, 3));
+      } catch (err) {
+        console.error("Error fetching related:", err);
+      }
+    };
+
+    fetchArticle();
+  }, [apiBase, slug]);
+
+  if (loading) {
+    return (
+      <div className="article-page-root">
+        <div className="article-container">
+          <p className="info-text">Loading article...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className="article-page-root">
+        <div className="article-container">
+          <p className="error-text">{error || "Article not found."}</p>
+          <Link to="/" className="article-back-link">
+            ← Back to NinkoSports feed
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const displayText =
+    article.ai_content ||
+    article.content ||
+    article.description ||
+    "";
+
+  // jednostavno parsiranje paragrafova
+  const paragraphs = displayText
+    ? displayText.split(/\n+/).filter((p) => p.trim().length > 0)
+    : [];
+
+  // formatiranje datuma
+  let formattedDate = "";
+  if (article.published_at) {
+    const d = new Date(article.published_at);
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
-  }, [slug, apiBase]);
-
-  if (loading) return <div className="info-text">Loading article...</div>;
-  if (error) return <div className="error-text">{error}</div>;
-  if (!article) return <div className="info-text">No article.</div>;
+    }
+  }
 
   return (
-    <div className="page-root article-page">
-      <header className="header">
-        <Link to="/" className="back-link">
-          ← Back to news
+    <div className="article-page-root">
+      <div className="article-container">
+        <Link to="/" className="article-back-link">
+          ← Back to NinkoSports
         </Link>
-        <h1>{article.title}</h1>
-        <p className="meta-line">
-          {article.sport && <span>{article.sport.toUpperCase()}</span>}
-          {article.league && <span> · {article.league}</span>}
-          {article.country && <span> · {article.country}</span>}
-          {article.created_at && (
-            <span>
-              {" "}
-              · {new Date(article.created_at).toLocaleString()}
+
+        {article.image && (
+          <div className="article-hero">
+            <img
+              src={article.image}
+              alt={article.title}
+              className="article-hero-image"
+            />
+          </div>
+        )}
+
+        <h1 className="article-page-title">{article.title}</h1>
+
+        <div className="article-meta-row">
+          {article.sport && (
+            <span className="article-meta-chip">{article.sport}</span>
+          )}
+          {article.league && (
+            <span className="article-meta-chip secondary">
+              {article.league}
             </span>
           )}
-        </p>
-      </header>
+          {article.country && (
+            <span className="article-meta-chip country-chip">
+              {article.country}
+            </span>
+          )}
+          {formattedDate && (
+            <span className="article-meta-date">{formattedDate}</span>
+          )}
+        </div>
 
-      {article.image_url && (
-        <img
-          src={article.image_url}
-          alt={article.title}
-          className="article-hero-image"
-        />
-      )}
+        <div className="article-full-body">
+          {paragraphs.length > 0 ? (
+            paragraphs.map((p, idx) => (
+              <p key={idx} className="article-full-paragraph">
+                {p}
+              </p>
+            ))
+          ) : (
+            <p className="article-full-paragraph">
+              {article.description || "No content available."}
+            </p>
+          )}
+        </div>
 
-      <main className="article-content">
-        <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-          {article.content}
-        </p>
-      </main>
+        {article.url && (
+          <a
+            href={article.url}
+            className="article-source-link"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Read original source ↗
+          </a>
+        )}
 
-      {article.source_url && (
-        <footer className="article-footer">
-          <small>
-            Source:{" "}
-            <a href={article.source_url} target="_blank" rel="noreferrer">
-              original article
-            </a>
-          </small>
-        </footer>
-      )}
+        {related.length > 0 && (
+          <section className="related-section">
+            <h2 className="related-title">More from this league</h2>
+            <div className="related-grid">
+              {related.map((rel) => (
+                <ArticleCard key={rel.id} article={rel} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
