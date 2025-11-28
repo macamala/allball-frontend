@@ -17,27 +17,34 @@ body {
   padding: 16px 16px 40px;
 }
 
-/* ================= HERO BANNER – kao sa tvoje slike ================= */
+/* ================= HERO BANNER – LOGO LEVO, TEKST DESNO ================= */
 
 .hero-banner {
   width: 100%;
   background: linear-gradient(90deg, #030712 0%, #0f172a 100%);
-  padding: 40px 20px;
+  padding: 32px 24px;
   border-radius: 0 0 12px 12px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
-.hero-banner-inner {
+.hero-banner-inner.horizontal-layout {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
+  justify-content: flex-start;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .hero-banner-logo {
   width: 80px;
   height: auto;
-  margin-bottom: 12px;
+}
+
+.hero-banner-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .hero-banner-title {
@@ -50,19 +57,20 @@ body {
 .hero-banner-subtitle {
   font-size: 1rem;
   color: #9ca3af;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
-/* RESPONSIVE HERO */
+/* RESPONSIVE */
 
 @media (max-width: 768px) {
-  .hero-banner {
-    padding: 30px 15px;
+  .hero-banner-inner.horizontal-layout {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 
-  .hero-banner-logo {
-    width: 60px;
-    margin-bottom: 10px;
+  .hero-banner-text {
+    align-items: center;
   }
 
   .hero-banner-title {
@@ -72,9 +80,13 @@ body {
   .hero-banner-subtitle {
     font-size: 0.9rem;
   }
+
+  .hero-banner-logo {
+    width: 64px;
+  }
 }
 
-/* ================= FILTER BAR ================= */
+/* FILTER BAR */
 
 .filter-bar {
   background: #111827;
@@ -138,7 +150,7 @@ body {
   background: #1d4ed8;
 }
 
-/* ================= INFO / ERROR ================= */
+/* INFO / ERROR */
 
 .info-text {
   color: #9ca3af;
@@ -150,7 +162,7 @@ body {
   margin-top: 8px;
 }
 
-/* ================= ARTICLES GRID ================= */
+/* ARTICLES GRID */
 
 .articles-grid {
   margin-top: 20px;
@@ -159,7 +171,7 @@ body {
   gap: 16px;
 }
 
-/* ================= ARTICLE CARD ================= */
+/* ARTICLE CARD */
 
 .article-card {
   background: #0b1120;
