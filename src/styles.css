@@ -19,7 +19,7 @@ body {
 /* ================= HEADER / BRAND ================= */
 
 .header {
-  padding: 150px 0 28px;       /* visina hero bara kao na tvojoj slici */
+  padding: 38px 0 28px;       /* visina hero bara kao na tvojoj slici */
   margin-bottom: 20px;
 }
 
@@ -27,7 +27,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;    /* centrirano vodoravno */
-  gap: 24px;
+  gap: 3px;
 }
 
 /* logo */
@@ -35,7 +35,7 @@ body {
 .brand-logo {
   width: 110px;
   height: 110px;
-  border-radius: 16px;
+  border-radius: 3px;
   object-fit: contain;
 }
 
