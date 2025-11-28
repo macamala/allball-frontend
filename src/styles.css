@@ -13,50 +13,53 @@ body {
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: 8px 16px 40px; /* manji top padding da header bude bliže vrhu */
 }
 
 /* ========================================================= */
-/* HEADER + BRAND – LARGE, BEAUTIFUL, PROFESSIONAL */
+/* HEADER + BRAND – HERO STYLE, POPUNJAVA PRAZNINU */
 /* ========================================================= */
 
 .header {
   width: 100%;
-  padding: 28px 32px;
+  padding: 34px 0 26px;             /* više vertikalno da liči na hero traku */
   display: flex;
   justify-content: center;
   background: #050816;
   position: sticky;
   top: 0;
   z-index: 10;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
 .brand {
+  width: 100%;
+  max-width: 1200px;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 22px;
+  padding: 0 16px;
 }
 
 .brand-logo {
-  width: 90px;     /* BIGGER LOGO */
-  height: 90px;
-  border-radius: 16px;
+  width: 110px;          /* veći logo da popuni prostor */
+  height: 110px;
+  border-radius: 20px;
   object-fit: contain;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 2.6rem;    /* BIGGER TITLE */
+  font-size: 3rem;       /* veći naslov */
   font-weight: 800;
   color: #ffffff;
 }
 
 .brand-text p {
   margin: 0;
-  margin-top: 4px;
-  font-size: 1.05rem;   /* SLIGHTLY BIGGER TAGLINE */
+  margin-top: 6px;
+  font-size: 1.1rem;     /* veći tagline */
   color: #cbd4e1;
   opacity: 0.9;
 }
@@ -273,10 +276,10 @@ body {
 
 .article-hero {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   margin-bottom: 14px;
-  max-height: 260px;
+  max-height: 220px;
 }
 
 .article-hero-image {
@@ -362,9 +365,37 @@ body {
   gap: 12px;
 }
 
+/* ========================================================= */
 /* MOBILNA PODESAVANJA */
+/* ========================================================= */
 
 @media (max-width: 640px) {
+  .page-root {
+    padding: 4px 10px 28px;
+  }
+
+  .header {
+    padding: 22px 0 18px;
+  }
+
+  .brand {
+    gap: 14px;
+  }
+
+  .brand-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+  }
+
+  .brand-text h1 {
+    font-size: 2.2rem;
+  }
+
+  .brand-text p {
+    font-size: 0.95rem;
+  }
+
   .article-container {
     padding: 14px 12px 20px;
     border-radius: 12px;
@@ -378,14 +409,5 @@ body {
     width: 100%;
     margin-left: 0;
     margin-top: 4px;
-  }
-
-  .brand-text h1 {
-    font-size: 2.1rem; /* da i header lepo izgleda na mobu */
-  }
-
-  .brand-logo {
-    width: 80px;
-    height: 80px;
   }
 }
