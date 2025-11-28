@@ -21,7 +21,7 @@ function HomePage() {
   const [sort, setSort] = useState("newest");
   const [limit, setLimit] = useState(20);
 
-  // meta
+  // meta podaci
   useEffect(() => {
     const fetchMeta = async () => {
       try {
@@ -38,7 +38,7 @@ function HomePage() {
     fetchMeta();
   }, []);
 
-  // articles
+  // artikli
   const fetchArticles = async () => {
     setLoading(true);
     setError("");
@@ -69,13 +69,15 @@ function HomePage() {
 
   return (
     <div className="page-root">
-      {/* HERO – logo + ime + tagline */}
-      <section className="hero-section">
-        <img src={logo} alt="NinkoSports logo" className="hero-logo" />
-        <h1 className="hero-title">NinkoSports</h1>
-        <p className="hero-subtitle">
-          Your home for fast &amp; clean sports news
-        </p>
+      {/* HERO BANNER – kao na slici */}
+      <section className="hero-banner">
+        <div className="hero-banner-inner">
+          <img src={logo} alt="NinkoSports logo" className="hero-banner-logo" />
+          <h1 className="hero-banner-title">NinkoSports</h1>
+          <p className="hero-banner-subtitle">
+            Your home for fast &amp; clean sports news
+          </p>
+        </div>
       </section>
 
       {/* FILTERI */}
