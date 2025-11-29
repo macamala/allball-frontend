@@ -35,7 +35,7 @@ body {
 
 .brand {
   width: 100%;
-  max-width: 1200px;
+  max-width: 200px;
   display: flex;
   align-items: center;
   gap: 22px;
@@ -52,7 +52,7 @@ body {
 .brand-text h1 {
   margin: 0;
   font-size: 3rem;       /* veći naslov */
-  font-weight: 800;
+  font-weight: 1400;
   color: #ffffff;
 }
 
