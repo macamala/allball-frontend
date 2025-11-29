@@ -43,8 +43,8 @@ body {
 }
 
 .brand-logo {
-  width: 110px;          /* veći logo da popuni prostor */
-  height: 110px;
+  width: 10px;          /* veći logo da popuni prostor */
+  height: 10px;
   border-radius: 20px;
   object-fit: contain;
 }
