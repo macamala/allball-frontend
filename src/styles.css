@@ -13,61 +13,63 @@ body {
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 4px 16px 40px; /* još manje gore da sve krene ranije */
+  padding: 4px 16px 40px; /* mali razmak gore, sve kreće ranije */
 }
 
 /* ========================================================= */
-/* HEADER + BRAND – PUN POJAS, SKORO BEZ PRAZNINE */
+/* HERO BANNER – KAO NA SLICI                               */
 /* ========================================================= */
 
-.header {
+.hero-banner {
   width: 100%;
-  padding: 14px 0;                 /* MALI padding gore/dole, nema praznog */
-  display: flex;
-  justify-content: center;
-  background: #050816;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin-bottom: 16px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  margin: 0 auto 18px;
+  border-radius: 0 0 18px 18px;            /* zaobljen donji deo kao kartica */
+  background: radial-gradient(circle at top left, #1d4ed8 0, #020617 55%, #020617 100%);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+  padding: 26px 24px 32px;
 }
 
-.brand {
+.hero-banner-inner {
   max-width: 1200px;
-  width: 100%;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;          /* sve tačno u sredini */
-  gap: 20px;
-  padding: 0 16px;
+  justify-content: center;                 /* logo + tekst u sredini */
+  gap: 28px;
 }
 
-.brand-logo {
-  width: 130px;                     /* JOŠ veći logo */
+.hero-banner-logo img {
+  width: 130px;
   height: 130px;
-  border-radius: 24px;
+  border-radius: 28px;
   object-fit: contain;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 10px;
 }
 
-.brand-text h1 {
+.hero-banner-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hero-banner-title {
   margin: 0;
-  font-size: 3.4rem;                /* velik naslov da ispuni pojas */
+  font-size: 3.4rem;
   font-weight: 800;
+  letter-spacing: 0.03em;
   color: #ffffff;
 }
 
-.brand-text p {
-  margin: 0;
-  margin-top: 6px;
-  font-size: 1.2rem;                /* veći tagline */
+.hero-banner-subtitle {
+  margin: 6px 0 0;
+  font-size: 1.2rem;
   color: #cbd4e1;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 /* ========================================================= */
-/* FILTER BAR */
+/* FILTER BAR                                                */
 /* ========================================================= */
 
 .filter-bar {
@@ -133,7 +135,7 @@ body {
 }
 
 /* ========================================================= */
-/* INFO / ERROR */
+/* INFO / ERROR                                              */
 /* ========================================================= */
 
 .info-text {
@@ -147,7 +149,7 @@ body {
 }
 
 /* ========================================================= */
-/* ARTICLES GRID */
+/* ARTICLES GRID                                             */
 /* ========================================================= */
 
 .articles-grid {
@@ -158,7 +160,7 @@ body {
 }
 
 /* ========================================================= */
-/* ARTICLE CARD */
+/* ARTICLE CARD                                              */
 /* ========================================================= */
 
 .article-card {
@@ -246,7 +248,7 @@ body {
 }
 
 /* ========================================================= */
-/* SINGLE ARTICLE PAGE */
+/* SINGLE ARTICLE PAGE                                       */
 /* ========================================================= */
 
 .article-page-root {
@@ -368,7 +370,7 @@ body {
 }
 
 /* ========================================================= */
-/* MOBILNA PODESAVANJA */
+/* MOBILNA PODEŠAVANJA                                       */
 /* ========================================================= */
 
 @media (max-width: 640px) {
@@ -376,25 +378,32 @@ body {
     padding: 4px 10px 28px;
   }
 
-  .header {
-    padding: 10px 0;
+  .hero-banner {
+    border-radius: 0 0 14px 14px;
+    padding: 18px 14px 22px;
   }
 
-  .brand {
-    gap: 14px;
+  .hero-banner-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
   }
 
-  .brand-logo {
-    width: 90px;
-    height: 90px;
-    border-radius: 18px;
+  .hero-banner-logo img {
+    width: 100px;
+    height: 100px;
+    border-radius: 22px;
   }
 
-  .brand-text h1 {
+  .hero-banner-text {
+    align-items: center;
+  }
+
+  .hero-banner-title {
     font-size: 2.4rem;
   }
 
-  .brand-text p {
+  .hero-banner-subtitle {
     font-size: 1rem;
   }
 
