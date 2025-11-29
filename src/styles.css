@@ -358,7 +358,7 @@ body {
 }
 
 .hero-banner-logo img {
-  width: 140px;                   /* OVO ograničava veličinu loga */
+  width: 240px;                   /* OVO ograničava veličinu loga */
   max-width: 40vw;                /* na mobilnom da ne bude preveliko */
   height: auto;
   display: block;
