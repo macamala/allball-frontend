@@ -45,7 +45,7 @@ body {
 .brand-logo {
   width: 10px;          /* veći logo da popuni prostor */
   height: 10px;
-  border-radius: 20px;
+  border-radius: 2px;
   object-fit: contain;
 }
 
