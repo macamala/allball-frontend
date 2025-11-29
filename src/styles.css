@@ -1,5 +1,3 @@
-/* ================= GLOBAL ================= */
-
 * {
   box-sizing: border-box;
 }
@@ -8,106 +6,74 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: #020617; /* tamno kao mozzartsport */
+  background: #050816;
   color: #f9fafb;
 }
 
 .page-root {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 16px 16px 40px;
+  padding: 8px 16px 40px; /* manji top padding da header bude bliže vrhu */
 }
 
-/* Mozzart žuta / plava paleta */
-:root {
-  --ms-yellow: #fbbf24;
-  --ms-yellow-soft: rgba(251, 191, 36, 0.12);
-  --ms-blue-dark: #020617;
-  --ms-blue-mid: #0b1120;
-  --ms-blue-soft: #111827;
-  --ms-border: #1f2937;
-}
-
-/* ================= HEADER / HERO ================= */
-
-/* Ako koristiš hero-section (logo + title + tagline) */
-.hero-section {
-  width: 100%;
-  text-align: center;
-  padding: 40px 20px 24px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.9);
-  background: radial-gradient(circle at top, #111827 0, #020617 55%, #020617 100%);
-}
-
-.hero-logo {
-  width: 110px;
-  height: auto;
-  margin-bottom: 16px;
-}
-
-.hero-title {
-  font-size: 3rem;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: 0.04em;
-}
-
-.hero-subtitle {
-  font-size: 1rem;
-  margin-top: 8px;
-  color: #e5e7eb;
-  opacity: 0.9;
-}
-
-/* Ako još uvek koristiš stari header/brand – da liči na mozzart traku */
+/* ========================================================= */
+/* HEADER + BRAND – HERO STYLE, POPUNJAVA PRAZNINU */
+/* ========================================================= */
 
 .header {
   width: 100%;
-  padding: 16px 0 10px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.9);
-  background: radial-gradient(circle at top, #111827 0, #020617 60%, #020617 100%);
+  padding: 34px 0 26px;             /* više vertikalno da liči na hero traku */
+  display: flex;
+  justify-content: center;
+  background: #050816;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
-.header .brand {
+.brand {
+  width: 100%;
+  max-width: 1200px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
+  gap: 22px;
+  padding: 0 16px;
 }
 
 .brand-logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 110px;          /* veći logo da popuni prostor */
+  height: 110px;
+  border-radius: 20px;
   object-fit: contain;
-  box-shadow: 0 0 18px rgba(0, 0, 0, 0.6);
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 3rem;       /* veći naslov */
   font-weight: 800;
-  letter-spacing: 0.03em;
-  color: #f9fafb;
+  color: #ffffff;
 }
 
 .brand-text p {
-  margin: 2px 0 0;
-  font-size: 0.9rem;
-  color: #e5e7eb;
-  opacity: 0.85;
+  margin: 0;
+  margin-top: 6px;
+  font-size: 1.1rem;     /* veći tagline */
+  color: #cbd4e1;
+  opacity: 0.9;
 }
 
-/* ================= FILTER BAR ================= */
+/* ========================================================= */
+/* FILTER BAR */
+/* ========================================================= */
 
 .filter-bar {
-  background: var(--ms-blue-soft);
-  border-radius: 14px;
-  padding: 16px 18px;
-  margin-top: 16px;
+  background: #111827;
+  border-radius: 12px;
+  padding: 16px;
   margin-bottom: 20px;
-  border: 1px solid var(--ms-border);
-  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.65);
+  border: 1px solid #1f2937;
 }
 
 .filter-row {
@@ -129,28 +95,18 @@ body {
 }
 
 .filter-group label {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #9ca3af;
   margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .filter-group select,
 .filter-group input {
-  padding: 7px 9px;
+  padding: 6px 8px;
   border-radius: 8px;
   border: 1px solid #374151;
-  background: #020617;
+  background: #030712;
   color: #f9fafb;
-  font-size: 0.9rem;
-}
-
-.filter-group select:focus,
-.filter-group input:focus {
-  outline: none;
-  border-color: var(--ms-yellow);
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.7);
 }
 
 .filter-group input::placeholder {
@@ -159,25 +115,24 @@ body {
 
 .apply-btn {
   align-self: flex-end;
-  padding: 8px 18px;
+  padding: 8px 16px;
   border-radius: 999px;
   border: none;
-  background: var(--ms-yellow);
-  color: #1e293b;
-  font-weight: 700;
-  font-size: 0.9rem;
+  background: #2563eb;
+  color: #f9fafb;
+  font-weight: 600;
   cursor: pointer;
   margin-left: auto;
   margin-top: auto;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .apply-btn:hover {
-  background: #facc15;
+  background: #1d4ed8;
 }
 
-/* ================= INFO / ERROR ================= */
+/* ========================================================= */
+/* INFO / ERROR */
+/* ========================================================= */
 
 .info-text {
   color: #9ca3af;
@@ -189,39 +144,34 @@ body {
   margin-top: 8px;
 }
 
-/* ================= ARTICLES GRID ================= */
+/* ========================================================= */
+/* ARTICLES GRID */
+/* ========================================================= */
 
 .articles-grid {
   margin-top: 20px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
-/* ================= ARTICLE CARD ================= */
+/* ========================================================= */
+/* ARTICLE CARD */
+/* ========================================================= */
 
 .article-card {
-  background: var(--ms-blue-mid);
-  border-radius: 14px;
+  background: #0b1120;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--ms-border);
+  border: 1px solid #1f2937;
   display: flex;
   flex-direction: column;
-  min-height: 240px;
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.7);
-  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out,
-    border-color 0.15s ease-out;
-}
-
-.article-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
-  border-color: rgba(251, 191, 36, 0.6);
+  min-height: 220px;
 }
 
 .article-image-wrapper {
   width: 100%;
-  max-height: 190px;
+  max-height: 180px;
   overflow: hidden;
 }
 
@@ -230,12 +180,6 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
-  transform: scale(1.02);
-  transition: transform 0.25s ease-out;
-}
-
-.article-card:hover .article-image {
-  transform: scale(1.06);
 }
 
 .article-content {
@@ -244,8 +188,6 @@ body {
   flex-direction: column;
   flex: 1;
 }
-
-/* meta tagovi iznad naslova – sport, liga, zemlja */
 
 .article-meta {
   display: flex;
@@ -258,40 +200,29 @@ body {
   font-size: 0.7rem;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #111827;
+  background: #1f2937;
   color: #e5e7eb;
-  border: 1px solid #1f2937;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .tag.secondary {
-  background: var(--ms-yellow-soft);
-  color: var(--ms-yellow);
-  border-color: rgba(251, 191, 36, 0.7);
+  background: #0f766e;
 }
 
 .tag.country-tag {
   background: #7c2d12;
 }
 
-/* naslov + summary */
-
 .article-title {
   font-size: 1rem;
   margin: 4px 0 6px;
-  font-weight: 700;
 }
 
 .article-summary {
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   color: #d1d5db;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   flex: 1;
-  line-height: 1.4;
 }
-
-/* footer – vreme + link */
 
 .article-footer {
   display: flex;
@@ -303,77 +234,180 @@ body {
 }
 
 .article-link {
-  color: var(--ms-yellow);
+  color: #60a5fa;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .article-link:hover {
   text-decoration: underline;
 }
 
-/* ================= RESPONSIVE ================= */
+/* ========================================================= */
+/* SINGLE ARTICLE PAGE */
+/* ========================================================= */
 
-@media (max-width: 768px) {
+.article-page-root {
+  display: flex;
+  justify-content: center;
+  padding: 16px 12px 40px;
+}
+
+.article-container {
+  width: 100%;
+  max-width: 900px;
+  background: #020617;
+  border-radius: 16px;
+  border: 1px solid #1f2937;
+  padding: 16px 18px 24px;
+}
+
+.article-back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.article-back-link:hover {
+  text-decoration: underline;
+}
+
+.article-hero {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  max-height: 220px;
+}
+
+.article-hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.article-page-title {
+  font-size: 1.8rem;
+  margin: 4px 0 10px;
+}
+
+.article-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.article-meta-chip {
+  font-size: 0.75rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+.article-meta-chip.secondary {
+  background: #0f766e;
+}
+
+.article-meta-chip.country-chip {
+  background: #7c2d12;
+}
+
+.article-meta-date {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-left: auto;
+}
+
+.article-full-body {
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+
+.article-full-paragraph {
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: #e5e7eb;
+  margin: 0 0 10px;
+}
+
+.article-source-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.article-source-link:hover {
+  text-decoration: underline;
+}
+
+/* RELATED ARTICLES SECTION */
+
+.related-section {
+  margin-top: 26px;
+}
+
+.related-title {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+}
+
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* ========================================================= */
+/* MOBILNA PODESAVANJA */
+/* ========================================================= */
+
+@media (max-width: 640px) {
   .page-root {
-    padding: 12px 10px 28px;
+    padding: 4px 10px 28px;
   }
 
-  .hero-section {
-    padding: 24px 12px 16px;
+  .header {
+    padding: 22px 0 18px;
   }
 
-  .hero-logo {
-    width: 90px;
-    margin-bottom: 10px;
+  .brand {
+    gap: 14px;
   }
 
-  .hero-title {
+  .brand-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+  }
+
+  .brand-text h1 {
     font-size: 2.2rem;
   }
 
-  .hero-subtitle {
-    font-size: 0.9rem;
+  .brand-text p {
+    font-size: 0.95rem;
   }
 
-  .filter-bar {
-    padding: 14px 12px;
+  .article-container {
+    padding: 14px 12px 20px;
+    border-radius: 12px;
   }
-}
 
-/* ================= HERO BANNER (logo + naslov + tagline) ================= */
+  .article-page-title {
+    font-size: 1.4rem;
+  }
 
-.hero-banner {
-  width: 100%;
-  padding: 50px 16px 26px;        /* koliko prostora hoćeš gore/dole */
-  display: flex;
-  justify-content: center;
-  background: #020617;            /* ista pozadina kao ostatak */
-}
-
-.hero-banner-inner {
-  text-align: center;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.hero-banner-logo img {
-  width: 240px;                   /* OVO ograničava veličinu loga */
-  max-width: 40vw;                /* na mobilnom da ne bude preveliko */
-  height: auto;
-  display: block;
-  margin: 0 auto 18px;
-}
-
-.hero-banner-title {
-  margin: 0;
-  font-size: 3rem;
-  font-weight: 800;
-}
-
-.hero-banner-subtitle {
-  margin-top: 10px;
-  font-size: 1rem;
-  color: #e5e7eb;
-  opacity: 0.9;
+  .article-meta-date {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+  }
 }
