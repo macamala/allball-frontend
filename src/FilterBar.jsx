@@ -7,13 +7,11 @@ function FilterBar({
   league,
   country,
   sort,
-  limit,
   onSportChange,
   onLeagueChange,
   onCountryChange,
   onSortChange,
-  onLimitChange,
-  onApply
+  onApply,
 }) {
   // leagues filtriramo po sportu ako je izabran
   const filteredLeagues = sport
@@ -77,17 +75,6 @@ function FilterBar({
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
           </select>
-        </div>
-
-        <div className="filter-group">
-          <label>Limit</label>
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={limit}
-            onChange={(e) => onLimitChange(Number(e.target.value) || 20)}
-          />
         </div>
 
         <button className="apply-btn" onClick={onApply}>
