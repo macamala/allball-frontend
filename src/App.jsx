@@ -8,6 +8,9 @@ import logo from "./assets/logo-ninkosports.png";
 // Backend URL
 const API_BASE = "https://allball-backend-production.up.railway.app";
 
+// Koliko članaka da tražimo od bekenda (nije vidljivo u UI)
+const DEFAULT_LIMIT = 50;
+
 function HomePage() {
   const [articles, setArticles] = useState([]);
   const [sports, setSports] = useState([]);
@@ -19,7 +22,6 @@ function HomePage() {
   const [league, setLeague] = useState("");
   const [country, setCountry] = useState("");
   const [sort, setSort] = useState("newest");
-  const [limit, setLimit] = useState(20);
 
   // Fetch meta
   useEffect(() => {
@@ -49,7 +51,9 @@ function HomePage() {
       if (league) params.append("league", league);
       if (country) params.append("country", country);
       if (sort) params.append("sort", sort);
-      if (limit) params.append("limit", String(limit));
+
+      // limit više nije u UI, ali ovde tražimo npr. 50 članka od bekenda
+      params.append("limit", String(DEFAULT_LIMIT));
 
       const res = await fetch(`${API_BASE}/articles?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -91,12 +95,10 @@ function HomePage() {
         league={league}
         country={country}
         sort={sort}
-        limit={limit}
         onSportChange={setSport}
         onLeagueChange={setLeague}
         onCountryChange={setCountry}
         onSortChange={setSort}
-        onLimitChange={setLimit}
         onApply={fetchArticles}
       />
 
