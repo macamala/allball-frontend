@@ -82,11 +82,7 @@ function ArticlePage({ apiBase }) {
     );
   }
 
-  const displayText =
-    article.ai_content ||
-    article.content ||
-    article.description ||
-    "";
+  const displayText = article.content || "";
 
   // jednostavno parsiranje paragrafova
   const paragraphs = displayText
@@ -95,8 +91,8 @@ function ArticlePage({ apiBase }) {
 
   // formatiranje datuma
   let formattedDate = "";
-  if (article.published_at) {
-    const d = new Date(article.published_at);
+  if (article.created_at) {
+    const d = new Date(article.created_at);
     if (!isNaN(d.getTime())) {
       formattedDate = d.toLocaleString(undefined, {
         year: "numeric",
@@ -115,10 +111,10 @@ function ArticlePage({ apiBase }) {
           ← Back to NinkoSports
         </Link>
 
-        {article.image && (
+        {article.image_url && (
           <div className="article-hero">
             <img
-              src={article.image}
+              src={article.image_url}
               alt={article.title}
               className="article-hero-image"
             />
@@ -155,14 +151,14 @@ function ArticlePage({ apiBase }) {
             ))
           ) : (
             <p className="article-full-paragraph">
-              {article.description || "No content available."}
+              {article.content || "No content available."}
             </p>
           )}
         </div>
 
-        {article.url && (
+        {article.source_url && (
           <a
-            href={article.url}
+            href={article.source_url}
             className="article-source-link"
             target="_blank"
             rel="noreferrer"

@@ -5,8 +5,9 @@ import FilterBar from "./FilterBar.jsx";
 import ArticlePage from "./ArticlePage.jsx";
 import logo from "./assets/logo-ninkosports.png";
 
-// Backend URL
-const API_BASE = "https://allball-backend-production.up.railway.app";
+const API_BASE = (
+  import.meta.env.VITE_API_URL || "http://localhost:8000"
+).replace(/\/$/, "");
 
 // Koliko članaka da tražimo od bekenda (nije vidljivo u UI)
 const DEFAULT_LIMIT = 50;
