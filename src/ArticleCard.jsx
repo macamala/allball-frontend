@@ -1,32 +1,30 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import {
+  articleDate,
+  competitionLabel,
+  countryLabel,
+  sportLabel,
+} from "./labels.js";
 
 function ArticleCard({ article }) {
-  const {
-    title,
-    summary,
-    image_url,
-    sport,
-    league,
-    country,
-    created_at,
-    slug
-  } = article;
-
-  const dateStr = created_at
-    ? new Date(created_at).toLocaleString()
-    : "";
+  const title = article.title;
+  const summary = article.summary;
+  const imageUrl = article.image_url;
+  const slug = article.slug;
+  const dateStr = articleDate(article);
+  const sport = sportLabel(article.sport, article.sport_label);
+  const league = competitionLabel(article.league, article.league_label);
+  const country = countryLabel(article.country, article.country_label);
 
   return (
-    <Link
-      to={`/article/${slug}`}
-      className="article-card"
-      style={{ textDecoration: "none", color: "inherit" }}
-    >
-      {image_url && (
+    <Link to={`/article/${slug}`} className="article-card">
+      {imageUrl ? (
         <div className="article-image-wrapper">
-          <img src={image_url} alt={title} className="article-image" />
+          <img src={imageUrl} alt={title} className="article-image" />
         </div>
+      ) : (
+        <div className="article-image-wrapper article-image-placeholder" aria-hidden="true" />
       )}
 
       <div className="article-content">

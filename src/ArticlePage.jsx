@@ -1,6 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import ArticleCard from "./ArticleCard.jsx";
+import SiteHeader from "./SiteHeader.jsx";
+import {
+  articleDate,
+  CANONICAL_SITE,
+  competitionLabel,
+  countryLabel,
+  sportLabel,
+} from "./labels.js";
+
+function setMeta(attrName, attrValue, content) {
+  if (!content) return;
+  const selector = `meta[${attrName}="${attrValue}"]`;
+  let el = document.head.querySelector(selector);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attrName, attrValue);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
 
 function ArticlePage({ apiBase }) {
   const { slug } = useParams();
@@ -13,55 +33,105 @@ function ArticlePage({ apiBase }) {
     const fetchArticle = async () => {
       setLoading(true);
       setError("");
+      setRelated([]);
 
       try {
         const res = await fetch(`${apiBase}/articles/${slug}`);
+        if (res.status === 404) {
+          setArticle(null);
+          setError("Article not found.");
+          return;
+        }
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
         setArticle(data || null);
 
-        // nakon što dobijemo članak, povlačimo related
-        if (data) {
-          fetchRelated(data);
+        if (data?.slug) {
+          try {
+            const relatedRes = await fetch(
+              `${apiBase}/articles/${encodeURIComponent(data.slug)}/related?limit=6`
+            );
+            if (relatedRes.ok) {
+              const relatedData = await relatedRes.json();
+              setRelated(Array.isArray(relatedData) ? relatedData.slice(0, 3) : []);
+            }
+          } catch (relatedErr) {
+            console.error("Error fetching related:", relatedErr);
+          }
         }
       } catch (err) {
         console.error("Error fetching article:", err);
         setError("Failed to load article.");
+        setArticle(null);
       } finally {
         setLoading(false);
-      }
-    };
-
-    const fetchRelated = async (mainArticle) => {
-      try {
-        const params = new URLSearchParams();
-        if (mainArticle.sport) params.append("sport", mainArticle.sport);
-        if (mainArticle.league) params.append("league", mainArticle.league);
-        params.append("limit", "6");
-
-        const url = `${apiBase}/articles?${params.toString()}`;
-        const res = await fetch(url);
-        if (!res.ok) return;
-
-        const data = await res.json();
-        if (!Array.isArray(data)) return;
-
-        // izbacujemo trenutni članak i uzimamo 3 random / prva
-        const filtered = data.filter((a) => a.id !== mainArticle.id);
-        setRelated(filtered.slice(0, 3));
-      } catch (err) {
-        console.error("Error fetching related:", err);
       }
     };
 
     fetchArticle();
   }, [apiBase, slug]);
 
+  useEffect(() => {
+    if (!article) {
+      document.title = error ? "Article not found | NinkoSports" : "NinkoSports";
+      return undefined;
+    }
+
+    const canonical = `${CANONICAL_SITE}/article/${article.slug}`;
+    document.title = `${article.title} | NinkoSports`;
+    setMeta("name", "description", article.summary || article.title);
+    setMeta("property", "og:title", article.title);
+    setMeta("property", "og:description", article.summary || article.title);
+    setMeta("property", "og:url", canonical);
+    setMeta("property", "og:type", "article");
+    if (article.image_url) {
+      setMeta("property", "og:image", article.image_url);
+    }
+    setMeta("name", "twitter:card", "summary_large_image");
+    setMeta("name", "twitter:title", article.title);
+
+    let link = document.head.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      document.head.appendChild(link);
+    }
+    link.setAttribute("href", canonical);
+
+    const existing = document.getElementById("ninko-jsonld");
+    if (existing) existing.remove();
+    const script = document.createElement("script");
+    script.id = "ninko-jsonld";
+    script.type = "application/ld+json";
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      headline: article.title,
+      datePublished: article.published_at || article.created_at,
+      dateModified: article.published_at || article.created_at,
+      image: article.image_url ? [article.image_url] : undefined,
+      publisher: {
+        "@type": "Organization",
+        name: "NinkoSports",
+        url: CANONICAL_SITE,
+      },
+      mainEntityOfPage: canonical,
+      description: article.summary || article.title,
+    });
+    document.head.appendChild(script);
+
+    return () => {
+      const jsonld = document.getElementById("ninko-jsonld");
+      if (jsonld) jsonld.remove();
+    };
+  }, [article, error]);
+
   if (loading) {
     return (
       <div className="article-page-root">
+        <SiteHeader />
         <div className="article-container">
           <p className="info-text">Loading article...</p>
         </div>
@@ -72,10 +142,11 @@ function ArticlePage({ apiBase }) {
   if (error || !article) {
     return (
       <div className="article-page-root">
+        <SiteHeader />
         <div className="article-container">
           <p className="error-text">{error || "Article not found."}</p>
           <Link to="/" className="article-back-link">
-            ← Back to NinkoSports feed
+            ← Back to News
           </Link>
         </div>
       </div>
@@ -83,35 +154,40 @@ function ArticlePage({ apiBase }) {
   }
 
   const displayText = article.content || "";
-
-  // jednostavno parsiranje paragrafova
   const paragraphs = displayText
     ? displayText.split(/\n+/).filter((p) => p.trim().length > 0)
     : [];
-
-  // formatiranje datuma
-  let formattedDate = "";
-  if (article.created_at) {
-    const d = new Date(article.created_at);
-    if (!isNaN(d.getTime())) {
-      formattedDate = d.toLocaleString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-  }
+  const formattedDate = articleDate(article);
+  const sport = sportLabel(article.sport, article.sport_label);
+  const league = competitionLabel(article.league, article.league_label);
+  const country = countryLabel(article.country, article.country_label);
 
   return (
     <div className="article-page-root">
-      <div className="article-container">
+      <SiteHeader />
+      <article className="article-container">
         <Link to="/" className="article-back-link">
-          ← Back to NinkoSports
+          ← Back to News
         </Link>
 
-        {article.image_url && (
+        <div className="article-meta-row">
+          {sport && <span className="article-meta-chip">{sport}</span>}
+          {league && (
+            <span className="article-meta-chip secondary">{league}</span>
+          )}
+          {country && (
+            <span className="article-meta-chip country-chip">{country}</span>
+          )}
+          {formattedDate && (
+            <time className="article-meta-date" dateTime={article.published_at || article.created_at}>
+              {formattedDate}
+            </time>
+          )}
+        </div>
+
+        <h1 className="article-page-title">{article.title}</h1>
+
+        {article.image_url ? (
           <div className="article-hero">
             <img
               src={article.image_url}
@@ -119,28 +195,9 @@ function ArticlePage({ apiBase }) {
               className="article-hero-image"
             />
           </div>
+        ) : (
+          <div className="article-hero article-hero-empty" aria-hidden="true" />
         )}
-
-        <h1 className="article-page-title">{article.title}</h1>
-
-        <div className="article-meta-row">
-          {article.sport && (
-            <span className="article-meta-chip">{article.sport}</span>
-          )}
-          {article.league && (
-            <span className="article-meta-chip secondary">
-              {article.league}
-            </span>
-          )}
-          {article.country && (
-            <span className="article-meta-chip country-chip">
-              {article.country}
-            </span>
-          )}
-          {formattedDate && (
-            <span className="article-meta-date">{formattedDate}</span>
-          )}
-        </div>
 
         <div className="article-full-body">
           {paragraphs.length > 0 ? (
@@ -151,25 +208,14 @@ function ArticlePage({ apiBase }) {
             ))
           ) : (
             <p className="article-full-paragraph">
-              {article.content || "No content available."}
+              {article.summary || "This NinkoSports story is being updated."}
             </p>
           )}
         </div>
 
-        {article.source_url && (
-          <a
-            href={article.source_url}
-            className="article-source-link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Read original source ↗
-          </a>
-        )}
-
         {related.length > 0 && (
           <section className="related-section">
-            <h2 className="related-title">More from this league</h2>
+            <h2 className="related-title">Related NinkoSports stories</h2>
             <div className="related-grid">
               {related.map((rel) => (
                 <ArticleCard key={rel.id} article={rel} />
@@ -177,7 +223,7 @@ function ArticlePage({ apiBase }) {
             </div>
           </section>
         )}
-      </div>
+      </article>
     </div>
   );
 }

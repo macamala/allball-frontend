@@ -1,4 +1,5 @@
 import React from "react";
+import { countryLabel, sportLabel, competitionLabel } from "./labels.js";
 
 function FilterBar({
   sports,
@@ -13,62 +14,74 @@ function FilterBar({
   onSortChange,
   onApply,
 }) {
-  // leagues filtriramo po sportu ako je izabran
   const filteredLeagues = sport
-    ? leagues.filter((l) => l.sport === sport)
+    ? leagues.filter((item) => item.sport === sport)
     : leagues;
+
+  const countries = Array.from(
+    new Set((leagues || []).map((item) => item.country).filter(Boolean))
+  ).sort((a, b) => countryLabel(a).localeCompare(countryLabel(b)));
 
   return (
     <section className="filter-bar">
       <div className="filter-row">
         <div className="filter-group">
-          <label>Sport</label>
+          <label htmlFor="filter-sport">Sport</label>
           <select
+            id="filter-sport"
             value={sport}
             onChange={(e) => {
               onSportChange(e.target.value);
-              onLeagueChange(""); // reset liga kad se promeni sport
+              onLeagueChange("");
             }}
           >
-            <option value="">All</option>
-            {sports.map((s) => (
-              <option key={s} value={s}>
-                {s}
+            <option value="">All sports</option>
+            {sports.map((item) => (
+              <option key={item} value={item}>
+                {sportLabel(item)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="filter-group">
-          <label>League</label>
+          <label htmlFor="filter-league">Competition</label>
           <select
+            id="filter-league"
             value={league}
             onChange={(e) => onLeagueChange(e.target.value)}
           >
-            <option value="">All</option>
-            {filteredLeagues.map((l) => (
-              <option key={l.league} value={l.league}>
-                {l.league}
+            <option value="">All competitions</option>
+            {filteredLeagues.map((item) => (
+              <option key={item.league} value={item.league}>
+                {item.label || competitionLabel(item.league)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="filter-group">
-          <label>Country</label>
-          <input
-            type="text"
-            placeholder="england, spain..."
+          <label htmlFor="filter-country">Country</label>
+          <select
+            id="filter-country"
             value={country}
             onChange={(e) => onCountryChange(e.target.value)}
-          />
+          >
+            <option value="">All countries</option>
+            {countries.map((item) => (
+              <option key={item} value={item}>
+                {countryLabel(item)}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="filter-row">
         <div className="filter-group">
-          <label>Sort</label>
+          <label htmlFor="filter-sort">Sort</label>
           <select
+            id="filter-sort"
             value={sort}
             onChange={(e) => onSortChange(e.target.value)}
           >
@@ -77,7 +90,7 @@ function FilterBar({
           </select>
         </div>
 
-        <button className="apply-btn" onClick={onApply}>
+        <button className="apply-btn" onClick={onApply} type="button">
           Apply filters
         </button>
       </div>

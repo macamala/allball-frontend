@@ -4,12 +4,12 @@ import ArticleCard from "./ArticleCard.jsx";
 import FilterBar from "./FilterBar.jsx";
 import ArticlePage from "./ArticlePage.jsx";
 import logo from "./assets/logo-ninkosports.png";
+import { CANONICAL_SITE } from "./labels.js";
 
 const API_BASE = (
   import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
-// Koliko članaka da tražimo od bekenda (nije vidljivo u UI)
 const DEFAULT_LIMIT = 50;
 
 function HomePage() {
@@ -24,7 +24,17 @@ function HomePage() {
   const [country, setCountry] = useState("");
   const [sort, setSort] = useState("newest");
 
-  // Fetch meta
+  useEffect(() => {
+    document.title = "NinkoSports | Sports news in English";
+    let link = document.head.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      document.head.appendChild(link);
+    }
+    link.setAttribute("href", `${CANONICAL_SITE}/`);
+  }, []);
+
   useEffect(() => {
     const fetchMeta = async () => {
       try {
@@ -32,6 +42,9 @@ function HomePage() {
           fetch(`${API_BASE}/meta/sports`),
           fetch(`${API_BASE}/meta/leagues`),
         ]);
+        if (!sportsRes.ok || !leaguesRes.ok) {
+          throw new Error("meta");
+        }
         setSports((await sportsRes.json()) || []);
         setLeagues((await leaguesRes.json()) || []);
       } catch (err) {
@@ -41,7 +54,6 @@ function HomePage() {
     fetchMeta();
   }, []);
 
-  // Fetch articles
   const fetchArticles = async () => {
     setLoading(true);
     setError("");
@@ -52,8 +64,6 @@ function HomePage() {
       if (league) params.append("league", league);
       if (country) params.append("country", country);
       if (sort) params.append("sort", sort);
-
-      // limit više nije u UI, ali ovde tražimo npr. 50 članka od bekenda
       params.append("limit", String(DEFAULT_LIMIT));
 
       const res = await fetch(`${API_BASE}/articles?${params.toString()}`);
@@ -73,7 +83,6 @@ function HomePage() {
 
   return (
     <div className="page-root">
-      {/* HERO BANNER */}
       <section className="hero-banner">
         <div className="hero-banner-inner">
           <div className="hero-banner-logo">
@@ -88,7 +97,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* FILTER BAR */}
       <FilterBar
         sports={sports}
         leagues={leagues}
@@ -103,7 +111,6 @@ function HomePage() {
         onApply={fetchArticles}
       />
 
-      {/* ARTICLE GRID */}
       {loading && <p className="info-text">Loading articles...</p>}
       {error && <p className="error-text">{error}</p>}
       {!loading && !error && articles.length === 0 && (
