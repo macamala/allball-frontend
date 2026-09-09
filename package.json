@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "npm run build && npx serve -s dist -c serve.json -l $PORT"
+    "start": "npm run build && npx serve -s dist -l $PORT"
   },
   "dependencies": {
     "react": "^18.3.1",
