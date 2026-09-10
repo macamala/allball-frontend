@@ -1,27 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getArticle, getRelated, recordView } from "../api.js";
+import {
+  getArticle,
+  getArticles,
+  getMostRead,
+  getRelated,
+  getScores,
+  recordView,
+} from "../api.js";
 import { leaguePath, sportPath } from "../config/sports.js";
+import { heroMedia, resolveBlocks } from "../lib/articleBlocks.js";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
   setPageSeo,
 } from "../lib/seo.js";
 import {
-  articleDate,
   competitionLabel,
   sportLabel,
 } from "../labels.js";
-import ArticleCard from "../components/ArticleCard.jsx";
-import ArticleImage from "../components/ArticleImage.jsx";
-import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
-import ShareButtons from "../components/ShareButtons.jsx";
+import ArticleBody from "../components/article/ArticleBody.jsx";
+import ArticleHeader from "../components/article/ArticleHeader.jsx";
+import ArticleHero from "../components/article/ArticleHero.jsx";
+import ArticleShare from "../components/article/ArticleShare.jsx";
+import ArticleSidebar from "../components/article/ArticleSidebar.jsx";
+import RelatedStories from "../components/article/RelatedStories.jsx";
 
 export default function ArticlePage() {
   const { slug } = useParams();
   const [article, setArticle] = useState(null);
   const [related, setRelated] = useState([]);
+  const [latest, setLatest] = useState([]);
+  const [mostRead, setMostRead] = useState([]);
+  const [scores, setScores] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -35,12 +47,30 @@ export default function ArticlePage() {
         if (cancelled) return;
         setArticle(data);
         recordView(data.slug);
-        try {
-          const relatedData = await getRelated(data.slug, 6);
-          if (!cancelled) setRelated(Array.isArray(relatedData) ? relatedData : []);
-        } catch (err) {
-          if (!cancelled) setRelated([]);
-        }
+        const extras = await Promise.allSettled([
+          getRelated(data.slug, 6),
+          getArticles({ limit: 10 }),
+          getMostRead(8),
+          getScores(),
+        ]);
+        if (cancelled) return;
+        const [relatedData, latestData, mostReadData, scoresData] = extras;
+        setRelated(
+          relatedData.status === "fulfilled" && Array.isArray(relatedData.value)
+            ? relatedData.value
+            : []
+        );
+        setLatest(
+          latestData.status === "fulfilled" && Array.isArray(latestData.value)
+            ? latestData.value
+            : []
+        );
+        setMostRead(
+          mostReadData.status === "fulfilled" && Array.isArray(mostReadData.value)
+            ? mostReadData.value
+            : []
+        );
+        setScores(scoresData.status === "fulfilled" ? scoresData.value : null);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -106,75 +136,39 @@ export default function ArticlePage() {
     );
   }
 
-  const paragraphs = (article.content || "")
-    .split(/\n+/)
-    .filter((p) => p.trim().length > 0);
-  const sport = sportLabel(article.sport, article.sport_label);
-  const league = competitionLabel(article.league, article.league_label);
-  const crumbs = [
-    { name: "Home", path: "/" },
-    article.sport ? { name: sport, path: sportPath(article.sport) } : null,
-    article.league
-      ? { name: league, path: leaguePath(article.sport, article.league) }
-      : null,
-    { name: article.title },
-  ].filter(Boolean);
+  const hero = heroMedia(article);
+  const blocks = resolveBlocks(article);
 
   return (
     <article className="article-page">
-      <Breadcrumbs items={crumbs} />
-      <div className="pill-row">
-        {sport && <span className="pill">{sport}</span>}
-        {league && <span className="pill pill-league">{league}</span>}
-        {article.is_breaking && <span className="pill pill-breaking">Breaking</span>}
-      </div>
-      <h1 className="article-headline">{article.title}</h1>
-      <div className="article-byline">
-        {articleDate(article) && (
-          <time dateTime={article.published_at || article.created_at}>
-            {articleDate(article)}
-          </time>
-        )}
-        {article.reading_time_minutes && (
-          <span>{article.reading_time_minutes} min read</span>
-        )}
-      </div>
-      <ArticleImage
-        src={article.image_url}
-        alt={article.image_url ? article.title : ""}
-        wrapperClassName="article-hero-media"
-        eager
-      />
-      <div className="article-body">
-        {paragraphs.length > 0 ? (
-          paragraphs.map((p, idx) => <p key={idx}>{p}</p>)
-        ) : (
-          <p>{article.summary || "This NinkoSports story is being updated."}</p>
-        )}
-      </div>
-      <ShareButtons title={article.title} path={`/article/${article.slug}`} />
-      <div className="article-pager">
-        {article.previous && (
-          <Link to={`/article/${article.previous.slug}`}>
-            Previous: {article.previous.title}
-          </Link>
-        )}
-        {article.next && (
-          <Link to={`/article/${article.next.slug}`}>
-            Next: {article.next.title}
-          </Link>
-        )}
-      </div>
-      {related.length > 0 && (
-        <section className="section">
-          <h2 className="section-title">Related stories</h2>
-          <div className="card-grid">
-            {related.map((item) => (
-              <ArticleCard key={item.id} article={item} />
-            ))}
+      <ArticleHeader article={article} />
+      <ArticleHero media={hero} />
+      <div className="article-layout">
+        <div className="article-column">
+          <ArticleBody blocks={blocks} title={article.title} />
+          <ArticleShare title={article.title} path={`/article/${article.slug}`} />
+          <div className="article-pager">
+            {article.previous && (
+              <Link to={`/article/${article.previous.slug}`}>
+                Previous: {article.previous.title}
+              </Link>
+            )}
+            {article.next && (
+              <Link to={`/article/${article.next.slug}`}>
+                Next: {article.next.title}
+              </Link>
+            )}
           </div>
-        </section>
-      )}
+          <RelatedStories articles={related} />
+          <div className="article-modules" aria-hidden="true" />
+        </div>
+        <ArticleSidebar
+          latest={latest}
+          mostRead={mostRead}
+          currentSlug={article.slug}
+          scores={scores}
+        />
+      </div>
     </article>
   );
 }

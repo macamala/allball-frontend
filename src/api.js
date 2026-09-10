@@ -40,6 +40,10 @@ export function getRelated(slug, limit = 6) {
   );
 }
 
+export function getMostRead(limit = 8) {
+  return getJSON(`/articles/most-read?limit=${limit}`);
+}
+
 export function searchArticles(q, extra = {}) {
   const params = new URLSearchParams({ q, limit: String(extra.limit || 20) });
   if (extra.sport) params.set("sport", extra.sport);
