@@ -5,7 +5,7 @@ import { getSport } from "../config/sports.js";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
-import { premiumFirst } from "../lib/quality.js";
+import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
 import ArticleCard from "../components/ArticleCard.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -63,7 +63,7 @@ export default function SportPage() {
 
   if (!sport) return <NotFoundPage />;
 
-  const isolated = articles.filter((article) => article.sport_match_ok !== false);
+  const isolated = articles.filter(isPremiumArticle);
   const { premium, rest } = premiumFirst(isolated);
 
   return (
@@ -100,13 +100,13 @@ export default function SportPage() {
 
       {loading && <CardSkeleton count={6} />}
       {error && <EmptyState title={error} />}
-      {!loading && !error && articles.length === 0 && (
+      {!loading && !error && isolated.length === 0 && (
         <EmptyState
           title={`No ${label} stories yet`}
           body="This section will fill as soon as NinkoSports publishes coverage."
         />
       )}
-      {!loading && articles.length > 0 && (
+      {!loading && isolated.length > 0 && (
         <>
           <HeroStories articles={premium.slice(0, 4)} />
           <div className="sport-story-list">

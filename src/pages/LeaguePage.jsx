@@ -13,7 +13,7 @@ import ProviderPending from "../components/ProviderPending.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import StandingsTable from "../components/StandingsTable.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
-import { premiumFirst } from "../lib/quality.js";
+import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
 
 const TABS = [
   { id: "news", label: "News" },
@@ -84,7 +84,7 @@ export default function LeaguePage() {
 
   if (!sport) return <NotFoundPage />;
 
-  const isolated = articles.filter((article) => article.sport_match_ok !== false);
+  const isolated = articles.filter(isPremiumArticle);
   const { premium, rest } = premiumFirst(isolated);
 
   return (
@@ -123,13 +123,13 @@ export default function LeaguePage() {
         <>
           {loading && <CardSkeleton count={6} />}
           {error && <EmptyState title={error} />}
-          {!loading && !error && articles.length === 0 && (
+          {!loading && !error && isolated.length === 0 && (
             <EmptyState
               title={`No ${league.label} stories yet`}
               body="This competition page will fill when NinkoSports has coverage."
             />
           )}
-          {!loading && articles.length > 0 && (
+          {!loading && isolated.length > 0 && (
             <div className="sport-story-list">
               {[...premium, ...rest].map((article) => (
                 <ArticleCard key={article.id} article={article} variant="row" />
