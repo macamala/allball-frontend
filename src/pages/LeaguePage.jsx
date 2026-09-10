@@ -12,6 +12,7 @@ import ProviderPending from "../components/ProviderPending.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import StandingsTable from "../components/StandingsTable.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
+import { premiumFirst } from "../lib/quality.js";
 
 const TABS = [
   { id: "news", label: "News" },
@@ -81,6 +82,8 @@ export default function LeaguePage() {
 
   if (!sport) return <NotFoundPage />;
 
+  const { premium, rest } = premiumFirst(articles);
+
   return (
     <div className="page-league">
       <Breadcrumbs
@@ -123,7 +126,7 @@ export default function LeaguePage() {
           )}
           {!loading && articles.length > 0 && (
             <div className="card-grid">
-              {articles.map((article) => (
+              {[...premium, ...rest].map((article) => (
                 <ArticleCard key={article.id} article={article} />
               ))}
             </div>

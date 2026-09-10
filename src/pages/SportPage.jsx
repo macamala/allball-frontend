@@ -10,6 +10,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
+import { premiumFirst } from "../lib/quality.js";
 
 export default function SportPage() {
   const { sportSlug } = useParams();
@@ -63,6 +64,8 @@ export default function SportPage() {
 
   if (!sport) return <NotFoundPage />;
 
+  const { premium, rest } = premiumFirst(articles);
+
   return (
     <div className="page-sport">
       <Breadcrumbs items={[{ name: "Home", path: "/" }, { name: label }]} />
@@ -103,9 +106,9 @@ export default function SportPage() {
       )}
       {!loading && articles.length > 0 && (
         <>
-          <HeroStories articles={articles.slice(0, 4)} />
+          <HeroStories articles={premium.slice(0, 4)} />
           <div className="card-grid">
-            {articles.slice(4).map((article) => (
+            {[...premium.slice(4), ...rest].map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
           </div>

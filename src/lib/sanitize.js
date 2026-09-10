@@ -1,6 +1,7 @@
 /** Presentation-only sanitizer. Does not rewrite facts or invent copy. */
 
 const TRUNCATION_RE = /\[(?:\s*)\+\s*\d+\s*chars?(?:\s*)\]/gi;
+const ELLIPSIS_MARK_RE = /\[\s*(?:\.{3}|…)\s*\]/g;
 const CDATA_OPEN_RE = /<!\[CDATA\[/gi;
 const CDATA_CLOSE_RE = /\]\]>/g;
 const HTML_TAG_RE = /<\/?[a-z][^>]*>/gi;
@@ -17,6 +18,7 @@ export function sanitizeText(text, title) {
     .replace(CDATA_CLOSE_RE, " ")
     .replace(HTML_TAG_RE, " ")
     .replace(TRUNCATION_RE, " ")
+    .replace(ELLIPSIS_MARK_RE, " ")
     .replace(MENU_ESPN_RE, " ")
     .replace(SKIP_NAV_RE, " ")
     .replace(COOKIE_RE, " ")
