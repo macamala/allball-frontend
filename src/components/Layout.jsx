@@ -1,13 +1,16 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
+import { I18nProvider, useI18n } from "../context/I18nContext.jsx";
+import { AuthProvider } from "../context/AuthContext.jsx";
 import SiteHeader from "./SiteHeader.jsx";
 import SiteFooter from "./SiteFooter.jsx";
 
-export default function Layout() {
+function Shell() {
+  const { t } = useI18n();
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
-        Skip to content
+        {t("skip")}
       </a>
       <SiteHeader />
       <main id="main-content" className="page-main">
@@ -15,5 +18,15 @@ export default function Layout() {
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+export default function Layout() {
+  return (
+    <I18nProvider>
+      <AuthProvider>
+        <Shell />
+      </AuthProvider>
+    </I18nProvider>
   );
 }

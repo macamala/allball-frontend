@@ -2,12 +2,17 @@ import React, { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import logo from "../assets/logo-ninkosports.png";
 import { PRIMARY_NAV } from "../config/sports.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useI18n } from "../context/I18nContext.jsx";
+import LanguageSelect from "./LanguageSelect.jsx";
 import SearchBox from "./SearchBox.jsx";
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     setOpen(false);
@@ -30,7 +35,13 @@ export default function SiteHeader() {
     <header className="site-header">
       <div className="site-header-inner">
         <Link to="/" className="site-header-brand">
-          <img src={logo} alt="" className="site-header-logo" width="36" height="36" />
+          <img
+            src={logo}
+            alt="NinkoSports"
+            className="site-header-logo"
+            width="52"
+            height="52"
+          />
           <span className="site-header-name">NinkoSports</span>
         </Link>
 
@@ -62,9 +73,19 @@ export default function SiteHeader() {
 
         <div className="header-tools">
           <SearchBox compact value={query} onChange={setQuery} />
+          <LanguageSelect id="header-language" />
           <Link className="favorites-link" to="/my-sports">
-            My Sports
+            {t("nav.mySports")}
           </Link>
+          {user ? (
+            <Link className="account-link" to="/profile">
+              {user.display_name || t("nav.profile")}
+            </Link>
+          ) : (
+            <Link className="account-link" to="/login">
+              {t("nav.login")}
+            </Link>
+          )}
           <button
             type="button"
             className="menu-toggle"
@@ -72,7 +93,7 @@ export default function SiteHeader() {
             aria-controls="mobile-nav"
             onClick={() => setOpen((value) => !value)}
           >
-            {open ? "Close" : "Menu"}
+            {open ? t("nav.close") : t("nav.menu")}
           </button>
         </div>
       </div>
@@ -83,6 +104,7 @@ export default function SiteHeader() {
         hidden={!open}
       >
         <SearchBox value={query} onChange={setQuery} />
+        <LanguageSelect id="mobile-language" />
         <nav aria-label="Mobile">
           {PRIMARY_NAV.map((item) => (
             <div key={item.path} className="mobile-group">
@@ -98,7 +120,21 @@ export default function SiteHeader() {
               )}
             </div>
           ))}
-          <Link to="/my-sports">My Sports / Favorites</Link>
+          <Link to="/my-sports">{t("nav.mySports")}</Link>
+          <Link to="/saved">{t("nav.saved")}</Link>
+          {user ? (
+            <>
+              <Link to="/profile">{t("nav.profile")}</Link>
+              <button type="button" className="btn btn-ghost" onClick={logout}>
+                {t("nav.logout")}
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">{t("nav.login")}</Link>
+              <Link to="/register">{t("nav.register")}</Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

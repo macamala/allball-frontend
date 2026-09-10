@@ -1,5 +1,5 @@
 export function isPremiumArticle(article) {
-  return article?.quality_ok !== false;
+  return article?.quality_ok !== false && article?.sport_match_ok !== false;
 }
 
 export function premiumFirst(articles = []) {

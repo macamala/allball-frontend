@@ -1,18 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MAIN_SPORTS, OTHER_SPORTS, leaguePath } from "../config/sports.js";
-import { readFavorites, toggleFavorite, writeFavorites } from "../lib/favorites.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useI18n } from "../context/I18nContext.jsx";
 import { setPageSeo } from "../lib/seo.js";
 import { competitionLabel, sportLabel } from "../labels.js";
 
 export default function MySportsPage() {
-  const [favs, setFavs] = useState(() => readFavorites());
+  const { favorites, syncFavorites } = useAuth();
+  const { t } = useI18n();
+  const [favs, setFavs] = useState(favorites);
+
+  useEffect(() => {
+    setFavs(favorites);
+  }, [favorites]);
 
   useEffect(() => {
     setPageSeo({
       title: "My Sports | NinkoSports",
-      description: "Follow sports and leagues on NinkoSports in this browser.",
+      description: "Follow sports and leagues on NinkoSports.",
       path: "/my-sports",
+      noindex: true,
     });
   }, []);
 
@@ -27,14 +35,24 @@ export default function MySportsPage() {
     []
   );
 
-  const update = (next) => setFavs(next);
+  const update = (next) => {
+    setFavs(next);
+    syncFavorites(next);
+  };
+
+  const toggle = (type, value) => {
+    const list = favs[type] || [];
+    const exists = list.includes(value);
+    const nextList = exists ? list.filter((item) => item !== value) : [...list, value];
+    update({ ...favs, [type]: nextList });
+  };
 
   return (
     <div className="page-favorites">
-      <h1>My Sports</h1>
+      <h1>{t("nav.mySports")}</h1>
       <p className="lede">
-        Follow sports and competitions in this browser. No account required.
-        Favorites stay on this device until you sign in later.
+        Follow sports and competitions. Signed-in favorites sync to your account.
+        Without an account they stay on this device.
       </p>
 
       <section className="section">
@@ -48,7 +66,7 @@ export default function MySportsPage() {
                 key={sport.slug}
                 type="button"
                 className={on ? "chip is-on" : "chip"}
-                onClick={() => update(toggleFavorite("sports", key))}
+                onClick={() => toggle("sports", key)}
               >
                 {sport.label}
               </button>
@@ -67,7 +85,7 @@ export default function MySportsPage() {
                 key={league.league}
                 type="button"
                 className={on ? "chip is-on" : "chip"}
-                onClick={() => update(toggleFavorite("leagues", league.league))}
+                onClick={() => toggle("leagues", league.league)}
               >
                 {league.label}
               </button>
@@ -106,7 +124,7 @@ export default function MySportsPage() {
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={() => update(writeFavorites({ sports: [], leagues: [], teams: [] }))}
+            onClick={() => update({ sports: [], leagues: [], teams: [] })}
           >
             Clear favorites
           </button>

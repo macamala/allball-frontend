@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getArticles } from "../api.js";
 import { featuredLeagueKeys, getSport, resolveLeague } from "../config/sports.js";
-import { isFollowed, toggleFavorite } from "../lib/favorites.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useI18n } from "../context/I18nContext.jsx";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import ArticleCard from "../components/ArticleCard.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
@@ -29,12 +30,13 @@ export default function LeaguePage() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [followed, setFollowed] = useState(false);
+  const { favorites, syncFavorites } = useAuth();
+  const { t } = useI18n();
 
   const followKey = league.catchAll ? `${sportSlug}:other` : league.league;
+  const followed = Boolean(followKey) && (favorites.leagues || []).includes(followKey);
 
   useEffect(() => {
-    setFollowed(Boolean(followKey) && isFollowed("leagues", followKey));
     setTab("news");
   }, [followKey]);
 
@@ -82,7 +84,8 @@ export default function LeaguePage() {
 
   if (!sport) return <NotFoundPage />;
 
-  const { premium, rest } = premiumFirst(articles);
+  const isolated = articles.filter((article) => article.sport_match_ok !== false);
+  const { premium, rest } = premiumFirst(isolated);
 
   return (
     <div className="page-league">
@@ -103,11 +106,13 @@ export default function LeaguePage() {
             type="button"
             className={followed ? "btn btn-ghost is-on" : "btn btn-ghost"}
             onClick={() => {
-              const next = toggleFavorite("leagues", followKey);
-              setFollowed(next.leagues.includes(followKey));
+              const leagues = followed
+                ? (favorites.leagues || []).filter((item) => item !== followKey)
+                : [...(favorites.leagues || []), followKey];
+              syncFavorites({ ...favorites, leagues });
             }}
           >
-            {followed ? "Following" : "Follow"}
+            {followed ? t("following") : t("follow")}
           </button>
         )}
       </div>
@@ -125,9 +130,9 @@ export default function LeaguePage() {
             />
           )}
           {!loading && articles.length > 0 && (
-            <div className="card-grid">
+            <div className="sport-story-list">
               {[...premium, ...rest].map((article) => (
-                <ArticleCard key={article.id} article={article} />
+                <ArticleCard key={article.id} article={article} variant="row" />
               ))}
             </div>
           )}

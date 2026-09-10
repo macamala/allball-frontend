@@ -1,6 +1,8 @@
 import React, { useEffect, useId, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useI18n } from "../context/I18nContext.jsx";
+
 export default function SearchBox({
   value,
   onChange,
@@ -10,6 +12,7 @@ export default function SearchBox({
   const id = useId();
   const navigate = useNavigate();
   const inputRef = useRef(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (autoFocus && inputRef.current) inputRef.current.focus();
@@ -28,7 +31,7 @@ export default function SearchBox({
   return (
     <form className={compact ? "search-box compact" : "search-box"} onSubmit={submit} role="search">
       <label className="sr-only" htmlFor={id}>
-        Search NinkoSports
+        {t("nav.search")}
       </label>
       <input
         id={id}
@@ -36,11 +39,11 @@ export default function SearchBox({
         type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Search stories"
+        placeholder={t("search.placeholder")}
         autoComplete="off"
       />
       <button type="submit" className="search-submit">
-        Search
+        {t("search.submit")}
       </button>
     </form>
   );

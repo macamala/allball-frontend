@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   getArticle,
-  getArticles,
   getMostRead,
+  getRecentArticles,
   getRelated,
   getScores,
   recordView,
@@ -24,8 +24,12 @@ import ArticleBody from "../components/article/ArticleBody.jsx";
 import ArticleHeader from "../components/article/ArticleHeader.jsx";
 import ArticleHero from "../components/article/ArticleHero.jsx";
 import ArticleShare from "../components/article/ArticleShare.jsx";
-import ArticleSidebar from "../components/article/ArticleSidebar.jsx";
+import Comments from "../components/Comments.jsx";
+import LiveScoresRail from "../components/LiveScoresRail.jsx";
+import PortalLayout from "../components/PortalLayout.jsx";
+import RailModule from "../components/RailModule.jsx";
 import RelatedStories from "../components/article/RelatedStories.jsx";
+import SaveButton from "../components/SaveButton.jsx";
 
 export default function ArticlePage() {
   const { slug } = useParams();
@@ -49,7 +53,7 @@ export default function ArticlePage() {
         recordView(data.slug);
         const extras = await Promise.allSettled([
           getRelated(data.slug, 6),
-          getArticles({ limit: 10 }),
+          getRecentArticles(10),
           getMostRead(8),
           getScores(),
         ]);
@@ -138,37 +142,51 @@ export default function ArticlePage() {
 
   const hero = heroMedia(article);
   const blocks = resolveBlocks(article);
+  const presentation = article.presentation_type || "standard";
+  const leagueRelated = related.filter((item) => item.league && item.league === article.league);
 
   return (
-    <article className="article-page">
-      <ArticleHeader article={article} />
-      <ArticleHero media={hero} />
-      <div className="article-layout">
-        <div className="article-column">
-          <ArticleBody blocks={blocks} title={article.title} />
-          <ArticleShare title={article.title} path={`/article/${article.slug}`} />
-          <div className="article-pager">
-            {article.previous && (
-              <Link to={`/article/${article.previous.slug}`}>
-                Previous: {article.previous.title}
-              </Link>
-            )}
-            {article.next && (
-              <Link to={`/article/${article.next.slug}`}>
-                Next: {article.next.title}
-              </Link>
-            )}
-          </div>
-          <RelatedStories articles={related} />
-          <div className="article-modules" aria-hidden="true" />
+    <article className={`article-page is-${presentation}`}>
+      <PortalLayout
+        left={
+          <>
+            <RailModule title="Latest news" articles={latest} currentSlug={article.slug} />
+            <RailModule title="Related" articles={leagueRelated} currentSlug={article.slug} />
+          </>
+        }
+        right={
+          <>
+            <RailModule title="Most read" articles={mostRead} currentSlug={article.slug} ordered />
+            <LiveScoresRail scores={scores} />
+          </>
+        }
+      >
+        <ArticleHeader article={article} />
+        <div className="article-toolbar">
+          <SaveButton article={article} />
         </div>
-        <ArticleSidebar
-          latest={latest}
-          mostRead={mostRead}
-          currentSlug={article.slug}
-          scores={scores}
-        />
-      </div>
+        <ArticleHero media={hero} />
+        <div className="article-layout">
+          <div className="article-column">
+            <ArticleBody blocks={blocks} title={article.title} />
+            <ArticleShare title={article.title} path={`/article/${article.slug}`} />
+            <div className="article-pager">
+              {article.previous && (
+                <Link to={`/article/${article.previous.slug}`}>
+                  Previous: {article.previous.title}
+                </Link>
+              )}
+              {article.next && (
+                <Link to={`/article/${article.next.slug}`}>
+                  Next: {article.next.title}
+                </Link>
+              )}
+            </div>
+            <RelatedStories articles={related} />
+            <Comments slug={article.slug} />
+          </div>
+        </div>
+      </PortalLayout>
     </article>
   );
 }

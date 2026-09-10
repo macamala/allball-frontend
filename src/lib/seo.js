@@ -40,6 +40,7 @@ export function setPageSeo({
   type = "website",
   image,
   jsonLd,
+  noindex = false,
 }) {
   const canonical = `${CANONICAL_SITE}${path}`;
   document.title = title;
@@ -55,6 +56,12 @@ export function setPageSeo({
   upsertMeta("name", "twitter:title", title);
   upsertMeta("name", "twitter:description", description);
   if (image) upsertMeta("name", "twitter:image", image);
+  if (noindex) {
+    upsertMeta("name", "robots", "noindex, nofollow");
+  } else {
+    const robots = document.head.querySelector('meta[name="robots"]');
+    if (robots) robots.remove();
+  }
   setJsonLd("ninko-jsonld", jsonLd);
 }
 

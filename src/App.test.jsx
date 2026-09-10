@@ -26,16 +26,38 @@ const sampleArticle = {
 };
 
 function jsonResponse(data, status = 200) {
+  const body = JSON.stringify(data);
   return Promise.resolve({
     ok: status >= 200 && status < 300,
     status,
     json: async () => data,
+    text: async () => body,
   });
 }
 
 function mockFetch() {
   global.fetch = vi.fn((input, init = {}) => {
     const url = String(input);
+    if (url.includes("/auth/session") || url.includes("/auth/csrf")) {
+      return jsonResponse({ user: null, csrf: "test-csrf" });
+    }
+    if (url.includes("/comments")) {
+      return jsonResponse({ count: 0, comments: [] });
+    }
+    if (url.includes("/articles/recent")) {
+      return jsonResponse([
+        sampleArticle,
+        {
+          ...sampleArticle,
+          id: 7,
+          slug: "other-latest",
+          title: "Another late Premier League story",
+        },
+      ]);
+    }
+    if (url.includes("/articles/most-read")) {
+      return jsonResponse([]);
+    }
     if (url.includes("/portal/home")) {
       return jsonResponse({
         featured: [sampleArticle],
@@ -216,6 +238,13 @@ describe("NinkoSports Phase 3 routes", () => {
       };
       global.fetch = vi.fn((input, init = {}) => {
         const url = String(input);
+        if (url.includes("/auth/session") || url.includes("/auth/csrf")) {
+          return jsonResponse({ user: null, csrf: "test-csrf" });
+        }
+        if (url.includes("/comments")) {
+          return jsonResponse({ count: 0, comments: [] });
+        }
+        if (url.includes("/articles/recent")) return jsonResponse([sampleArticle]);
         if (url.includes("/articles/odegaard-story/related")) return jsonResponse([related]);
         if (url.includes("/articles/odegaard-story/view") && init.method === "POST") {
           return jsonResponse({ ok: true, counted: true });
@@ -281,5 +310,135 @@ describe("presentation sanitizer", () => {
     expect(cleaned).not.toMatch(/CDATA/i);
     expect(cleaned).not.toMatch(/\[\+/);
     expect(cleaned).toMatch(/Villa/);
+  });
+});
+
+describe("Phase 4 portal and account UX", () => {
+  beforeEach(() => {
+    mockFetch();
+  });
+
+  it("renders larger branding and a three-zone homepage shell", async () => {
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getAllByText(/NinkoSports/).length).toBeGreaterThan(0);
+    });
+    const logo = document.querySelector(".site-header-logo");
+    expect(Number(logo.getAttribute("width"))).toBeGreaterThanOrEqual(48);
+    expect(document.querySelector(".site-header-name")).toBeTruthy();
+    expect(document.querySelector(".portal-shell")).toBeTruthy();
+    expect(document.querySelector(".portal-left")).toBeTruthy();
+    expect(document.querySelector(".portal-right")).toBeTruthy();
+  });
+
+  it("keeps card titles out of the image region", async () => {
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getAllByText(/Aston Villa win late/).length).toBeGreaterThan(0);
+    });
+    document.querySelectorAll(".article-card").forEach((card) => {
+      const media = card.querySelector(".card-media");
+      const title = card.querySelector(".article-card-title");
+      expect(media && title && media.contains(title)).toBe(false);
+    });
+  });
+
+  it("excludes mismatched sport stories from sport pages", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/articles")) {
+        return jsonResponse([
+          {
+            ...sampleArticle,
+            id: 21,
+            slug: "f1-grid",
+            title: "Formula 1 drivers prepare for the next Grand Prix",
+            sport: "motorsport",
+            sport_label: "Motorsport",
+            sport_match_ok: true,
+          },
+          {
+            ...sampleArticle,
+            id: 22,
+            slug: "wrong-football",
+            title: "Arsenal beat Liverpool in the Premier League",
+            sport: "motorsport",
+            sport_label: "Motorsport",
+            sport_match_ok: false,
+          },
+        ]);
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/motorsport");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Motorsport" })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Formula 1 drivers/)).toBeInTheDocument();
+    expect(screen.queryByText(/Arsenal beat Liverpool/)).not.toBeInTheDocument();
+  });
+
+  it("uses a compact layout for brief articles and a larger layout for long articles", async () => {
+    global.fetch = vi.fn((input, init = {}) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/dillon-brief")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "dillon-brief",
+          title: "Dillon Jones signs a short-term deal",
+          presentation_type: "brief",
+          blocks: [{ type: "paragraph", text: "Dillon Jones has signed a short-term deal." }],
+        });
+      }
+      if (url.includes("/articles/arsenal-long")) {
+        return jsonResponse({
+          ...sampleArticle,
+          id: 8,
+          slug: "arsenal-long",
+          title: "Arsenal stay top after another late win",
+          presentation_type: "major",
+          blocks: [
+            { type: "paragraph", text: "Arsenal stayed top after another late win in a long night." },
+            { type: "paragraph", text: "The visitors could not find a reply in the closing stages." },
+          ],
+        });
+      }
+      if (url.includes("/articles/recent") || url.includes("/articles?")) {
+        return jsonResponse([sampleArticle]);
+      }
+      if (url.includes("/articles/most-read")) return jsonResponse([]);
+      if (url.includes("/sports-data/scores")) {
+        return jsonResponse({ connected: false, matches: [] });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/dillon-brief");
+    await waitFor(() => {
+      expect(document.querySelector(".article-page.is-brief")).toBeTruthy();
+    });
+    renderAt("/article/arsenal-long");
+    await waitFor(() => {
+      expect(document.querySelector(".article-page.is-major")).toBeTruthy();
+    });
+  });
+
+  it("shows mobile login, register, comments, My Sports and language controls", async () => {
+    const login = renderAt("/login");
+    expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+    login.unmount();
+    const register = renderAt("/register");
+    expect(screen.getByLabelText(/Display name/i)).toBeInTheDocument();
+    register.unmount();
+    renderAt("/article/villa-win");
+    await waitFor(() => {
+      expect(screen.getByText(/Sign in to comment/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    expect(screen.getAllByLabelText("Language").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/My Sports/).length).toBeGreaterThan(0);
   });
 });

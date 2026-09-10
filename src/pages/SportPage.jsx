@@ -3,14 +3,15 @@ import { Link, useParams } from "react-router-dom";
 import { getArticles } from "../api.js";
 import { getSport } from "../config/sports.js";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
-import { isFollowed, toggleFavorite } from "../lib/favorites.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useI18n } from "../context/I18nContext.jsx";
+import { premiumFirst } from "../lib/quality.js";
 import ArticleCard from "../components/ArticleCard.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
-import { premiumFirst } from "../lib/quality.js";
 
 export default function SportPage() {
   const { sportSlug } = useParams();
@@ -18,14 +19,12 @@ export default function SportPage() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [followed, setFollowed] = useState(false);
+  const { favorites, syncFavorites } = useAuth();
+  const { t } = useI18n();
 
   const apiSport = sportSlug === "other-sports" ? "other" : sportSlug;
   const label = sport?.label || "Sport";
-
-  useEffect(() => {
-    setFollowed(isFollowed("sports", apiSport));
-  }, [apiSport]);
+  const followed = (favorites.sports || []).includes(apiSport);
 
   useEffect(() => {
     const crumbs = [
@@ -64,7 +63,8 @@ export default function SportPage() {
 
   if (!sport) return <NotFoundPage />;
 
-  const { premium, rest } = premiumFirst(articles);
+  const isolated = articles.filter((article) => article.sport_match_ok !== false);
+  const { premium, rest } = premiumFirst(isolated);
 
   return (
     <div className="page-sport">
@@ -78,11 +78,13 @@ export default function SportPage() {
           type="button"
           className={followed ? "btn btn-ghost is-on" : "btn btn-ghost"}
           onClick={() => {
-            const next = toggleFavorite("sports", apiSport);
-            setFollowed(next.sports.includes(apiSport));
+            const sports = followed
+              ? (favorites.sports || []).filter((item) => item !== apiSport)
+              : [...(favorites.sports || []), apiSport];
+            syncFavorites({ ...favorites, sports });
           }}
         >
-          {followed ? "Following" : "Follow"}
+          {followed ? t("following") : t("follow")}
         </button>
       </div>
 
@@ -107,9 +109,9 @@ export default function SportPage() {
       {!loading && articles.length > 0 && (
         <>
           <HeroStories articles={premium.slice(0, 4)} />
-          <div className="card-grid">
+          <div className="sport-story-list">
             {[...premium.slice(4), ...rest].map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <ArticleCard key={article.id} article={article} variant="row" />
             ))}
           </div>
         </>

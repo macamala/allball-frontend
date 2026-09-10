@@ -2,13 +2,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getPortalHome } from "../api.js";
 import { MAIN_SPORTS, leaguePath, sportPath } from "../config/sports.js";
-import { readFavorites } from "../lib/favorites.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useI18n } from "../context/I18nContext.jsx";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
 import { sportLabel } from "../labels.js";
 import ArticleCard from "../components/ArticleCard.jsx";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
+import LiveScoresRail from "../components/LiveScoresRail.jsx";
+import MySportsRail from "../components/MySportsRail.jsx";
+import PortalLayout from "../components/PortalLayout.jsx";
+import RailModule from "../components/RailModule.jsx";
 import SectionHeader from "../components/SectionHeader.jsx";
 import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 
@@ -16,7 +21,8 @@ export default function HomePage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const favorites = useMemo(() => readFavorites(), []);
+  const { favorites } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     setPageSeo({
@@ -74,81 +80,75 @@ export default function HomePage() {
   const mostRead = data?.most_read || [];
   const bySport = data?.by_sport || {};
   const byLeague = data?.by_league || [];
+  const scores = data?.sports_data;
 
   return (
     <div className="page-home">
       <BreakingBar articles={breaking} />
-      {featured.length > 0 ? (
-        <HeroStories articles={featured} />
-      ) : (
-        <EmptyState
-          title="No stories yet"
-          body="New NinkoSports coverage will appear here as soon as it is published."
-        />
-      )}
+      <PortalLayout
+        left={
+          <>
+            <RailModule title={t("latest")} articles={latest} />
+            <MySportsRail />
+          </>
+        }
+        right={
+          <>
+            <RailModule title={t("mostRead")} articles={mostRead} ordered />
+            <LiveScoresRail scores={scores} />
+          </>
+        }
+      >
+        {featured.length > 0 ? (
+          <HeroStories articles={featured} />
+        ) : (
+          <EmptyState
+            title="No stories yet"
+            body="New NinkoSports coverage will appear here as soon as it is published."
+          />
+        )}
 
-      {latest.length > 0 && (
-        <section className="section">
-          <SectionHeader title="Latest news" />
-          <div className="news-list">
-            {latest.slice(0, 12).map((article) => (
-              <ArticleCard key={article.id} article={article} variant="row" />
-            ))}
-          </div>
-        </section>
-      )}
+        {sportOrder.map((slug) => {
+          const articles = bySport[slug] || [];
+          if (!articles.length) return null;
+          return (
+            <section className="section" key={slug}>
+              <SectionHeader
+                eyebrow="Sport"
+                title={sportLabel(slug)}
+                to={sportPath(slug)}
+              />
+              <div className="sport-story-list">
+                {articles.map((article) => (
+                  <ArticleCard key={article.id} article={article} variant="row" />
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
-      {mostRead.length > 0 && (
-        <section className="section">
-          <SectionHeader title="Most read" />
-          <div className="card-grid">
-            {mostRead.map((article) => (
-              <ArticleCard key={article.id} article={article} variant="compact" />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {sportOrder.map((slug) => {
-        const articles = bySport[slug] || [];
-        if (!articles.length) return null;
-        return (
-          <section className="section" key={slug}>
+        {byLeague.map((group) => (
+          <section className="section" key={group.league}>
             <SectionHeader
-              eyebrow="Sport"
-              title={sportLabel(slug)}
-              to={sportPath(slug)}
+              eyebrow="Competition"
+              title={group.label}
+              to={leaguePath(group.sport, group.league)}
             />
-            <div className="card-grid">
-              {articles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
+            <div className="sport-story-list">
+              {group.articles.map((article) => (
+                <ArticleCard key={article.id} article={article} variant="row" />
               ))}
             </div>
           </section>
-        );
-      })}
+        ))}
 
-      {byLeague.map((group) => (
-        <section className="section" key={group.league}>
-          <SectionHeader
-            eyebrow="Competition"
-            title={group.label}
-            to={leaguePath(group.sport, group.league)}
-          />
-          <div className="card-grid">
-            {group.articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        </section>
-      ))}
-
-      {favorites.sports.length === 0 && favorites.leagues.length === 0 && (
-        <p className="favorites-hint">
-          Follow sports and leagues in <Link to="/my-sports">My Sports</Link> to
-          personalize this homepage later.
-        </p>
-      )}
+        {favorites.sports.length === 0 && favorites.leagues.length === 0 && (
+          <p className="favorites-hint">
+            {t("favorites.hint")}{" "}
+            <Link to="/my-sports">{t("nav.mySports")}</Link>
+          </p>
+        )}
+      </PortalLayout>
     </div>
   );
 }
