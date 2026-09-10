@@ -16,5 +16,10 @@ export default defineConfig({
       "allball-frontend-production.up.railway.app",
       "ninkosports-ai.up.railway.app"
     ]
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.js",
+    globals: true
   }
 });
