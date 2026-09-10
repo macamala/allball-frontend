@@ -44,7 +44,7 @@ export default function SportPage() {
     if (!sport) return undefined;
     let cancelled = false;
     setLoading(true);
-    getArticles({ sport: apiSport, limit: 40 })
+    getArticles({ sport: apiSport, limit: 100 })
       .then((rows) => {
         if (!cancelled) {
           setArticles(Array.isArray(rows) ? rows : []);

@@ -56,7 +56,7 @@ export default function LeaguePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const params = { sport: sportSlug, limit: 40 };
+    const params = { sport: sportSlug, limit: 80 };
     if (league.catchAll) {
       params.exclude_leagues = featuredLeagueKeys(sportSlug).join(",");
     } else if (league.league) {
