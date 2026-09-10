@@ -277,7 +277,7 @@ select {
 }
 
 .search-box.compact input {
-  width: 160px;
+  width: 120px;
 }
 
 .search-submit {
@@ -1060,6 +1060,7 @@ select {
   font-weight: 700;
   font-size: 0.9rem;
   white-space: nowrap;
+  padding: 8px 10px;
 }
 
 .auth-page,
@@ -1188,6 +1189,12 @@ select {
 .mobile-nav .btn {
   margin: 10px 0;
   width: 100%;
+}
+
+@media (max-width: 1320px) {
+  .search-box.compact .search-submit {
+    display: none;
+  }
 }
 
 @media (min-width: 1100px) {
