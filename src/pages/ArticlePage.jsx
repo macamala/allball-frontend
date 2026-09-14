@@ -26,7 +26,7 @@ function ArticleInner({ article, related }) {
   return (
     <div className="article-shell">
       <ArticleHeader article={article} />
-      <ArticleHero media={hero} />
+      <ArticleHero media={hero} article={article} />
       <div className="article-layout">
         <div className="article-column">
           <ArticleBody blocks={blocks} title={article.title} />
@@ -135,9 +135,16 @@ export default function ArticlePage() {
   const presentation = article.presentation_type || "standard";
   const liveRail = hasLiveUtilityData(scores) ? <LiveScoresRail scores={scores} /> : null;
   const inner = <ArticleInner article={article} related={related} />;
+  const heroKind = article.hero_media_kind;
+  const mediaClass =
+    heroKind === "CREST_OR_LOGO" || heroKind === "GRAPHIC"
+      ? " is-crest-media"
+      : !article.image_url
+        ? " is-no-media"
+        : "";
 
   return (
-    <article className={`article-page is-${presentation}`}>
+    <article className={`article-page is-${presentation}${mediaClass}`}>
       {liveRail ? <PortalLayout right={liveRail}>{inner}</PortalLayout> : inner}
     </article>
   );

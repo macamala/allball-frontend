@@ -548,6 +548,62 @@ select {
   z-index: 1;
 }
 
+.hero-lead.is-crest .hero-lead-link {
+  min-height: 0;
+  grid-template-areas: "media" "body";
+}
+
+.hero-lead.is-crest .hero-lead-media,
+.hero-lead.is-crest .hero-lead-copy {
+  grid-area: auto;
+}
+
+.hero-lead.is-crest .hero-lead-media {
+  min-height: 120px;
+  max-height: 160px;
+  aspect-ratio: 2 / 1;
+}
+
+.hero-lead.is-crest .hero-lead-copy {
+  align-self: stretch;
+  padding: 16px 20px 20px;
+  background: var(--ns-surface);
+  color: inherit;
+}
+
+.hero-lead.is-crest h1,
+.hero-lead.is-crest p,
+.hero-lead.is-crest time {
+  color: inherit;
+}
+
+.media-kind-crest img,
+.article-hero.is-crest img,
+.article-card.is-crest img,
+.hero-lead.is-crest .hero-lead-media img {
+  object-fit: contain;
+  object-position: center;
+  background: var(--ns-surface-2);
+  padding: 12px;
+}
+
+.article-hero.is-crest .article-hero-media,
+.article-page.is-crest-media .article-hero-media {
+  max-height: 160px;
+  min-height: 96px;
+  aspect-ratio: 2 / 1;
+}
+
+.article-card.is-crest .card-media {
+  max-height: 120px;
+  aspect-ratio: 2 / 1;
+}
+
+.article-page.is-no-media .article-hero-empty {
+  min-height: 48px;
+  max-height: 48px;
+}
+
 .hero-side-item a,
 .article-card-link {
   display: grid;

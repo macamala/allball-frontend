@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import ArticleImage from "./ArticleImage.jsx";
+import { isCrestMedia, publicMediaKind } from "../lib/mediaKind.js";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -27,16 +28,19 @@ export default function HeroStories({ articles = [] }) {
   const deck = (lead.summary || "").trim();
   const showDeck =
     deck && deck.toLowerCase() !== String(lead.title || "").toLowerCase();
+  const leadKind = publicMediaKind(lead);
+  const leadCrest = isCrestMedia(leadKind);
 
   return (
     <section className="hero-grid" aria-label={t("topStories")}>
-      <article className="hero-lead">
+      <article className={`hero-lead${leadCrest ? " is-crest" : ""}`}>
         <Link to={`/article/${lead.slug}`} className="hero-lead-link">
           <ArticleImage
             src={lead.image_url}
             alt=""
             wrapperClassName="hero-lead-media"
             eager
+            mediaKind={leadKind}
           />
           <div className="hero-lead-copy">
             <Kicker article={lead} t={t} />
@@ -56,6 +60,7 @@ export default function HeroStories({ articles = [] }) {
                 src={article.image_url}
                 alt=""
                 wrapperClassName="hero-side-media"
+                mediaKind={publicMediaKind(article)}
               />
               <div className="hero-side-copy">
                 <Kicker article={article} t={t} />

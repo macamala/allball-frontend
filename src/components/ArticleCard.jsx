@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
+import { isCrestMedia, publicMediaKind } from "../lib/mediaKind.js";
 import ArticleImage from "./ArticleImage.jsx";
 
 export default function ArticleCard({ article, variant = "grid" }) {
@@ -14,7 +15,8 @@ export default function ArticleCard({ article, variant = "grid" }) {
     ? competitionLabel(article.league, article.league_label)
     : "";
   const dateStr = articleDate(article, dateLocale);
-  const className = `article-card card-${variant}`;
+  const kind = publicMediaKind(article);
+  const className = `article-card card-${variant}${isCrestMedia(kind) ? " is-crest" : ""}`;
 
   return (
     <article className={className}>
@@ -24,6 +26,7 @@ export default function ArticleCard({ article, variant = "grid" }) {
           alt=""
           wrapperClassName="card-media"
           eager={variant === "lead"}
+          mediaKind={kind}
         />
         <div className="article-card-body">
           <div className="pill-row">

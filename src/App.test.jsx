@@ -898,6 +898,71 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
     expect(document.querySelector(".comment-sort")).toBeTruthy();
   });
 
+  it("uses compact treatment for crest media instead of a giant hero", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/crest-story/related")) return jsonResponse([]);
+      if (url.includes("/articles/crest-story")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "crest-story",
+          title: "A club night decided in the final minutes",
+          sport: "basketball",
+          league: "liga-acb",
+          league_label: "Liga ACB",
+          hero_media_kind: "CREST_OR_LOGO",
+          image_url: "https://cdn.example.com/clubs/team-logo.png",
+          presentation_type: "brief",
+          media: [
+            {
+              url: "https://cdn.example.com/clubs/team-logo.png",
+              is_hero: true,
+              presentation: "CREST_OR_LOGO",
+            },
+          ],
+          blocks: [{ type: "paragraph", text: "The visiting side closed the fourth quarter." }],
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/crest-story");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "A club night decided in the final minutes" })).toBeInTheDocument();
+    });
+    expect(document.querySelector(".article-hero.is-crest")).toBeTruthy();
+    expect(document.querySelector(".media-kind-crest")).toBeTruthy();
+    expect(document.querySelector(".article-page.is-crest-media")).toBeTruthy();
+  });
+
+  it("does not hardcode acceptance fixture titles in production UI", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, resolve } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const root = dirname(fileURLToPath(import.meta.url));
+    const files = [
+      "components/article/ArticleHero.jsx",
+      "components/article/ArticleMediaBlock.jsx",
+      "components/ArticleCard.jsx",
+      "components/HeroStories.jsx",
+      "pages/ArticlePage.jsx",
+      "lib/mediaKind.js",
+    ];
+    const forbidden = [
+      "Barcelona claims Catalan crown",
+      "Dario Brizuela",
+      "Como 4-1 RB Leipzig",
+      "Dillon Jones",
+    ];
+    for (const file of files) {
+      const text = readFileSync(resolve(root, file), "utf8");
+      for (const needle of forbidden) {
+        expect(text).not.toContain(needle);
+      }
+    }
+  });
+
   it("keeps new Phase 4.3 chrome translated in Serbian", async () => {
     window.localStorage.setItem("ninkosports.lang", "sr");
     renderAt("/");

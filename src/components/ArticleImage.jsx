@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { isCrestMedia, MEDIA_KINDS } from "../lib/mediaKind.js";
 
 export default function ArticleImage({
   src,
@@ -6,9 +7,12 @@ export default function ArticleImage({
   className = "",
   wrapperClassName = "",
   eager = false,
+  mediaKind,
 }) {
   const [failed, setFailed] = useState(false);
-  const valid = Boolean(src) && !failed;
+  const kind = mediaKind || MEDIA_KINDS.UNKNOWN;
+  const valid = Boolean(src) && !failed && kind !== MEDIA_KINDS.MISSING;
+  const kindClass = isCrestMedia(kind) ? "media-kind-crest" : "";
 
   if (!valid) {
     return (
@@ -20,7 +24,7 @@ export default function ArticleImage({
   }
 
   return (
-    <div className={`media-frame ${wrapperClassName}`.trim()}>
+    <div className={`media-frame ${kindClass} ${wrapperClassName}`.trim()}>
       <img
         src={src}
         alt={alt}

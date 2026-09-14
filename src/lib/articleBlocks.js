@@ -1,13 +1,19 @@
 export function heroMedia(article) {
   const media = Array.isArray(article?.media) ? article.media : [];
   const hero = media.find((item) => item?.is_hero) || media[0];
-  if (hero?.url) return hero;
+  if (hero?.url) {
+    return {
+      ...hero,
+      presentation: hero.presentation || article?.hero_media_kind,
+    };
+  }
   if (article?.image_url) {
     return {
       url: article.image_url,
       caption: "",
       is_hero: true,
       media_type: "image",
+      presentation: article?.hero_media_kind,
     };
   }
   return null;
