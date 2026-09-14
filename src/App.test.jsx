@@ -81,7 +81,20 @@ function mockFetch() {
             title: "Most read weekend story",
           },
         ],
-        by_sport: { football: [sampleArticle], basketball: [], tennis: [], motorsport: [] },
+        by_sport: {
+          football: [
+            sampleArticle,
+            {
+              ...sampleArticle,
+              id: 21,
+              slug: "football-section-story",
+              title: "Serie A weekend round-up",
+            },
+          ],
+          basketball: [],
+          tennis: [],
+          motorsport: [],
+        },
         by_league: [],
         sports_data: { connected: false },
       });
@@ -669,6 +682,9 @@ describe("Phase 4.2 homepage and article editorial", () => {
     );
     const villaHits = document.body.textContent.split("Aston Villa win late").length - 1;
     expect(villaHits).toBeLessThan(4);
+    expect(screen.getByRole("heading", { name: "Football" })).toBeInTheDocument();
+    expect(screen.getByText("Serie A weekend round-up")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tennis" })).not.toBeInTheDocument();
   });
 
   it("hides Most Read when there is no real popularity data", async () => {

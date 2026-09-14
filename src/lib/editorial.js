@@ -21,15 +21,16 @@ export function composeHomeModules(data = {}) {
   const mostReadRaw = data.most_read || [];
   const mostReadOthers = mostReadRaw.filter((row) => row && row.id !== heroId);
   const mostRead = uniqueArticles(mostReadOthers.length ? mostReadOthers : mostReadRaw);
+  const prominent = new Set([...featured, ...breaking].map((row) => row.id));
   const bySport = {};
   Object.entries(data.by_sport || {}).forEach(([sport, rows]) => {
-    const items = uniqueArticles(rows || [], new Set(seen));
+    const items = uniqueArticles(rows || [], new Set(prominent));
     if (items.length) bySport[sport] = items;
   });
   const byLeague = (data.by_league || [])
     .map((group) => ({
       ...group,
-      articles: uniqueArticles(group.articles || [], new Set(seen)),
+      articles: uniqueArticles(group.articles || [], new Set(prominent)),
     }))
     .filter((group) => group.articles.length);
   return { featured, breaking, latest, mostRead, bySport, byLeague, seen };
