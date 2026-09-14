@@ -7,13 +7,15 @@ import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
-import ArticleCard from "../components/ArticleCard.jsx";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
+import LatestFeed from "../components/LatestFeed.jsx";
 import LiveScoresRail, { hasLiveUtilityData } from "../components/LiveScoresRail.jsx";
+import MostReadList from "../components/MostReadList.jsx";
 import PortalLayout from "../components/PortalLayout.jsx";
 import SectionHeader from "../components/SectionHeader.jsx";
+import SportDesk from "../components/SportDesk.jsx";
 import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 
 export default function HomePage() {
@@ -82,7 +84,11 @@ export default function HomePage() {
       <PortalLayout right={liveRail}>
         {modules.featured.length > 0 ? (
           <section className="section top-stories" aria-labelledby="top-stories-heading">
-            <SectionHeader eyebrow={t("section.topStories")} title={t("topStories")} />
+            <SectionHeader
+              id="top-stories-heading"
+              eyebrow={t("section.topStories")}
+              title={t("topStories")}
+            />
             <HeroStories articles={modules.featured} />
           </section>
         ) : (
@@ -95,23 +101,15 @@ export default function HomePage() {
 
         <div className="editorial-split">
           {modules.latest.length > 0 && (
-            <section className="section">
-              <SectionHeader title={t("latest")} />
-              <div className="news-list latest-feed">
-                {modules.latest.slice(0, 8).map((article) => (
-                  <ArticleCard key={article.id} article={article} variant="compact" />
-                ))}
-              </div>
+            <section className="section latest-desk">
+              <SectionHeader eyebrow={t("section.newsroom")} title={t("latest")} />
+              <LatestFeed articles={modules.latest.slice(0, 8)} />
             </section>
           )}
           {modules.mostRead.length > 0 && (
-            <section className="section">
+            <section className="section most-read-desk">
               <SectionHeader title={t("mostRead")} />
-              <div className="news-list">
-                {modules.mostRead.slice(0, 5).map((article) => (
-                  <ArticleCard key={`mr-${article.id}`} article={article} variant="compact" />
-                ))}
-              </div>
+              <MostReadList articles={modules.mostRead.slice(0, 5)} />
             </section>
           )}
         </div>
@@ -121,35 +119,27 @@ export default function HomePage() {
           if (!articles.length) return null;
           const key = sportI18nKey(slug);
           return (
-            <section className="section" key={slug}>
+            <section className="section sport-section" key={slug}>
               <SectionHeader
                 eyebrow={t("section.sport")}
                 title={key ? t(key) : slug}
                 to={sportPath(slug)}
                 action={t("seeAll")}
               />
-              <div className="home-sport-grid">
-                {articles.slice(0, 4).map((article) => (
-                  <ArticleCard key={article.id} article={article} variant="row" />
-                ))}
-              </div>
+              <SportDesk articles={articles.slice(0, 4)} />
             </section>
           );
         })}
 
         {modules.byLeague.map((group) => (
-          <section className="section" key={group.league}>
+          <section className="section competition-section" key={group.league}>
             <SectionHeader
               eyebrow={t("section.competition")}
               title={group.label}
               to={leaguePath(group.sport, group.league)}
               action={t("seeAll")}
             />
-            <div className="home-sport-grid">
-              {group.articles.map((article) => (
-                <ArticleCard key={article.id} article={article} variant="row" />
-              ))}
-            </div>
+            <SportDesk articles={group.articles} />
           </section>
         ))}
 

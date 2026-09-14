@@ -4,6 +4,7 @@ import { articleDate, competitionLabel } from "../../labels.js";
 import { sportI18nKey } from "../../i18n/index.js";
 import { useI18n } from "../../context/I18nContext.jsx";
 import Breadcrumbs from "../Breadcrumbs.jsx";
+import SaveButton from "../SaveButton.jsx";
 import ArticleShare from "./ArticleShare.jsx";
 
 export default function ArticleHeader({ article }) {
@@ -36,17 +37,22 @@ export default function ArticleHeader({ article }) {
       </p>
       <h1 className="article-headline">{article.title}</h1>
       {showDeck ? <p className="article-deck">{deck}</p> : null}
-      <div className="article-byline">
-        {articleDate(article, dateLocale) && (
-          <time dateTime={article.published_at || article.created_at}>
-            {articleDate(article, dateLocale)}
-          </time>
-        )}
-        {article.reading_time_minutes ? (
-          <span>{t("minRead", { n: article.reading_time_minutes })}</span>
-        ) : null}
+      <div className="article-meta-row">
+        <div className="article-byline">
+          {articleDate(article, dateLocale) && (
+            <time dateTime={article.published_at || article.created_at}>
+              {articleDate(article, dateLocale)}
+            </time>
+          )}
+          {article.reading_time_minutes ? (
+            <span>{t("minRead", { n: article.reading_time_minutes })}</span>
+          ) : null}
+        </div>
+        <div className="article-actions" aria-label={t("article.actions")}>
+          <ArticleShare title={article.title} path={`/article/${article.slug}`} />
+          <SaveButton article={article} />
+        </div>
       </div>
-      <ArticleShare title={article.title} path={`/article/${article.slug}`} />
     </header>
   );
 }

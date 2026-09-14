@@ -40,8 +40,8 @@ export default function SiteHeader() {
             src={logo}
             alt="NinkoSports"
             className="site-header-logo"
-            width="58"
-            height="58"
+            width="64"
+            height="64"
           />
           <span className="site-header-name">NinkoSports</span>
         </Link>
@@ -54,7 +54,15 @@ export default function SiteHeader() {
             >
               <NavLink
                 to={item.path}
-                className={({ isActive }) => (isActive ? "nav-link is-active" : "nav-link")}
+                className={({ isActive }) =>
+                  [
+                    "nav-link",
+                    isActive ? "is-active" : "",
+                    item.path === "/live-scores" ? "nav-live" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                }
                 end={item.path === "/"}
               >
                 {item.label}

@@ -4,11 +4,11 @@ import { getComments, sendJSON } from "../api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 
-function formatTime(value) {
+function formatTime(value, locale) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(locale || undefined, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -16,7 +16,21 @@ function formatTime(value) {
   });
 }
 
+function initials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "NS";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 function CommentForm({ onSubmit, placeholder, submitLabel, initial = "" }) {
+  const { t } = useI18n();
   const [text, setText] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +46,7 @@ function CommentForm({ onSubmit, placeholder, submitLabel, initial = "" }) {
       await onSubmit(next);
       setText("");
     } catch (err) {
-      setError(err.detail || err.message || "Could not post comment.");
+      setError(err.detail || err.message || t("comments.postFail"));
     } finally {
       setBusy(false);
     }
@@ -60,14 +74,20 @@ function CommentForm({ onSubmit, placeholder, submitLabel, initial = "" }) {
 }
 
 function CommentItem({ comment, children, onReply, onLike, onEdit, onDelete, onReport }) {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [replyOpen, setReplyOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const name = comment.author?.display_name || t("comments.reader");
   return (
     <li className="comment-item">
       <div className="comment-meta">
-        <strong>{comment.author?.display_name || t("comments.reader")}</strong>
-        <time dateTime={comment.created_at}>{formatTime(comment.created_at)}</time>
+        <span className="comment-avatar" aria-hidden="true">
+          {initials(name)}
+        </span>
+        <div>
+          <strong>{name}</strong>
+          <time dateTime={comment.created_at}>{formatTime(comment.created_at, dateLocale)}</time>
+        </div>
       </div>
       {comment.deleted || comment.hidden ? (
         <p className="comment-body is-removed">{t("comments.removed")}</p>

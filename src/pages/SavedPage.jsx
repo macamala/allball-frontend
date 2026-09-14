@@ -34,9 +34,9 @@ export default function SavedPage() {
           }
         />
       ) : (
-        <div className="sport-story-list">
+        <div className="saved-grid">
           {saved.map((article) => (
-            <ArticleCard key={article.id || article.slug} article={article} variant="row" />
+            <ArticleCard key={article.id || article.slug} article={article} variant="grid" />
           ))}
         </div>
       )}

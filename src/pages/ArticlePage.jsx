@@ -11,14 +11,13 @@ import EmptyState from "../components/EmptyState.jsx";
 import ArticleBody from "../components/article/ArticleBody.jsx";
 import ArticleHeader from "../components/article/ArticleHeader.jsx";
 import ArticleHero from "../components/article/ArticleHero.jsx";
-import ArticleShare from "../components/article/ArticleShare.jsx";
+import ArticlePager from "../components/article/ArticlePager.jsx";
 import Comments from "../components/Comments.jsx";
 import LiveScoresRail, { hasLiveUtilityData } from "../components/LiveScoresRail.jsx";
 import PortalLayout from "../components/PortalLayout.jsx";
 import RelatedStories from "../components/article/RelatedStories.jsx";
-import SaveButton from "../components/SaveButton.jsx";
 
-function ArticleInner({ article, related, t }) {
+function ArticleInner({ article, related }) {
   const hero = heroMedia(article);
   const blocks = resolveBlocks(article);
   const inlineId = blocks.find((block) => block?.type === "related")?.article?.id;
@@ -27,26 +26,11 @@ function ArticleInner({ article, related, t }) {
   return (
     <div className="article-shell">
       <ArticleHeader article={article} />
-      <div className="article-toolbar">
-        <SaveButton article={article} />
-      </div>
       <ArticleHero media={hero} />
       <div className="article-layout">
         <div className="article-column">
           <ArticleBody blocks={blocks} title={article.title} />
-          <ArticleShare title={article.title} path={`/article/${article.slug}`} />
-          <div className="article-pager">
-            {article.previous && (
-              <Link to={`/article/${article.previous.slug}`}>
-                {t("previous")}: {article.previous.title}
-              </Link>
-            )}
-            {article.next && (
-              <Link to={`/article/${article.next.slug}`}>
-                {t("next")}: {article.next.title}
-              </Link>
-            )}
-          </div>
+          <ArticlePager previous={article.previous} next={article.next} />
           <RelatedStories articles={relatedBottom} />
           <Comments slug={article.slug} />
         </div>
@@ -150,7 +134,7 @@ export default function ArticlePage() {
 
   const presentation = article.presentation_type || "standard";
   const liveRail = hasLiveUtilityData(scores) ? <LiveScoresRail scores={scores} /> : null;
-  const inner = <ArticleInner article={article} related={related} t={t} />;
+  const inner = <ArticleInner article={article} related={related} />;
 
   return (
     <article className={`article-page is-${presentation}`}>

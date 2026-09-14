@@ -7,10 +7,11 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
-import ArticleCard from "../components/ArticleCard.jsx";
+import LatestFeed from "../components/LatestFeed.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
+import SportDesk from "../components/SportDesk.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 
@@ -117,16 +118,10 @@ export default function SportPage() {
         <>
           <HeroStories articles={premium.slice(0, 4)} />
           <div className="sport-mix">
-            <div className="home-sport-grid">
-              {[...premium.slice(4, 8), ...rest.slice(0, 4)].map((article) => (
-                <ArticleCard key={article.id} article={article} variant="row" />
-              ))}
-            </div>
-            <div className="sport-story-list">
-              {[...premium.slice(8), ...rest.slice(4)].map((article) => (
-                <ArticleCard key={article.id} article={article} variant="compact" />
-              ))}
-            </div>
+            {[...premium.slice(4, 8), ...rest.slice(0, 4)].length > 0 && (
+              <SportDesk articles={[...premium.slice(4, 8), ...rest.slice(0, 4)]} />
+            )}
+            <LatestFeed articles={[...premium.slice(8), ...rest.slice(4)]} />
           </div>
         </>
       )}

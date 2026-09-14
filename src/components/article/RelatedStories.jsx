@@ -10,7 +10,7 @@ export default function RelatedStories({ articles = [] }) {
       <h2 className="section-title">{t("related")}</h2>
       <div className="card-grid article-related-grid">
         {articles.map((item) => (
-          <ArticleCard key={item.id || item.slug} article={item} variant="compact" />
+          <ArticleCard key={item.id || item.slug} article={item} variant="grid" />
         ))}
       </div>
     </section>

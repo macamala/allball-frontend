@@ -5,9 +5,10 @@ import { featuredLeagueKeys, getSport, resolveLeague, scopedCompetitionId } from
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
-import ArticleCard from "../components/ArticleCard.jsx";
+import LatestFeed from "../components/LatestFeed.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import HeroStories from "../components/HeroStories.jsx";
 import LeagueTabs from "../components/LeagueTabs.jsx";
 import ProviderPending from "../components/ProviderPending.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
@@ -138,11 +139,10 @@ export default function LeaguePage() {
             />
           )}
           {!loading && isolated.length > 0 && (
-            <div className="sport-story-list">
-              {[...premium, ...rest].map((article) => (
-                <ArticleCard key={article.id} article={article} variant="row" />
-              ))}
-            </div>
+            <>
+              <HeroStories articles={premium.slice(0, 4)} />
+              <LatestFeed articles={[...premium.slice(4), ...rest]} />
+            </>
           )}
         </>
       )}

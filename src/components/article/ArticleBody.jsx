@@ -1,4 +1,5 @@
 import React from "react";
+import { useI18n } from "../../context/I18nContext.jsx";
 import { sanitizeText } from "../../lib/sanitize.js";
 import ArticleMediaBlock from "./ArticleMediaBlock.jsx";
 import ArticleParagraph from "./ArticleParagraph.jsx";
@@ -6,10 +7,11 @@ import ArticleQuote from "./ArticleQuote.jsx";
 import InlineRelatedStory from "./InlineRelatedStory.jsx";
 
 export default function ArticleBody({ blocks = [], title }) {
+  const { t } = useI18n();
   if (!blocks.length) {
     return (
       <div className="article-body">
-        <ArticleParagraph text="This NinkoSports story is being updated." />
+        <ArticleParagraph text={t("article.updating")} />
       </div>
     );
   }
@@ -21,6 +23,14 @@ export default function ArticleBody({ blocks = [], title }) {
         if (type === "media") {
           if (block.is_hero) return null;
           return <ArticleMediaBlock key={`media-${idx}`} item={block} />;
+        }
+        if (type === "caption") {
+          const caption = sanitizeText(block.text, title);
+          return caption ? (
+            <p key={`caption-${idx}`} className="article-caption-block">
+              {caption}
+            </p>
+          ) : null;
         }
         if (type === "related") {
           return (

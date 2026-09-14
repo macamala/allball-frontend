@@ -27,6 +27,13 @@ export function sanitizeText(text, title) {
     .replace(VIDEO_CHROME_RE, " ")
     .replace(CHROME_LINE_RE, " ")
     .replace(ARROW_MENU_RE, " ")
+    .replace(/\bpic\.twitter\.com\/\S+/gi, " ")
+    .replace(/https?:\/\/(?:www\.)?(?:x|twitter|t\.co)\.com\/\S+/gi, " ")
+    .replace(/\bwatch now on\b.{0,120}/gi, " ")
+    .replace(
+      /(?:[A-Za-z0-9 .,'&/-]{0,80})?\(@[\w.]+\)\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}/gi,
+      " "
+    )
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

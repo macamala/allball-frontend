@@ -341,6 +341,17 @@ describe("presentation sanitizer", () => {
     expect(cleaned).not.toMatch(/\[\+/);
     expect(cleaned).toMatch(/Villa/);
   });
+
+  it("strips social chrome from article prose", () => {
+    const cleaned = sanitizeText(
+      "Como won 4-1. Watch now on TNT Sports pic.twitter.com/abcd Football on TNT Sports (@footballontnt) September 10, 2026",
+      "Como 4-1 RB Leipzig"
+    );
+    expect(cleaned).toMatch(/Como won 4-1/);
+    expect(cleaned).not.toMatch(/pic\.twitter\.com/);
+    expect(cleaned).not.toMatch(/Watch now on/);
+    expect(cleaned).not.toMatch(/@footballontnt/);
+  });
 });
 
 describe("Phase 4 portal and account UX", () => {
@@ -780,6 +791,120 @@ describe("Phase 4.2 homepage and article editorial", () => {
     });
     expect(screen.getByText("Najnovije")).toBeInTheDocument();
     expect(screen.getByText("Najčitanije")).toBeInTheDocument();
+  });
+});
+
+describe("Phase 4.3 brand, homepage and article presentation", () => {
+  beforeEach(() => {
+    mockFetch();
+    window.localStorage.clear();
+  });
+
+  it("locks NinkoSports navy and blue design tokens", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, resolve } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "styles.css"), "utf8");
+    expect(css).toMatch(/NinkoSports brand palette — do not replace globally without an explicit brand redesign requirement/);
+    expect(css).toMatch(/--ns-bg:\s*#061422/);
+    expect(css).toMatch(/--ns-blue:\s*#3b82ff/);
+    expect(css).toMatch(/--ns-teal:\s*#2dd4bf/);
+    expect(css).toMatch(/--ns-surface:\s*#102844/);
+    expect(css).toMatch(/--ns-article-width:\s*760px/);
+  });
+
+  it("uses a lead desk, latest stream and numbered Most Read", async () => {
+    renderAt("/");
+    await waitFor(() => {
+      expect(document.querySelector(".hero-lead-copy")).toBeTruthy();
+    });
+    expect(document.querySelector(".hero-lead-link")).toBeTruthy();
+    expect(document.querySelector(".latest-feed.news-stream")).toBeTruthy();
+    expect(document.querySelector(".news-stream-item")).toBeTruthy();
+    expect(document.querySelector(".most-read-list")).toBeTruthy();
+    expect(document.querySelector(".most-read-rank")?.textContent).toBe("01");
+    expect(document.querySelector(".sport-desk")).toBeTruthy();
+    document.querySelectorAll(".article-card").forEach((card) => {
+      const media = card.querySelector(".card-media");
+      const title = card.querySelector(".article-card-title");
+      expect(media && title && media.contains(title)).toBe(false);
+    });
+    document.querySelectorAll(".news-stream-item").forEach((row) => {
+      const media = row.querySelector(".news-stream-thumb");
+      const title = row.querySelector("h3");
+      expect(media && title && media.contains(title)).toBe(false);
+    });
+  });
+
+  it("renders captions separately and strips social chrome from prose", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/como-ucl/related")) {
+        return jsonResponse([
+          {
+            ...sampleArticle,
+            id: 41,
+            slug: "ucl-related",
+            title: "Arsenal prepare for the next Champions League night",
+            league: "uefa-champions-league",
+            league_label: "UEFA Champions League",
+          },
+        ]);
+      }
+      if (url.includes("/articles/como-ucl")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "como-ucl",
+          title: "Como 4-1 RB Leipzig",
+          presentation_type: "major",
+          blocks: [
+            {
+              type: "paragraph",
+              text: "Como completed a stunning Champions League debut with a 4-1 win over RB Leipzig.",
+            },
+            {
+              type: "paragraph",
+              text: "Watch now on TNT Sports & HBO Max pic.twitter.com/abcd1234 Football on TNT Sports (@footballontnt) September 10, 2026",
+            },
+          ],
+          media: [
+            {
+              url: "https://example.com/hero.jpg",
+              is_hero: true,
+              caption: "COMO, ITALY - SEPTEMBER 10: Como players celebrate (Photo by Getty Images)",
+            },
+          ],
+          previous: { slug: "ucl-old", title: "Napoli hold Arsenal in the Champions League" },
+          next: { slug: "ucl-new", title: "Another UEFA Champions League night" },
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/como-ucl");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Como 4-1 RB Leipzig" })).toBeInTheDocument();
+    });
+    expect(document.querySelector("figcaption")?.textContent).toMatch(/Getty Images/);
+    expect(document.querySelector(".article-paragraph")?.textContent).toMatch(/Champions League debut/);
+    expect(document.body.textContent).not.toMatch(/pic\.twitter\.com/);
+    expect(document.body.textContent).not.toMatch(/Watch now on/);
+    expect(document.body.textContent).not.toMatch(/@footballontnt/);
+    expect(document.querySelector(".pager-card")).toBeTruthy();
+    expect(document.querySelector(".article-related-grid")).toBeTruthy();
+    expect(document.querySelector(".article-actions")).toBeTruthy();
+    expect(document.querySelector(".comments-panel")).toBeTruthy();
+    expect(document.querySelector(".comment-sort")).toBeTruthy();
+  });
+
+  it("keeps new Phase 4.3 chrome translated in Serbian", async () => {
+    window.localStorage.setItem("ninkosports.lang", "sr");
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getByText("Redakcija")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Najnovije")).toBeInTheDocument();
   });
 });
 
