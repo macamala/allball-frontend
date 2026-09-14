@@ -18,6 +18,43 @@ import PortalLayout from "../components/PortalLayout.jsx";
 import RelatedStories from "../components/article/RelatedStories.jsx";
 import SaveButton from "../components/SaveButton.jsx";
 
+function ArticleInner({ article, related, t }) {
+  const hero = heroMedia(article);
+  const blocks = resolveBlocks(article);
+  const inlineId = blocks.find((block) => block?.type === "related")?.article?.id;
+  const relatedBottom = (related || []).filter((row) => row.id !== inlineId);
+
+  return (
+    <div className="article-shell">
+      <ArticleHeader article={article} />
+      <div className="article-toolbar">
+        <SaveButton article={article} />
+      </div>
+      <ArticleHero media={hero} />
+      <div className="article-layout">
+        <div className="article-column">
+          <ArticleBody blocks={blocks} title={article.title} />
+          <ArticleShare title={article.title} path={`/article/${article.slug}`} />
+          <div className="article-pager">
+            {article.previous && (
+              <Link to={`/article/${article.previous.slug}`}>
+                {t("previous")}: {article.previous.title}
+              </Link>
+            )}
+            {article.next && (
+              <Link to={`/article/${article.next.slug}`}>
+                {t("next")}: {article.next.title}
+              </Link>
+            )}
+          </div>
+          <RelatedStories articles={relatedBottom} />
+          <Comments slug={article.slug} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticlePage() {
   const { slug } = useParams();
   const { t } = useI18n();
@@ -111,40 +148,13 @@ export default function ArticlePage() {
     );
   }
 
-  const hero = heroMedia(article);
-  const blocks = resolveBlocks(article);
   const presentation = article.presentation_type || "standard";
   const liveRail = hasLiveUtilityData(scores) ? <LiveScoresRail scores={scores} /> : null;
+  const inner = <ArticleInner article={article} related={related} t={t} />;
 
   return (
     <article className={`article-page is-${presentation}`}>
-      <PortalLayout right={liveRail}>
-        <ArticleHeader article={article} />
-        <div className="article-toolbar">
-          <SaveButton article={article} />
-        </div>
-        <ArticleHero media={hero} />
-        <div className="article-layout">
-          <div className="article-column">
-            <ArticleBody blocks={blocks} title={article.title} />
-            <ArticleShare title={article.title} path={`/article/${article.slug}`} />
-            <div className="article-pager">
-              {article.previous && (
-                <Link to={`/article/${article.previous.slug}`}>
-                  {t("previous")}: {article.previous.title}
-                </Link>
-              )}
-              {article.next && (
-                <Link to={`/article/${article.next.slug}`}>
-                  {t("next")}: {article.next.title}
-                </Link>
-              )}
-            </div>
-            <RelatedStories articles={related} />
-            <Comments slug={article.slug} />
-          </div>
-        </div>
-      </PortalLayout>
+      {liveRail ? <PortalLayout right={liveRail}>{inner}</PortalLayout> : inner}
     </article>
   );
 }

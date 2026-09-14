@@ -64,7 +64,14 @@ function mockFetch() {
     if (url.includes("/portal/home")) {
       return jsonResponse({
         featured: [sampleArticle],
-        latest: [sampleArticle],
+        latest: [
+          {
+            ...sampleArticle,
+            id: 7,
+            slug: "other-latest",
+            title: "Another late Premier League story",
+          },
+        ],
         breaking: [],
         most_read: [
           {
@@ -637,7 +644,127 @@ describe("Phase 4.1 taxonomy, i18n and layout", () => {
       expect(document.querySelector(".article-page.is-brief")).toBeTruthy();
     });
     expect(document.querySelector(".article-column")).toBeTruthy();
+    expect(document.querySelector(".article-shell")).toBeTruthy();
     expect(document.querySelector(".portal-left")).toBeNull();
   });
 });
+
+describe("Phase 4.2 homepage and article editorial", () => {
+  beforeEach(() => {
+    mockFetch();
+    window.localStorage.clear();
+  });
+
+  it("does not repeat the hero immediately in Latest News", async () => {
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getByText("Top Stories")).toBeInTheDocument();
+    });
+    const latest = document.querySelector(".latest-feed");
+    expect(latest).toBeTruthy();
+    expect(latest.textContent).not.toMatch(/Aston Villa win late/);
+    expect(latest.textContent).toMatch(/Another late Premier League story/);
+    const ids = [...document.querySelectorAll(".page-home .article-card, .hero-lead, .hero-side-item")].map(
+      (node) => node.textContent
+    );
+    const villaHits = document.body.textContent.split("Aston Villa win late").length - 1;
+    expect(villaHits).toBeLessThan(4);
+  });
+
+  it("hides Most Read when there is no real popularity data", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/portal/home")) {
+        return jsonResponse({
+          featured: [sampleArticle],
+          latest: [{ ...sampleArticle, id: 9, slug: "latest-two", title: "A second football story" }],
+          breaking: [],
+          most_read: [],
+          by_sport: { football: [], basketball: [], tennis: [], motorsport: [] },
+          by_league: [],
+          sports_data: { connected: false, matches: [] },
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getByText("Top Stories")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Most Read")).not.toBeInTheDocument();
+    expect(document.querySelector(".portal-right")).toBeNull();
+  });
+
+  it("uses a compact brief hero and a larger standard hero", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/dillon-brief")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "dillon-brief",
+          presentation_type: "brief",
+          blocks: [{ type: "paragraph", text: "Dillon Jones has signed a short-term deal." }],
+        });
+      }
+      if (url.includes("/articles/spurs-standard/related")) {
+        return jsonResponse([
+          {
+            ...sampleArticle,
+            id: 31,
+            slug: "spurs-related",
+            title: "Tottenham look for a first Premier League goal",
+            league: "england-premier-league",
+            league_label: "Premier League",
+          },
+        ]);
+      }
+      if (url.includes("/articles/spurs-standard")) {
+        return jsonResponse({
+          ...sampleArticle,
+          id: 30,
+          slug: "spurs-standard",
+          title: "De Zerbi under pressure: Tottenham still without a goal after 4 games",
+          presentation_type: "standard",
+          blocks: [
+            { type: "paragraph", text: "Tottenham are still searching for a first Premier League goal." },
+            { type: "paragraph", text: "De Zerbi asked for patience after four matches without a strike." },
+          ],
+          previous: { slug: "pl-old", title: "Liverpool hold Chelsea in the Premier League" },
+          next: { slug: "pl-new", title: "Another Premier League night" },
+        });
+      }
+      return jsonResponse([]);
+    });
+    const brief = renderAt("/article/dillon-brief");
+    await waitFor(() => {
+      expect(document.querySelector(".article-page.is-brief")).toBeTruthy();
+    });
+    expect(document.querySelector(".article-shell")).toBeTruthy();
+    brief.unmount();
+    renderAt("/article/spurs-standard");
+    await waitFor(() => {
+      expect(document.querySelector(".article-page.is-standard")).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Tottenham look for a first Premier League goal/)).toBeInTheDocument();
+    });
+    expect(document.body.textContent).not.toMatch(/Required fields are marked/);
+    expect(document.body.textContent).not.toMatch(/Notify me of follow-up comments/);
+    expect(document.querySelector(".article-pager")).toBeTruthy();
+  });
+
+  it("keeps Serbian homepage chrome translated", async () => {
+    window.localStorage.setItem("ninkosports.lang", "sr");
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getByText("Najvažnije")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Najnovije")).toBeInTheDocument();
+    expect(screen.getByText("Najčitanije")).toBeInTheDocument();
+  });
+});
+
 

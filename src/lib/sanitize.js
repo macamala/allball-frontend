@@ -10,6 +10,8 @@ const SKIP_NAV_RE = /skip to (?:main content|content|navigation|main navigation)
 const VIDEO_CHROME_RE = /\bplay\s+[A-Z][\w .'-]{0,40}:\s+.{8,140}?\(\d{1,2}:\d{2}\)/gi;
 const ARROW_MENU_RE = /-->\s*/g;
 const COOKIE_RE = /\bcookie (?:policy|consent|settings|notice)\b/gi;
+const CHROME_LINE_RE =
+  /(required fields are marked|notify me of follow-up comments|leave a reply|leave a comment|your email address will not be published|save my name, email|post comment|subscribe to our newsletter|latest italian football news|we use cookies|all rights reserved)/gi;
 
 export function sanitizeText(text, title) {
   if (!text) return "";
@@ -23,6 +25,7 @@ export function sanitizeText(text, title) {
     .replace(SKIP_NAV_RE, " ")
     .replace(COOKIE_RE, " ")
     .replace(VIDEO_CHROME_RE, " ")
+    .replace(CHROME_LINE_RE, " ")
     .replace(ARROW_MENU_RE, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")

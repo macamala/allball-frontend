@@ -13,7 +13,7 @@ export default function HeroStories({ articles = [] }) {
   const leadSport = sportI18nKey(lead.sport);
 
   return (
-    <section className="hero-grid" aria-label="Top stories">
+    <section className="hero-grid" aria-label={t("topStories")}>
       <article className="hero-lead">
         <Link to={`/article/${lead.slug}`} className="hero-lead-link">
           <ArticleImage

@@ -5,6 +5,7 @@ import { MAIN_SPORTS, leaguePath, sportPath } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
+import { composeHomeModules } from "../lib/editorial.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
 import ArticleCard from "../components/ArticleCard.jsx";
 import BreakingBar from "../components/BreakingBar.jsx";
@@ -71,21 +72,19 @@ export default function HomePage() {
     return <EmptyState title={t("empty.loadFail")} body={error} compact />;
   }
 
-  const featured = data?.featured || [];
-  const latest = data?.latest || [];
-  const breaking = data?.breaking || [];
-  const mostRead = data?.most_read || [];
-  const bySport = data?.by_sport || {};
-  const byLeague = data?.by_league || [];
+  const modules = composeHomeModules(data || {});
   const scores = data?.sports_data;
   const liveRail = hasLiveUtilityData(scores) ? <LiveScoresRail scores={scores} /> : null;
 
   return (
     <div className="page-home">
-      <BreakingBar articles={breaking} />
+      <BreakingBar articles={modules.breaking} />
       <PortalLayout right={liveRail}>
-        {featured.length > 0 ? (
-          <HeroStories articles={featured} />
+        {modules.featured.length > 0 ? (
+          <section className="section top-stories" aria-labelledby="top-stories-heading">
+            <SectionHeader eyebrow={t("section.topStories")} title={t("topStories")} />
+            <HeroStories articles={modules.featured} />
+          </section>
         ) : (
           <EmptyState
             compact
@@ -95,21 +94,21 @@ export default function HomePage() {
         )}
 
         <div className="editorial-split">
-          {latest.length > 0 && (
+          {modules.latest.length > 0 && (
             <section className="section">
-              <SectionHeader eyebrow={t("section.sport")} title={t("latest")} />
-              <div className="home-card-grid">
-                {latest.slice(0, 6).map((article) => (
-                  <ArticleCard key={article.id} article={article} variant="row" />
+              <SectionHeader title={t("latest")} />
+              <div className="news-list latest-feed">
+                {modules.latest.slice(0, 8).map((article) => (
+                  <ArticleCard key={article.id} article={article} variant="compact" />
                 ))}
               </div>
             </section>
           )}
-          {mostRead.length > 0 && (
+          {modules.mostRead.length > 0 && (
             <section className="section">
               <SectionHeader title={t("mostRead")} />
-              <div className="home-card-grid">
-                {mostRead.slice(0, 5).map((article) => (
+              <div className="news-list">
+                {modules.mostRead.slice(0, 5).map((article) => (
                   <ArticleCard key={`mr-${article.id}`} article={article} variant="compact" />
                 ))}
               </div>
@@ -118,7 +117,7 @@ export default function HomePage() {
         </div>
 
         {sportOrder.map((slug) => {
-          const articles = bySport[slug] || [];
+          const articles = modules.bySport[slug] || [];
           if (!articles.length) return null;
           const key = sportI18nKey(slug);
           return (
@@ -138,7 +137,7 @@ export default function HomePage() {
           );
         })}
 
-        {byLeague.map((group) => (
+        {modules.byLeague.map((group) => (
           <section className="section" key={group.league}>
             <SectionHeader
               eyebrow={t("section.competition")}
