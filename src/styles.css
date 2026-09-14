@@ -589,9 +589,18 @@ select {
 
 .article-hero.is-crest .article-hero-media,
 .article-page.is-crest-media .article-hero-media {
-  max-height: 160px;
+  max-height: 140px;
   min-height: 96px;
-  aspect-ratio: 2 / 1;
+  max-width: 180px;
+  width: 180px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+
+.article-hero.is-crest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .article-card.is-crest .card-media {
