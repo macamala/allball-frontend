@@ -602,6 +602,7 @@ describe("Phase 4.1 taxonomy, i18n and layout", () => {
   it("formats date-only timestamps without midnight", async () => {
     const { articleDate } = await import("./labels.js");
     expect(articleDate({ published_at: "2026-09-13T00:00:00Z" }, "en-GB")).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(articleDate({ published_at: "2026-09-13T00:00:00" }, "en-GB")).not.toMatch(/\d{1,2}:\d{2}/);
     expect(articleDate({ published_at: "2026-09-13T18:30:00Z" }, "en-GB")).toMatch(/\d{1,2}:\d{2}/);
   });
 
