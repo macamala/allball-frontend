@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { LANGUAGES, readLanguage, translate, writeLanguage } from "../i18n/index.js";
+import { LANGUAGES, DATE_LOCALES, readLanguage, translate, writeLanguage } from "../i18n/index.js";
 
 const I18nContext = createContext({
   lang: "en",
@@ -20,6 +20,7 @@ export function I18nProvider({ children }) {
       setLang,
       languages: LANGUAGES,
       t: (key, vars) => translate(lang, key, vars),
+      dateLocale: DATE_LOCALES[lang] || "en-GB",
     };
   }, [lang]);
 

@@ -1,41 +1,62 @@
 import React, { useEffect, useState } from "react";
 import { getScores } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
+import { useI18n } from "../context/I18nContext.jsx";
 import ProviderPending from "../components/ProviderPending.jsx";
-
-const VIEWS = ["Live", "Today", "Tomorrow"];
+import LiveScoresRail from "../components/LiveScoresRail.jsx";
 
 export default function LiveScoresPage() {
-  const [view, setView] = useState("Live");
+  const { t } = useI18n();
+  const [view, setView] = useState("live");
   const [date, setDate] = useState("");
   const [status, setStatus] = useState(null);
+  const [sport, setSport] = useState("football");
 
   useEffect(() => {
     setPageSeo({
-      title: "Live Scores | NinkoSports",
-      description:
-        "Live scores, fixtures and results will appear here when a sports-data provider is connected.",
+      title: `${t("liveScores")} | NinkoSports`,
+      description: t("live.readyBody"),
       path: "/live-scores",
     });
     getScores().then(setStatus).catch(() => setStatus({ connected: false }));
-  }, []);
+  }, [t]);
+
+  const views = [
+    { id: "live", label: t("live.now") },
+    { id: "today", label: t("live.today") },
+    { id: "tomorrow", label: t("live.tomorrow") },
+  ];
+  const sports = [
+    { id: "football", label: t("sport.football") },
+    { id: "basketball", label: t("sport.basketball") },
+    { id: "tennis", label: t("sport.tennis") },
+    { id: "other", label: t("sport.other") },
+  ];
+  const connected = Boolean(status?.connected && (status.matches || []).length);
+  const filtered = (status?.matches || []).filter((match) => {
+    if (sport && match.sport && match.sport !== sport) return false;
+    if (view === "live") return match.live || match.status === "live";
+    if (view === "today") return match.when === "today";
+    if (view === "tomorrow") return match.when === "tomorrow";
+    return true;
+  });
 
   return (
     <div className="page-scores">
-      <h1>Live Scores</h1>
+      <h1>{t("liveScores")}</h1>
       <div className="score-toolbar">
-        {VIEWS.map((item) => (
+        {views.map((item) => (
           <button
-            key={item}
+            key={item.id}
             type="button"
-            className={item === view ? "tab is-active" : "tab"}
-            onClick={() => setView(item)}
+            className={item.id === view ? "tab is-active" : "tab"}
+            onClick={() => setView(item.id)}
           >
-            {item}
+            {item.label}
           </button>
         ))}
         <label className="date-field">
-          Date
+          {t("live.date")}
           <input
             type="date"
             value={date}
@@ -43,13 +64,23 @@ export default function LiveScoresPage() {
           />
         </label>
       </div>
-      <ProviderPending
-        title="Scores center is ready"
-        body={
-          status?.message ||
-          "Match lists, kickoff times and live scores will appear here after a sports-data provider is connected. No placeholder games are shown."
-        }
-      />
+      <div className="score-toolbar">
+        {sports.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={item.id === sport ? "tab is-active" : "tab"}
+            onClick={() => setSport(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      {connected ? (
+        <LiveScoresRail scores={{ connected: true, matches: filtered }} />
+      ) : (
+        <ProviderPending title={t("live.readyTitle")} body={t("live.readyBody")} />
+      )}
     </div>
   );
 }

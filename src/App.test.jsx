@@ -38,6 +38,9 @@ function jsonResponse(data, status = 200) {
 function mockFetch() {
   global.fetch = vi.fn((input, init = {}) => {
     const url = String(input);
+    if (url.includes("/auth/providers")) {
+      return jsonResponse({ password: true, google: false, facebook: false });
+    }
     if (url.includes("/auth/session") || url.includes("/auth/csrf")) {
       return jsonResponse({ user: null, csrf: "test-csrf" });
     }
@@ -63,7 +66,14 @@ function mockFetch() {
         featured: [sampleArticle],
         latest: [sampleArticle],
         breaking: [],
-        most_read: [],
+        most_read: [
+          {
+            ...sampleArticle,
+            id: 12,
+            slug: "most-read-story",
+            title: "Most read weekend story",
+          },
+        ],
         by_sport: { football: [sampleArticle], basketball: [], tennis: [], motorsport: [] },
         by_league: [],
         sports_data: { connected: false },
@@ -179,7 +189,7 @@ describe("NinkoSports Phase 3 routes", () => {
       expect(document.body.textContent).not.toMatch(/source_url/i);
       expect(document.body.textContent).not.toMatch(/Menu ESPN/i);
       expect(document.querySelector(".article-layout")).toBeTruthy();
-      expect(screen.getByLabelText("Latest news")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Latest news")).not.toBeInTheDocument();
     });
 
   describe("article editorial experience", () => {
@@ -318,7 +328,7 @@ describe("Phase 4 portal and account UX", () => {
     mockFetch();
   });
 
-  it("renders larger branding and a three-zone homepage shell", async () => {
+  it("renders larger branding and expands the editorial center when live rails are hidden", async () => {
     renderAt("/");
     await waitFor(() => {
       expect(screen.getAllByText(/NinkoSports/).length).toBeGreaterThan(0);
@@ -327,8 +337,10 @@ describe("Phase 4 portal and account UX", () => {
     expect(Number(logo.getAttribute("width"))).toBeGreaterThanOrEqual(48);
     expect(document.querySelector(".site-header-name")).toBeTruthy();
     expect(document.querySelector(".portal-shell")).toBeTruthy();
-    expect(document.querySelector(".portal-left")).toBeTruthy();
-    expect(document.querySelector(".portal-right")).toBeTruthy();
+    expect(document.querySelector(".portal-left")).toBeNull();
+    expect(document.querySelector(".portal-right")).toBeNull();
+    expect(document.querySelector(".portal-shell.is-expanded")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/1-0|Live now/);
   });
 
   it("keeps card titles out of the image region", async () => {
@@ -442,3 +454,189 @@ describe("Phase 4 portal and account UX", () => {
     expect(screen.getAllByText(/My Sports/).length).toBeGreaterThan(0);
   });
 });
+
+describe("Phase 4.1 taxonomy, i18n and layout", () => {
+  beforeEach(() => {
+    mockFetch();
+    window.localStorage.clear();
+  });
+
+  it("shows resolved competition badges and omits unknown ones", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/providers")) {
+        return jsonResponse({ password: true, google: false, facebook: false });
+      }
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/portal/home")) {
+        return jsonResponse({
+          featured: [
+            {
+              ...sampleArticle,
+              slug: "ucl-liveblog",
+              title: "Champions League Liveblog: Napoli vs Arsenal",
+              league: "uefa-champions-league",
+              league_label: "UEFA Champions League",
+            },
+            {
+              ...sampleArticle,
+              id: 4,
+              slug: "serie-wrong-tag",
+              title: "Napoli vs Bologna — Serie A probable line-ups",
+              league: "italy-serie-a",
+              league_label: "Serie A",
+            },
+            {
+              ...sampleArticle,
+              id: 5,
+              slug: "unknown-comp",
+              title: "A busy night across Europe",
+              league: null,
+              league_label: null,
+            },
+          ],
+          latest: [],
+          breaking: [],
+          most_read: [],
+          by_sport: {},
+          by_league: [],
+          sports_data: { connected: false, matches: [] },
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getAllByText("UEFA Champions League").length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText("Serie A").length).toBeGreaterThan(0);
+    const unknown = screen.getByText("A busy night across Europe").closest("article");
+    expect(unknown.textContent).not.toMatch(/Premier League|Serie A|UEFA Champions League/);
+  });
+
+  it("keeps NBA and EuroLeague pages from mixing and isolates tennis/motorsport", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/articles")) {
+        if (url.includes("nba")) {
+          return jsonResponse([
+            {
+              ...sampleArticle,
+              sport: "basketball",
+              league: "nba",
+              league_label: "NBA",
+              sport_label: "Basketball",
+              title: "Lakers and 76ers meet in a heavy NBA night",
+              sport_match_ok: true,
+            },
+          ]);
+        }
+        if (url.includes("euroleague")) {
+          return jsonResponse([
+            {
+              ...sampleArticle,
+              id: 8,
+              sport: "basketball",
+              league: "euroleague",
+              league_label: "EuroLeague",
+              title: "EuroLeague shareholders face major decisions",
+              sport_match_ok: true,
+            },
+          ]);
+        }
+        if (url.includes("tennis") || url.includes("motorsport")) {
+          return jsonResponse([]);
+        }
+        if (url.includes("football")) {
+          return jsonResponse([sampleArticle]);
+        }
+      }
+      return jsonResponse({ user: null, csrf: "test-csrf" });
+    });
+    const nba = renderAt("/basketball/nba");
+    await waitFor(() => {
+      expect(screen.getByText(/Lakers and 76ers/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/EuroLeague shareholders/)).not.toBeInTheDocument();
+    nba.unmount();
+    const euro = renderAt("/basketball/euroleague");
+    await waitFor(() => {
+      expect(screen.getByText(/EuroLeague shareholders/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Lakers and 76ers/)).not.toBeInTheDocument();
+    euro.unmount();
+    renderAt("/tennis");
+    await waitFor(() => {
+      expect(document.querySelector(".empty-state.is-compact")).toBeTruthy();
+    });
+    expect(screen.queryByText(/Aston Villa/)).not.toBeInTheDocument();
+  });
+
+  it("translates Serbian site-owned UI and keeps official competition names", async () => {
+    window.localStorage.setItem("ninkosports.lang", "sr");
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getAllByRole("link", { name: "Početna" }).length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText("Fudbal").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Košarka").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Tenis").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ostali sportovi").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Rezultati uživo").length).toBeGreaterThan(0);
+    expect(screen.getByText("Najnovije")).toBeInTheDocument();
+    expect(screen.getByText("Najčitanije")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Premier League").length).toBeGreaterThan(0);
+  });
+
+  it("covers translation keys for every supported language", async () => {
+    const { canonicalKeys, missingKeys, DICTS } = await import("./i18n/index.js");
+    const keys = canonicalKeys();
+    expect(keys.length).toBeGreaterThan(80);
+    Object.keys(DICTS).forEach((lang) => {
+      expect(missingKeys(lang)).toEqual([]);
+    });
+  });
+
+  it("formats date-only timestamps without midnight", async () => {
+    const { articleDate } = await import("./labels.js");
+    expect(articleDate({ published_at: "2026-09-13T00:00:00Z" }, "en-GB")).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(articleDate({ published_at: "2026-09-13T18:30:00Z" }, "en-GB")).toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it("hides Google and Facebook when credentials are off and toggles password visibility", async () => {
+    renderAt("/login");
+    expect(screen.queryByText(/Continue with Google/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Continue with Facebook/i)).not.toBeInTheDocument();
+    const password = screen.getByLabelText(/^Password$/i);
+    expect(password).toHaveAttribute("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: /Show password/i }));
+    expect(password).toHaveAttribute("type", "text");
+  });
+
+  it("keeps a readable article column and a smaller brief hero", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/dillon-brief")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "dillon-brief",
+          title: "Dillon Jones signs a short-term deal",
+          presentation_type: "brief",
+          blocks: [{ type: "paragraph", text: "Dillon Jones has signed a short-term deal." }],
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/dillon-brief");
+    await waitFor(() => {
+      expect(document.querySelector(".article-page.is-brief")).toBeTruthy();
+    });
+    expect(document.querySelector(".article-column")).toBeTruthy();
+    expect(document.querySelector(".portal-left")).toBeNull();
+  });
+});
+

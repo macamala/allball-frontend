@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { CANONICAL_SITE } from "../labels.js";
+import { useI18n } from "../context/I18nContext.jsx";
 
 export default function ShareButtons({ title, path }) {
+  const { t } = useI18n();
   const url = `${CANONICAL_SITE}${path}`;
   const encoded = encodeURIComponent(url);
   const text = encodeURIComponent(title || "NinkoSports");
@@ -19,7 +21,7 @@ export default function ShareButtons({ title, path }) {
 
   return (
     <div className="share-row">
-      <span className="share-label">Share</span>
+      <span className="share-label">{t("share")}</span>
       <a
         className="share-btn"
         href={`https://twitter.com/intent/tweet?url=${encoded}&text=${text}`}
@@ -45,7 +47,7 @@ export default function ShareButtons({ title, path }) {
         WhatsApp
       </a>
       <button type="button" className="share-btn" onClick={copy}>
-        {copied ? "Copied" : "Copy link"}
+        {copied ? t("copied") : t("copyLink")}
       </button>
     </div>
   );

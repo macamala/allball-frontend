@@ -1,7 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useI18n } from "../context/I18nContext.jsx";
 
-export default function SectionHeader({ eyebrow, title, to, action = "See all" }) {
+export default function SectionHeader({ eyebrow, title, to, action }) {
+  const { t } = useI18n();
+  const linkLabel = action || t("seeAll");
   return (
     <div className="section-header">
       <div>
@@ -10,7 +13,7 @@ export default function SectionHeader({ eyebrow, title, to, action = "See all" }
       </div>
       {to && (
         <Link className="section-link" to={to}>
-          {action}
+          {linkLabel}
         </Link>
       )}
     </div>

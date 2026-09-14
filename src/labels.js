@@ -95,12 +95,21 @@ export function competitionLabel(value, fallback) {
   return fallback || COMPETITION_LABELS[value] || titleCaseSlug(value);
 }
 
-export function articleDate(article) {
+export function articleDate(article, locale = "en-GB") {
   const raw = article?.published_at || article?.created_at;
   if (!raw) return "";
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString(undefined, {
+  const hasTime =
+    d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0 || d.getUTCSeconds() !== 0;
+  if (!hasTime) {
+    return d.toLocaleDateString(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+  return d.toLocaleString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",

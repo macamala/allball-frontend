@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import logo from "../assets/logo-ninkosports.png";
-import { PRIMARY_NAV } from "../config/sports.js";
+import { getPrimaryNav } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import LanguageSelect from "./LanguageSelect.jsx";
@@ -13,6 +13,7 @@ export default function SiteHeader() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { t } = useI18n();
+  const nav = useMemo(() => getPrimaryNav(t), [t]);
 
   useEffect(() => {
     setOpen(false);
@@ -39,14 +40,14 @@ export default function SiteHeader() {
             src={logo}
             alt="NinkoSports"
             className="site-header-logo"
-            width="52"
-            height="52"
+            width="58"
+            height="58"
           />
           <span className="site-header-name">NinkoSports</span>
         </Link>
 
-        <nav className="desktop-nav" aria-label="Main">
-          {PRIMARY_NAV.map((item) => (
+        <nav className="desktop-nav" aria-label={t("nav.main")}>
+          {nav.map((item) => (
             <div
               className={item.children ? "nav-item has-children" : "nav-item"}
               key={item.path}
@@ -59,7 +60,7 @@ export default function SiteHeader() {
                 {item.label}
               </NavLink>
               {item.children && (
-                <div className="nav-dropdown" role="group" aria-label={`${item.label} competitions`}>
+                <div className="nav-dropdown" role="group" aria-label={item.label}>
                   {item.children.map((child) => (
                     <Link key={child.path} to={child.path}>
                       {child.label}
@@ -105,8 +106,8 @@ export default function SiteHeader() {
       >
         <SearchBox value={query} onChange={setQuery} />
         <LanguageSelect id="mobile-language" />
-        <nav aria-label="Mobile">
-          {PRIMARY_NAV.map((item) => (
+        <nav aria-label={t("nav.mobile")}>
+          {nav.map((item) => (
             <div key={item.path} className="mobile-group">
               <NavLink to={item.path}>{item.label}</NavLink>
               {item.children && (

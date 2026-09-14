@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { setPageSeo } from "../lib/seo.js";
+import AuthCard, { PasswordField, SocialButtons } from "../components/AuthCard.jsx";
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -14,12 +15,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     setPageSeo({
-      title: "Log in | NinkoSports",
-      description: "Sign in to NinkoSports to comment, save stories and follow sports.",
+      title: `${t("nav.login")} | NinkoSports`,
+      description: t("auth.tagline"),
       path: "/login",
       noindex: true,
     });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (user) navigate("/profile", { replace: true });
@@ -32,13 +33,12 @@ export default function LoginPage() {
       await login({ email, password });
       navigate("/profile");
     } catch (err) {
-      setError(err.detail || "Could not sign in.");
+      setError(err.detail || t("auth.failedLogin"));
     }
   };
 
   return (
-    <div className="auth-page">
-      <h1>{t("nav.login")}</h1>
+    <AuthCard title={t("nav.login")}>
       <form className="auth-form" onSubmit={submit}>
         <label htmlFor="login-email">{t("auth.email")}</label>
         <input
@@ -49,23 +49,22 @@ export default function LoginPage() {
           onChange={(event) => setEmail(event.target.value)}
           required
         />
-        <label htmlFor="login-password">{t("auth.password")}</label>
-        <input
+        <PasswordField
           id="login-password"
-          type="password"
+          label={t("auth.password")}
           value={password}
           autoComplete="current-password"
           onChange={(event) => setPassword(event.target.value)}
-          required
         />
         {error ? <p className="error-text">{error}</p> : null}
         <button type="submit" className="btn">
-          {t("nav.login")}
+          {t("auth.ctaLogin")}
         </button>
       </form>
+      <SocialButtons />
       <p className="auth-switch">
         {t("auth.needAccount")} <Link to="/register">{t("nav.register")}</Link>
       </p>
-    </div>
+    </AuthCard>
   );
 }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { setPageSeo } from "../lib/seo.js";
+import AuthCard, { PasswordField, SocialButtons } from "../components/AuthCard.jsx";
 
 export default function RegisterPage() {
   const { register, user } = useAuth();
@@ -10,17 +11,18 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     setPageSeo({
-      title: "Register | NinkoSports",
-      description: "Create a NinkoSports account to comment, save stories and follow sports.",
+      title: `${t("nav.register")} | NinkoSports`,
+      description: t("auth.tagline"),
       path: "/register",
       noindex: true,
     });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (user) navigate("/profile", { replace: true });
@@ -29,17 +31,20 @@ export default function RegisterPage() {
   const submit = async (event) => {
     event.preventDefault();
     setError("");
+    if (password !== confirm) {
+      setError(t("auth.mismatch"));
+      return;
+    }
     try {
       await register({ email, password, display_name: displayName });
       navigate("/profile");
     } catch (err) {
-      setError(err.detail || "Could not create the account.");
+      setError(err.detail || t("auth.failedRegister"));
     }
   };
 
   return (
-    <div className="auth-page">
-      <h1>{t("nav.register")}</h1>
+    <AuthCard title={t("nav.register")}>
       <form className="auth-form" onSubmit={submit}>
         <label htmlFor="register-name">{t("auth.displayName")}</label>
         <input
@@ -59,24 +64,29 @@ export default function RegisterPage() {
           onChange={(event) => setEmail(event.target.value)}
           required
         />
-        <label htmlFor="register-password">{t("auth.password")}</label>
-        <input
+        <PasswordField
           id="register-password"
-          type="password"
+          label={t("auth.password")}
           value={password}
           autoComplete="new-password"
-          minLength={8}
           onChange={(event) => setPassword(event.target.value)}
-          required
+        />
+        <PasswordField
+          id="register-confirm"
+          label={t("auth.passwordConfirm")}
+          value={confirm}
+          autoComplete="new-password"
+          onChange={(event) => setConfirm(event.target.value)}
         />
         {error ? <p className="error-text">{error}</p> : null}
         <button type="submit" className="btn">
-          {t("auth.create")}
+          {t("auth.ctaRegister")}
         </button>
       </form>
+      <SocialButtons />
       <p className="auth-switch">
         {t("auth.haveAccount")} <Link to="/login">{t("nav.login")}</Link>
       </p>
-    </div>
+    </AuthCard>
   );
 }

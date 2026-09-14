@@ -12,18 +12,20 @@ export default function SavedPage() {
 
   useEffect(() => {
     setPageSeo({
-      title: "Saved articles | NinkoSports",
-      description: "Stories you saved on NinkoSports.",
+      title: `${t("nav.saved")} | NinkoSports`,
+      description: t("saved.lede"),
       path: "/saved",
       noindex: true,
     });
-  }, []);
+  }, [t]);
 
   return (
     <div className="page-saved">
       <h1>{t("nav.saved")}</h1>
+      <p className="lede">{t("saved.lede")}</p>
       {saved.length === 0 ? (
         <EmptyState
+          compact
           title={t("saved.empty")}
           action={
             <Link to="/" className="btn">

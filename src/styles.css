@@ -11,8 +11,8 @@
   --league: #0f766e;
   --focus: #7cb0ff;
   --radius: 8px;
-  --header-h: 76px;
-  --max: 1520px;
+  --header-h: 82px;
+  --max: 1760px;
   --font-ui: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: Georgia, "Times New Roman", serif;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
@@ -123,8 +123,8 @@ select {
 }
 
 .site-header-logo {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   border-radius: 8px;
   background: #0b1220;
@@ -132,7 +132,7 @@ select {
 
 .site-header-name {
   font-weight: 800;
-  font-size: 1.28rem;
+  font-size: 1.42rem;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
@@ -447,16 +447,27 @@ select {
 .hero-side-item a,
 .article-card-link {
   display: grid;
+  grid-template-areas: "media" "body";
+  grid-template-rows: auto 1fr;
   text-decoration: none;
   color: inherit;
   height: 100%;
   overflow: hidden;
+  position: relative;
+}
+
+.hero-lead-media {
+  grid-area: media;
 }
 
 .hero-lead-copy,
 .article-card-body,
-.hero-side-item a {
+.hero-side-copy {
+  grid-area: body;
   padding: 14px;
+  background: var(--bg-elev);
+  position: relative;
+  z-index: 1;
 }
 
 .hero-lead h1,
@@ -481,9 +492,19 @@ select {
 }
 
 .hero-side-item a {
-  grid-template-columns: 110px 1fr;
-  gap: 10px;
+  grid-template-areas: "media body";
+  grid-template-columns: 38% 1fr;
+  grid-template-rows: auto;
+  gap: 0;
   padding: 0;
+}
+
+.hero-side-media {
+  grid-area: media;
+}
+
+.hero-side-copy {
+  grid-area: body;
 }
 
 .hero-side-item h2 {
@@ -550,7 +571,17 @@ select {
 }
 
 .article-card.card-row .article-card-link {
-  grid-template-columns: 180px 1fr;
+  grid-template-areas: "media body";
+  grid-template-columns: minmax(120px, 38%) minmax(0, 1fr);
+  grid-template-rows: auto;
+}
+
+.card-media {
+  grid-area: media;
+}
+
+.article-card-body {
+  grid-area: body;
 }
 
 .card-row .article-card-summary {
@@ -679,14 +710,15 @@ select {
 
 .article-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
   align-items: start;
 }
 
 .article-column {
   min-width: 0;
   max-width: 46rem;
+  width: 100%;
 }
 
 .article-body {
@@ -1167,8 +1199,14 @@ select {
 }
 
 .article-page.is-brief .article-hero-media {
-  min-height: 160px;
-  aspect-ratio: 16 / 7;
+  min-height: 120px;
+  max-height: 220px;
+  aspect-ratio: 16 / 6;
+}
+
+.article-page.is-brief .article-header,
+.article-page.is-brief .article-toolbar {
+  margin-bottom: 8px;
 }
 
 .article-page.is-brief .article-deck,
@@ -1196,11 +1234,22 @@ select {
 }
 
 @media (min-width: 1100px) {
-  .portal-shell {
+  .portal-shell.has-right:not(.has-left) {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-areas: "main right";
+  }
+
+  .portal-shell.has-left.has-right {
     grid-template-columns: minmax(0, 1fr) 280px;
     grid-template-areas:
       "main right"
       "left right";
+  }
+
+  .portal-shell.is-expanded,
+  .portal-shell:not(.has-left):not(.has-right) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main";
   }
 
   .portal-main { grid-area: main; }
@@ -1209,9 +1258,20 @@ select {
 }
 
 @media (min-width: 1400px) {
-  .portal-shell {
+  .portal-shell.has-left.has-right {
     grid-template-columns: 250px minmax(0, 1fr) 300px;
     grid-template-areas: "left main right";
+  }
+
+  .portal-shell.has-right:not(.has-left) {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-areas: "main right";
+  }
+
+  .portal-shell.is-expanded,
+  .portal-shell:not(.has-left):not(.has-right) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main";
   }
 
   .portal-left,
@@ -1225,3 +1285,106 @@ select {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.editorial-split,
+.home-sport-grid,
+.home-card-grid {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .editorial-split {
+    grid-template-columns: 1.4fr 0.9fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .home-sport-grid,
+  .home-card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.empty-state.is-compact,
+.provider-pending .empty-state {
+  padding: 18px 16px;
+  min-height: 0;
+}
+
+.auth-page {
+  max-width: none;
+  display: grid;
+  place-items: start center;
+  padding: 24px 12px 48px;
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: var(--shadow);
+}
+
+.auth-brand {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin: 0 0 4px;
+}
+
+.auth-tagline {
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+
+.password-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.password-toggle {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.social-auth {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.favorites-block h2 {
+  margin-bottom: 8px;
+}
+
+.favorites-sport-group h3 {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+.page-saved {
+  max-width: 56rem;
+}
+
+@media (max-width: 720px) {
+  .article-card.card-row .article-card-link,
+  .hero-side-item a {
+    grid-template-areas: "media" "body";
+    grid-template-columns: 1fr;
+  }
+
+  .auth-page {
+    padding: 12px 0 32px;
+  }
+}
+

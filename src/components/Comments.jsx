@@ -66,11 +66,11 @@ function CommentItem({ comment, children, onReply, onLike, onEdit, onDelete, onR
   return (
     <li className="comment-item">
       <div className="comment-meta">
-        <strong>{comment.author?.display_name || "Reader"}</strong>
+        <strong>{comment.author?.display_name || t("comments.reader")}</strong>
         <time dateTime={comment.created_at}>{formatTime(comment.created_at)}</time>
       </div>
       {comment.deleted || comment.hidden ? (
-        <p className="comment-body is-removed">This comment was removed.</p>
+        <p className="comment-body is-removed">{t("comments.removed")}</p>
       ) : editing ? (
         <CommentForm
           initial={comment.body}
@@ -194,9 +194,7 @@ export default function Comments({ slug }) {
   return (
     <section className="comments-panel" aria-label={t("comments")}>
       <div className="comments-heading">
-        <h2>
-          {t("comments")} · {t("comments.count", { n: count })}
-        </h2>
+        <h2>{t("comments.count", { n: count })}</h2>
         <div className="comment-sort">
           <button
             type="button"

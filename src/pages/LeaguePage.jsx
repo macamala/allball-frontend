@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getArticles } from "../api.js";
-import { featuredLeagueKeys, getSport, resolveLeague } from "../config/sports.js";
+import { featuredLeagueKeys, getSport, resolveLeague, scopedCompetitionId } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
@@ -13,14 +13,8 @@ import ProviderPending from "../components/ProviderPending.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import StandingsTable from "../components/StandingsTable.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
+import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
-
-const TABS = [
-  { id: "news", label: "News" },
-  { id: "fixtures", label: "Fixtures" },
-  { id: "results", label: "Results" },
-  { id: "standings", label: "Standings" },
-];
 
 export default function LeaguePage() {
   const { sportSlug, leagueSlug } = useParams();
@@ -32,9 +26,22 @@ export default function LeaguePage() {
   const [error, setError] = useState("");
   const { favorites, syncFavorites } = useAuth();
   const { t } = useI18n();
+  const sportLabelText = sport ? t(sportI18nKey(sport.slug) || "sport.label") : t("sport.label");
+  const tabs = [
+    { id: "news", label: t("league.news") },
+    { id: "fixtures", label: t("league.fixtures") },
+    { id: "results", label: t("league.results") },
+    { id: "standings", label: t("league.standings") },
+  ];
 
-  const followKey = league.catchAll ? `${sportSlug}:other` : league.league;
-  const followed = Boolean(followKey) && (favorites.leagues || []).includes(followKey);
+  const followKey = league.catchAll
+    ? scopedCompetitionId(sportSlug, "other")
+    : scopedCompetitionId(sportSlug, league.league);
+  const followed =
+    Boolean(followKey) &&
+    (favorites.leagues || []).some(
+      (item) => item === followKey || item === league.league
+    );
 
   useEffect(() => {
     setTab("news");
@@ -43,8 +50,8 @@ export default function LeaguePage() {
   useEffect(() => {
     const path = `/${sportSlug}/${leagueSlug}`;
     const crumbs = [
-      { name: "Home", path: "/" },
-      { name: sport?.label || "Sport", path: sport?.path || `/${sportSlug}` },
+      { name: t("nav.home"), path: "/" },
+      { name: sportLabelText, path: sport?.path || `/${sportSlug}` },
       { name: league.label, path },
     ];
     setPageSeo({
@@ -53,7 +60,7 @@ export default function LeaguePage() {
       path,
       jsonLd: breadcrumbJsonLd(crumbs),
     });
-  }, [league.label, leagueSlug, sport, sportSlug]);
+  }, [league.label, leagueSlug, sport, sportSlug, sportLabelText, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +79,7 @@ export default function LeaguePage() {
         }
       })
       .catch(() => {
-        if (!cancelled) setError("Failed to load this competition.");
+        if (!cancelled) setError(t("empty.competitionFail"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -91,14 +98,14 @@ export default function LeaguePage() {
     <div className="page-league">
       <Breadcrumbs
         items={[
-          { name: "Home", path: "/" },
-          { name: sport?.label || "Sport", path: sport?.path || `/${sportSlug}` },
+          { name: t("nav.home"), path: "/" },
+          { name: sportLabelText, path: sport?.path || `/${sportSlug}` },
           { name: league.label },
         ]}
       />
       <div className="page-heading">
         <div>
-          <p className="section-eyebrow">{sport?.label}</p>
+          <p className="section-eyebrow">{sportLabelText}</p>
           <h1>{league.label}</h1>
         </div>
         {followKey && (
@@ -117,7 +124,7 @@ export default function LeaguePage() {
         )}
       </div>
 
-      <LeagueTabs tabs={TABS} active={tab} onChange={setTab} />
+      <LeagueTabs tabs={tabs} active={tab} onChange={setTab} />
 
       {tab === "news" && (
         <>
@@ -125,8 +132,9 @@ export default function LeaguePage() {
           {error && <EmptyState title={error} />}
           {!loading && !error && isolated.length === 0 && (
             <EmptyState
-              title={`No ${league.label} stories yet`}
-              body="This competition page will fill when NinkoSports has coverage."
+              compact
+              title={t("empty.competitionNone", { competition: league.label })}
+              body={t("empty.competitionNoneBody")}
             />
           )}
           {!loading && isolated.length > 0 && (
@@ -140,17 +148,17 @@ export default function LeaguePage() {
       )}
 
       {tab === "fixtures" && (
-        <ProviderPending title="Fixtures coming when live data is connected" />
+        <ProviderPending title={t("provider.fixtures")} />
       )}
       {tab === "results" && (
-        <ProviderPending title="Results coming when live data is connected" />
+        <ProviderPending title={t("provider.results")} />
       )}
       {tab === "standings" && (
         <StandingsTable
           sport={sportSlug}
           rows={[]}
           empty={
-            <ProviderPending title="Standings coming when live data is connected" />
+            <ProviderPending title={t("provider.standings")} />
           }
         />
       )}

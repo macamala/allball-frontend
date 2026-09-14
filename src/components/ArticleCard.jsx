@@ -1,17 +1,19 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import {
-  articleDate,
-  competitionLabel,
-  sportLabel,
-} from "../labels.js";
+import { articleDate, competitionLabel } from "../labels.js";
+import { sportI18nKey } from "../i18n/index.js";
+import { useI18n } from "../context/I18nContext.jsx";
 import ArticleImage from "./ArticleImage.jsx";
 
 export default function ArticleCard({ article, variant = "grid" }) {
+  const { t, dateLocale } = useI18n();
   if (!article) return null;
-  const sport = sportLabel(article.sport, article.sport_label);
-  const league = competitionLabel(article.league, article.league_label);
-  const dateStr = articleDate(article);
+  const sportKey = sportI18nKey(article.sport);
+  const sport = sportKey ? t(sportKey) : "";
+  const league = article.league
+    ? competitionLabel(article.league, article.league_label)
+    : "";
+  const dateStr = articleDate(article, dateLocale);
   const className = `article-card card-${variant}`;
 
   return (

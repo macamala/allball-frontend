@@ -5,6 +5,7 @@ import { getSport } from "../config/sports.js";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
+import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
 import ArticleCard from "../components/ArticleCard.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
@@ -23,21 +24,21 @@ export default function SportPage() {
   const { t } = useI18n();
 
   const apiSport = sportSlug === "other-sports" ? "other" : sportSlug;
-  const label = sport?.label || "Sport";
+  const label = sport ? t(sportI18nKey(sport.slug) || "sport.label") : t("sport.label");
   const followed = (favorites.sports || []).includes(apiSport);
 
   useEffect(() => {
     const crumbs = [
-      { name: "Home", path: "/" },
+      { name: t("nav.home"), path: "/" },
       { name: label, path: sport?.path || `/${sportSlug}` },
     ];
     setPageSeo({
-      title: `${label} news | NinkoSports`,
+      title: `${label} | NinkoSports`,
       description: `Latest ${label} news from NinkoSports.`,
       path: sport?.path || `/${sportSlug}`,
       jsonLd: breadcrumbJsonLd(crumbs),
     });
-  }, [label, sport, sportSlug]);
+  }, [label, sport, sportSlug, t]);
 
   useEffect(() => {
     if (!sport) return undefined;
@@ -51,7 +52,7 @@ export default function SportPage() {
         }
       })
       .catch(() => {
-        if (!cancelled) setError("Failed to load this sport.");
+        if (!cancelled) setError(t("empty.sportFail"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -59,19 +60,20 @@ export default function SportPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiSport, sport]);
+  }, [apiSport, sport, t]);
 
   if (!sport) return <NotFoundPage />;
 
   const isolated = articles.filter(isPremiumArticle);
   const { premium, rest } = premiumFirst(isolated);
+  const compactEmpty = apiSport === "tennis" || apiSport === "motorsport";
 
   return (
     <div className="page-sport">
-      <Breadcrumbs items={[{ name: "Home", path: "/" }, { name: label }]} />
+      <Breadcrumbs items={[{ name: t("nav.home"), path: "/" }, { name: label }]} />
       <div className="page-heading">
         <div>
-          <p className="section-eyebrow">Sport</p>
+          <p className="section-eyebrow">{t("section.sport")}</p>
           <h1>{label}</h1>
         </div>
         <button
@@ -92,27 +94,39 @@ export default function SportPage() {
         <div className="league-nav">
           {sport.leagues.map((league) => (
             <Link key={league.path} to={`${sport.path}/${league.path}`}>
-              {league.label}
+              {league.catchAll
+                ? t("otherLeagues")
+                : league.path === "international"
+                  ? t("international")
+                  : league.label}
             </Link>
           ))}
         </div>
       )}
 
-      {loading && <CardSkeleton count={6} />}
-      {error && <EmptyState title={error} />}
+      {loading && <CardSkeleton count={compactEmpty ? 3 : 6} />}
+      {error && <EmptyState compact title={error} />}
       {!loading && !error && isolated.length === 0 && (
         <EmptyState
-          title={`No ${label} stories yet`}
-          body="This section will fill as soon as NinkoSports publishes coverage."
+          compact
+          title={t("empty.sportNone", { sport: label })}
+          body={t("empty.sportNoneBody")}
         />
       )}
       {!loading && isolated.length > 0 && (
         <>
           <HeroStories articles={premium.slice(0, 4)} />
-          <div className="sport-story-list">
-            {[...premium.slice(4), ...rest].map((article) => (
-              <ArticleCard key={article.id} article={article} variant="row" />
-            ))}
+          <div className="sport-mix">
+            <div className="home-sport-grid">
+              {[...premium.slice(4, 8), ...rest.slice(0, 4)].map((article) => (
+                <ArticleCard key={article.id} article={article} variant="row" />
+              ))}
+            </div>
+            <div className="sport-story-list">
+              {[...premium.slice(8), ...rest.slice(4)].map((article) => (
+                <ArticleCard key={article.id} article={article} variant="compact" />
+              ))}
+            </div>
           </div>
         </>
       )}

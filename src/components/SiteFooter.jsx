@@ -9,11 +9,11 @@ export default function SiteFooter() {
       <div className="site-footer-inner">
         <p className="footer-brand">NinkoSports</p>
         <p className="footer-copy">{t("footer.copy")}</p>
-        <nav className="footer-nav" aria-label="Footer">
+        <nav className="footer-nav" aria-label={t("nav.footer")}>
           <Link to="/">{t("nav.home")}</Link>
-          <Link to="/football">Football</Link>
-          <Link to="/basketball">Basketball</Link>
-          <Link to="/live-scores">Live Scores</Link>
+          <Link to="/football">{t("sport.football")}</Link>
+          <Link to="/basketball">{t("sport.basketball")}</Link>
+          <Link to="/live-scores">{t("liveScores")}</Link>
           <Link to="/search">{t("nav.search")}</Link>
           <Link to="/my-sports">{t("nav.mySports")}</Link>
           <Link to="/saved">{t("nav.saved")}</Link>

@@ -146,6 +146,14 @@ export function getSportsDataStatus() {
   return getJSON("/sports-data/status");
 }
 
+export function getAuthProviders() {
+  return getJSON("/auth/providers");
+}
+
+export function startSocialLogin(provider) {
+  return getJSON(`/auth/${provider}/start`);
+}
+
 export function getScores() {
   return getJSON("/sports-data/scores");
 }

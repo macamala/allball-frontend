@@ -1,4 +1,22 @@
 import { competitionLabel, sportLabel } from "../labels.js";
+import { sportI18nKey } from "../i18n/index.js";
+
+export function scopedCompetitionId(sportSlug, competitionKey) {
+  if (!competitionKey) return "";
+  if (String(competitionKey).includes(":")) return competitionKey;
+  const sport = sportSlug || "football";
+  return `${sport}:${competitionKey}`;
+}
+
+export function parseScopedCompetition(value) {
+  if (!value) return { sport: "", competition: "" };
+  const raw = String(value);
+  if (raw.includes(":")) {
+    const [sport, competition] = raw.split(":", 2);
+    return { sport, competition };
+  }
+  return { sport: "", competition: raw };
+}
 
 export const MAIN_SPORTS = [
   {
@@ -60,19 +78,41 @@ export const OTHER_SPORTS = {
   leagues: [],
 };
 
-export const PRIMARY_NAV = [
-  { label: "Home", path: "/" },
-  ...MAIN_SPORTS.map((sport) => ({
-    label: sport.label,
-    path: sport.path,
-    children: sport.leagues.map((league) => ({
-      label: league.label,
-      path: `${sport.path}/${league.path}`,
+export function getPrimaryNav(t) {
+  return [
+    { label: t("nav.home"), path: "/" },
+    ...MAIN_SPORTS.map((sport) => ({
+      label: t(sportI18nKey(sport.slug) || "sport.label"),
+      path: sport.path,
+      children: sport.leagues.map((league) => ({
+        label: league.catchAll
+          ? t("otherLeagues")
+          : league.path === "international"
+            ? t("international")
+            : league.label,
+        path: `${sport.path}/${league.path}`,
+      })),
     })),
-  })),
-  { label: "Other Sports", path: "/other-sports" },
-  { label: "Live Scores", path: "/live-scores" },
-];
+    { label: t("sport.other"), path: "/other-sports" },
+    { label: t("liveScores"), path: "/live-scores" },
+  ];
+}
+
+export const PRIMARY_NAV = getPrimaryNav((key) => {
+  const fallback = {
+    "nav.home": "Home",
+    "sport.football": "Football",
+    "sport.basketball": "Basketball",
+    "sport.tennis": "Tennis",
+    "sport.motorsport": "Motorsport",
+    "sport.other": "Other Sports",
+    liveScores: "Live Scores",
+    international: "International",
+    otherLeagues: "Other Leagues",
+    "sport.label": "Sport",
+  };
+  return fallback[key] || key;
+});
 
 export function getSport(slug) {
   if (slug === "other" || slug === "other-sports") return OTHER_SPORTS;
@@ -113,12 +153,24 @@ export function sportPath(slug) {
   return sport?.path || `/${slug}`;
 }
 
+export function guessSportFromLeague(league) {
+  const raw = String(league || "");
+  if (raw.includes(":")) return raw.split(":")[0];
+  const key = raw;
+  for (const sport of MAIN_SPORTS) {
+    if (sport.leagues.some((item) => item.league === key)) return sport.slug;
+  }
+  return "football";
+}
+
 export function leaguePath(sportSlug, leagueKey) {
-  const sport = getSport(sportSlug);
-  if (!sport || !leagueKey) return sportPath(sportSlug);
-  const match = sport.leagues.find((item) => item.league === leagueKey);
+  const parsed = parseScopedCompetition(leagueKey);
+  const sport = getSport(sportSlug || parsed.sport);
+  const key = parsed.competition || leagueKey;
+  if (!sport || !key) return sportPath(sportSlug || parsed.sport);
+  const match = sport.leagues.find((item) => item.league === key);
   if (match) return `${sport.path}/${match.path}`;
-  return `${sportPath(sportSlug)}/${leagueKey}`;
+  return `${sportPath(sport.slug)}/${key}`;
 }
 
 export function displaySport(slug, fallback) {
