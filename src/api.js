@@ -93,7 +93,7 @@ export async function sendJSON(path, method, body) {
 
 const inflight = new Map();
 const memoryCache = new Map();
-const LIST_TTL = 30 * 1000;
+const LIST_TTL = 10 * 1000;
 const ARTICLE_TTL = 60 * 1000;
 
 export function clearPublicCache() {
