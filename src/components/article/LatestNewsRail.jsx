@@ -16,6 +16,7 @@ export default function LatestNewsRail({ articles = [], currentSlug }) {
                 src={article.image_url}
                 alt=""
                 wrapperClassName="rail-thumb"
+                variant="thumb"
               />
               <span>{article.title}</span>
             </ArticleLink>

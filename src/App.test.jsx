@@ -167,6 +167,76 @@ describe("NinkoSports Phase 3 routes", () => {
     });
   });
 
+  it("upgrades homepage top story away from a 240px CDN token", async () => {
+    const bbcThumb =
+      "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/live/title-race.jpg";
+    global.fetch = vi.fn((input, init = {}) => {
+      const url = String(input);
+      if (url.includes("/auth/providers")) {
+        return jsonResponse({ password: true, google: false, facebook: false });
+      }
+      if (url.includes("/auth/session") || url.includes("/auth/csrf")) {
+        return jsonResponse({ user: null, csrf: "test-csrf" });
+      }
+      if (url.includes("/portal/home")) {
+        return jsonResponse({
+          featured: [
+            { ...sampleArticle, image_url: bbcThumb },
+            {
+              ...sampleArticle,
+              id: 2,
+              slug: "side-story",
+              title: "A second Premier League story",
+              image_url: bbcThumb,
+            },
+          ],
+          latest: [
+            {
+              ...sampleArticle,
+              id: 7,
+              slug: "other-latest",
+              title: "Another late Premier League story",
+              image_url: bbcThumb,
+            },
+          ],
+          breaking: [],
+          most_read: [
+            {
+              ...sampleArticle,
+              id: 12,
+              slug: "most-read-one",
+              title: "Most read Premier League story",
+              image_url: bbcThumb,
+            },
+          ],
+          by_sport: {},
+          by_league: [],
+          sports_data: { connected: false, matches: [] },
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/");
+    await waitFor(() => {
+      expect(document.querySelector(".hero-lead img")).toBeTruthy();
+    });
+    const lead = document.querySelector(".hero-lead img");
+    expect(lead.getAttribute("src")).toContain("/1280/");
+    expect(lead.getAttribute("src")).not.toContain("/240/");
+    expect(lead.getAttribute("loading")).toBe("eager");
+    const latestThumb = document.querySelector(".news-stream-thumb img");
+    if (latestThumb) {
+      expect(latestThumb.getAttribute("src")).toContain("/320/");
+      expect(latestThumb.getAttribute("src")).not.toContain("/1600/");
+      expect(latestThumb.getAttribute("loading")).toBe("lazy");
+    }
+    const mostRead = document.querySelector(".most-read-thumb img");
+    if (mostRead) {
+      expect(mostRead.getAttribute("src")).toContain("/320/");
+      expect(mostRead.getAttribute("src")).not.toContain("/1600/");
+    }
+  });
+
   it("renders football page without crashing", async () => {
     renderAt("/football");
     await waitFor(() => {

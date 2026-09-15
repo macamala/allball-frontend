@@ -34,6 +34,7 @@ export default function SportDesk({ articles = [] }) {
             src={lead.image_url}
             alt=""
             wrapperClassName="sport-desk-lead-media"
+            variant="featured"
           />
           <div className="sport-desk-lead-copy">
             <StoryMeta article={lead} t={t} />
@@ -53,6 +54,7 @@ export default function SportDesk({ articles = [] }) {
                   src={article.image_url}
                   alt=""
                   wrapperClassName="sport-desk-thumb"
+                  variant="thumb"
                 />
                 <div>
                   <StoryMeta article={article} t={t} />

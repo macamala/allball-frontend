@@ -28,6 +28,7 @@ export default function ArticleCard({ article, variant = "grid" }) {
           alt=""
           wrapperClassName="card-media"
           eager={variant === "lead"}
+          variant={variant === "compact" ? "thumb" : variant === "lead" ? "featured" : "card"}
           mediaKind={kind}
         />
         <div className="article-card-body">

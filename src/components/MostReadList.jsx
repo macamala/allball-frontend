@@ -27,6 +27,7 @@ export default function MostReadList({ articles = [] }) {
                 src={article.image_url}
                 alt=""
                 wrapperClassName="most-read-thumb"
+                variant="thumb"
               />
               <div className="most-read-copy">
                 <p className="meta-kicker">

@@ -14,6 +14,7 @@ export default function InlineRelatedStory({ article }) {
           src={article.image_url}
           alt=""
           wrapperClassName="inline-related-media"
+          variant="thumb"
         />
         <span className="inline-related-title">{article.title}</span>
       </ArticleLink>

@@ -24,6 +24,7 @@ export default function LatestFeed({ articles = [] }) {
                 src={article.image_url}
                 alt=""
                 wrapperClassName="news-stream-thumb"
+                variant="thumb"
               />
               <div className="news-stream-copy">
                 <p className="meta-kicker">

@@ -25,6 +25,7 @@ export default function RailModule({
                 src={article.image_url}
                 alt=""
                 wrapperClassName="rail-thumb"
+                variant="thumb"
               />
               <span>{article.title}</span>
             </ArticleLink>

@@ -41,6 +41,7 @@ export default function HeroStories({ articles = [] }) {
             alt=""
             wrapperClassName="hero-lead-media"
             eager
+            variant="featured"
             mediaKind={leadKind}
           />
           <div className="hero-lead-copy">
@@ -61,6 +62,7 @@ export default function HeroStories({ articles = [] }) {
                 src={article.image_url}
                 alt=""
                 wrapperClassName="hero-side-media"
+                variant="card"
                 mediaKind={publicMediaKind(article)}
               />
               <div className="hero-side-copy">

@@ -25,6 +25,7 @@ export default function ArticleMediaBlock({
         alt={imgAlt}
         wrapperClassName={hero ? "article-hero-media" : "article-inline-frame"}
         eager={hero}
+        variant={hero ? "hero" : "card"}
         mediaKind={kind}
       />
       {!hideCaption && caption ? <figcaption>{caption}</figcaption> : null}
