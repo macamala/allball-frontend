@@ -1145,4 +1145,186 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
   });
 });
 
+describe("Mobile UX V2", () => {
+  beforeEach(() => {
+    mockFetch();
+    window.localStorage.clear();
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it("opens and closes the mobile drawer and restores body scroll", async () => {
+    renderAt("/");
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    expect(document.body.classList.contains("nav-open")).toBe(true);
+    expect(document.documentElement.classList.contains("nav-open")).toBe(true);
+    expect(screen.getByRole("dialog", { name: "NinkoSports" })).toBeInTheDocument();
+    expect(document.querySelector(".mobile-drawer-scroll")).toBeTruthy();
+    expect(document.querySelectorAll(".mobile-drawer-scroll a, .mobile-drawer-scroll button").length).toBeGreaterThan(12);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(document.body.classList.contains("nav-open")).toBe(false);
+    expect(document.documentElement.classList.contains("nav-open")).toBe(false);
+    expect(screen.queryByRole("dialog", { name: "NinkoSports" })).not.toBeInTheDocument();
+  });
+
+  it("lets More on the bottom nav open the drawer", () => {
+    renderAt("/");
+    expect(document.querySelector(".mobile-bottom-nav")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("dialog", { name: "NinkoSports" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(document.body.classList.contains("nav-open")).toBe(false);
+  });
+
+  it("keeps bottom navigation and drawer scroll rules inside the mobile breakpoint", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, resolve } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "styles.css"), "utf8");
+    expect(css).toMatch(/\.mobile-drawer-scroll\s*\{[^}]*overflow-y:\s*auto/s);
+    expect(css).toMatch(/\.mobile-bottom-nav\s*\{[^}]*display:\s*none/s);
+    expect(css).toMatch(/@media \(max-width: 960px\)[\s\S]*\.mobile-bottom-nav\s*\{[\s\S]*display:\s*grid/);
+  });
+
+  it("renders comments before previous/next and related stories", async () => {
+    renderAt("/article/villa-win");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Aston Villa win late" })).toBeInTheDocument();
+    });
+    const body = document.querySelector(".article-body");
+    const comments = document.querySelector(".comments-panel");
+    const pager = document.querySelector(".article-pager");
+    const related = document.querySelector(".article-related-section");
+    expect(comments?.id).toBe("comments");
+    expect(body.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    if (pager) {
+      expect(comments.compareDocumentPosition(pager) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    if (related) {
+      expect(comments.compareDocumentPosition(related) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(screen.getByRole("heading", { name: "Comments (0)" })).toBeInTheDocument();
+    expect(screen.getByText("No comments yet")).toBeInTheDocument();
+  });
+
+  it("scrolls the comments shortcut to the real comments section", async () => {
+    renderAt("/article/villa-win");
+    await waitFor(() => {
+      expect(document.getElementById("comments")).toBeTruthy();
+    });
+    const shortcuts = screen.getAllByRole("button", { name: /Comments 0/ });
+    fireEvent.click(shortcuts[0]);
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("keeps saved-article toggling intact", async () => {
+    renderAt("/article/villa-win");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save article" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save article" }));
+    expect(screen.getAllByRole("button", { name: "Saved" }).length).toBeGreaterThan(0);
+  });
+
+  it("posts a comment through the existing comments composer", async () => {
+    let posted = false;
+    global.fetch = vi.fn((input, init = {}) => {
+      const url = String(input);
+      const method = init.method || "GET";
+      if (url.includes("/auth/providers")) {
+        return jsonResponse({ password: true, google: false, facebook: false });
+      }
+      if (url.includes("/auth/session") || url.includes("/auth/csrf")) {
+        return jsonResponse({
+          user: { id: 9, display_name: "Alex", preferred_language: "en" },
+          csrf: "test-csrf",
+        });
+      }
+      if (url.includes("/auth/favorites")) {
+        return jsonResponse({ sports: [], leagues: [], teams: [] });
+      }
+      if (url.includes("/auth/saved")) return jsonResponse([]);
+      if (url.includes("/comments") && method === "POST") {
+        posted = true;
+        return jsonResponse({ ok: true });
+      }
+      if (url.includes("/comments")) {
+        return jsonResponse({
+          count: posted ? 1 : 0,
+          comments: posted
+            ? [
+                {
+                  id: 44,
+                  body: "Great finish",
+                  created_at: "2026-09-10T11:00:00Z",
+                  author: { display_name: "Alex" },
+                  like_count: 0,
+                },
+              ]
+            : [],
+        });
+      }
+      if (url.includes("/articles/villa-win/related")) return jsonResponse([]);
+      if (url.includes("/articles/villa-win")) return jsonResponse(sampleArticle);
+      return jsonResponse([]);
+    });
+    renderAt("/article/villa-win");
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Share your opinion…")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Share your opinion…"), {
+      target: { value: "Great finish" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Post comment" }));
+    await waitFor(() => {
+      expect(screen.getByText("Great finish")).toBeInTheDocument();
+    });
+    expect(posted).toBe(true);
+  });
+
+  it("keeps article hero on the hero image role and thumbs off 1600", async () => {
+    const bbcThumb =
+      "https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/live/title-race.jpg";
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/hero-role/related")) {
+        return jsonResponse([
+          { ...sampleArticle, id: 8, slug: "related-thumb", image_url: bbcThumb },
+        ]);
+      }
+      if (url.includes("/articles/hero-role")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "hero-role",
+          image_url: bbcThumb,
+          media: [{ url: bbcThumb, is_hero: true }],
+          blocks: [{ type: "paragraph", text: "Aston Villa scored late." }],
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/hero-role");
+    await waitFor(() => {
+      expect(document.querySelector(".article-hero img")).toBeTruthy();
+    });
+    expect(document.querySelector(".article-hero img")?.getAttribute("src")).toContain("/1600/");
+    expect(document.querySelector(".article-hero img")?.getAttribute("src")).not.toContain("/240/");
+    const related = document.querySelector(".article-related-grid img");
+    if (related) {
+      expect(related.getAttribute("src")).not.toContain("/1600/");
+    }
+  });
+
+  it("uses localized mobile chrome instead of hardcoded English on Serbian", async () => {
+    window.localStorage.setItem("ninkosports.lang", "sr");
+    renderAt("/");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Još" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Meni" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
+  });
+});
+
 

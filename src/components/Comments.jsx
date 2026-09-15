@@ -29,7 +29,14 @@ function initials(name) {
     .toUpperCase();
 }
 
-function CommentForm({ onSubmit, placeholder, submitLabel, initial = "" }) {
+function CommentForm({
+  onSubmit,
+  placeholder,
+  submitLabel,
+  initial = "",
+  inputId,
+  compact = false,
+}) {
   const { t } = useI18n();
   const [text, setText] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -53,17 +60,17 @@ function CommentForm({ onSubmit, placeholder, submitLabel, initial = "" }) {
   };
 
   return (
-    <form className="comment-form" onSubmit={submit}>
-      <label className="sr-only" htmlFor={fieldId}>
+    <form className={compact ? "comment-form is-compact" : "comment-form"} onSubmit={submit}>
+      <label className="sr-only" htmlFor={inputId || fieldId}>
         {placeholder}
       </label>
       <textarea
-        id={fieldId}
+        id={inputId || fieldId}
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder={placeholder}
         maxLength={1200}
-        rows={3}
+        rows={compact ? 2 : 3}
       />
       {error ? <p className="error-text">{error}</p> : null}
       <button type="submit" className="btn" disabled={busy}>
@@ -143,7 +150,7 @@ function CommentItem({ comment, children, onReply, onLike, onEdit, onDelete, onR
   );
 }
 
-export default function Comments({ slug }) {
+export default function Comments({ slug, onCount }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [payload, setPayload] = useState({ count: 0, comments: [] });
@@ -170,6 +177,10 @@ export default function Comments({ slug }) {
 
   const comments = Array.isArray(payload) ? payload : payload.comments || [];
   const count = Array.isArray(payload) ? payload.length : payload.count || comments.length;
+
+  useEffect(() => {
+    if (onCount) onCount(count);
+  }, [count, onCount]);
 
   const roots = useMemo(() => {
     const rows = [...comments];
@@ -212,9 +223,15 @@ export default function Comments({ slug }) {
   };
 
   return (
-    <section className="comments-panel" aria-label={t("comments")}>
+    <section
+      id="comments"
+      className="comments-panel"
+      aria-labelledby="comments-heading"
+    >
       <div className="comments-heading">
-        <h2>{t("comments.count", { n: count })}</h2>
+        <h2 id="comments-heading">
+          {t("comments")} ({count})
+        </h2>
         <div className="comment-sort">
           <button
             type="button"
@@ -234,43 +251,51 @@ export default function Comments({ slug }) {
       </div>
       {user ? (
         <CommentForm
-          placeholder={t("comments.placeholder")}
+          compact
+          inputId="article-comment-input"
+          placeholder={t("comments.compose")}
           submitLabel={t("comments.post")}
           onSubmit={(body) => post(body)}
         />
       ) : (
         <p className="comments-signin">
-          <Link to="/login">{t("comments.signIn")}</Link>
+          <Link id="comments-signin" to="/login">
+            {t("comments.signIn")}
+          </Link>
         </p>
       )}
-      <ul className="comment-thread">
-        {roots.map((comment) => (
-          <CommentItem
-            key={comment.id}
-            comment={comment}
-            onReply={user ? post : null}
-            onLike={like}
-            onEdit={edit}
-            onDelete={remove}
-            onReport={report}
-          >
-            {repliesFor(comment.id).length > 0 && (
-              <ul className="comment-replies">
-                {repliesFor(comment.id).map((reply) => (
-                  <CommentItem
-                    key={reply.id}
-                    comment={reply}
-                    onLike={like}
-                    onEdit={edit}
-                    onDelete={remove}
-                    onReport={report}
-                  />
-                ))}
-              </ul>
-            )}
-          </CommentItem>
-        ))}
-      </ul>
+      {roots.length === 0 ? (
+        <p className="comments-empty">{t("comments.empty")}</p>
+      ) : (
+        <ul className="comment-thread">
+          {roots.map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              onReply={user ? post : null}
+              onLike={like}
+              onEdit={edit}
+              onDelete={remove}
+              onReport={report}
+            >
+              {repliesFor(comment.id).length > 0 && (
+                <ul className="comment-replies">
+                  {repliesFor(comment.id).map((reply) => (
+                    <CommentItem
+                      key={reply.id}
+                      comment={reply}
+                      onLike={like}
+                      onEdit={edit}
+                      onDelete={remove}
+                      onReport={report}
+                    />
+                  ))}
+                </ul>
+              )}
+            </CommentItem>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -5,7 +5,6 @@ import { isPhotoCreditCaption } from "../../lib/articleBlocks.js";
 import ArticleMediaBlock from "./ArticleMediaBlock.jsx";
 import ArticleParagraph from "./ArticleParagraph.jsx";
 import ArticleQuote from "./ArticleQuote.jsx";
-import InlineRelatedStory from "./InlineRelatedStory.jsx";
 
 export default function ArticleBody({ blocks = [], title }) {
   const { t } = useI18n();
@@ -29,12 +28,7 @@ export default function ArticleBody({ blocks = [], title }) {
           return null;
         }
         if (type === "related") {
-          return (
-            <InlineRelatedStory
-              key={`related-${idx}`}
-              article={block.article}
-            />
-          );
+          return null;
         }
         if (type === "quote") {
           return (

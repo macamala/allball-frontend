@@ -9,7 +9,7 @@ export default function SiteFooter() {
       <div className="site-footer-inner">
         <p className="footer-brand">NinkoSports</p>
         <p className="footer-copy">{t("footer.copy")}</p>
-        <nav className="footer-nav" aria-label={t("nav.footer")}>
+        <nav className="footer-nav footer-nav-desktop" aria-label={t("nav.footer")}>
           <Link to="/">{t("nav.home")}</Link>
           <Link to="/football">{t("sport.football")}</Link>
           <Link to="/basketball">{t("sport.basketball")}</Link>

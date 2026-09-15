@@ -1,36 +1,20 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import React from "react";
+import { Link, NavLink } from "react-router-dom";
 import logo from "../assets/logo-ninkosports.png";
 import { getPrimaryNav } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
+import { useMobileNav } from "../context/MobileNavContext.jsx";
+import { IconMenu, IconSearch } from "./MobileIcons.jsx";
 import LanguageSelect from "./LanguageSelect.jsx";
 import SearchBox from "./SearchBox.jsx";
 
 export default function SiteHeader() {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const location = useLocation();
-  const { user, logout } = useAuth();
+  const [query, setQuery] = React.useState("");
+  const { open, toggle } = useMobileNav();
+  const { user } = useAuth();
   const { t } = useI18n();
-  const nav = useMemo(() => getPrimaryNav(t), [t]);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    document.body.classList.toggle("nav-open", open);
-    return () => document.body.classList.remove("nav-open");
-  }, [open]);
+  const nav = React.useMemo(() => getPrimaryNav(t), [t]);
 
   return (
     <header className="site-header">
@@ -95,56 +79,24 @@ export default function SiteHeader() {
               {t("nav.login")}
             </Link>
           )}
+          <Link
+            to="/search"
+            className="header-icon-btn header-search-icon"
+            aria-label={t("nav.search")}
+          >
+            <IconSearch />
+          </Link>
           <button
             type="button"
-            className="menu-toggle"
+            className="menu-toggle header-icon-btn"
             aria-expanded={open}
             aria-controls="mobile-nav"
-            onClick={() => setOpen((value) => !value)}
+            aria-label={t("nav.menu")}
+            onClick={toggle}
           >
-            {open ? t("nav.close") : t("nav.menu")}
+            <IconMenu />
           </button>
         </div>
-      </div>
-
-      <div
-        id="mobile-nav"
-        className={open ? "mobile-nav is-open" : "mobile-nav"}
-        hidden={!open}
-      >
-        <SearchBox value={query} onChange={setQuery} />
-        <LanguageSelect id="mobile-language" />
-        <nav aria-label={t("nav.mobile")}>
-          {nav.map((item) => (
-            <div key={item.path} className="mobile-group">
-              <NavLink to={item.path}>{item.label}</NavLink>
-              {item.children && (
-                <div className="mobile-sub">
-                  {item.children.map((child) => (
-                    <Link key={child.path} to={child.path}>
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-          <Link to="/my-sports">{t("nav.mySports")}</Link>
-          <Link to="/saved">{t("nav.saved")}</Link>
-          {user ? (
-            <>
-              <Link to="/profile">{t("nav.profile")}</Link>
-              <button type="button" className="btn btn-ghost" onClick={logout}>
-                {t("nav.logout")}
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">{t("nav.login")}</Link>
-              <Link to="/register">{t("nav.register")}</Link>
-            </>
-          )}
-        </nav>
       </div>
     </header>
   );

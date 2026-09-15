@@ -6,10 +6,12 @@ import { heroMedia, resolveBlocks } from "../lib/articleBlocks.js";
 import { articleJsonLd, breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
+import { scrollToComments } from "../lib/scrollToComments.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { ArticleBodySkeleton } from "../components/Skeleton.jsx";
 import ArticleBody from "../components/article/ArticleBody.jsx";
+import ArticleCommentBar from "../components/article/ArticleCommentBar.jsx";
 import ArticleHeader from "../components/article/ArticleHeader.jsx";
 import ArticleHero from "../components/article/ArticleHero.jsx";
 import ArticlePager from "../components/article/ArticlePager.jsx";
@@ -28,30 +30,48 @@ function shellFrom(location, slug) {
   return null;
 }
 
+function mergeRelated(related, inlineArticle) {
+  const rows = Array.isArray(related) ? [...related] : [];
+  if (!inlineArticle?.id && !inlineArticle?.slug) return rows;
+  const exists = rows.some(
+    (row) =>
+      (inlineArticle.id && row.id === inlineArticle.id) ||
+      (inlineArticle.slug && row.slug === inlineArticle.slug)
+  );
+  if (exists) return rows;
+  return [inlineArticle, ...rows];
+}
+
 function ArticleInner({ article, related, bodyPending }) {
+  const [commentCount, setCommentCount] = useState(0);
   const hero = heroMedia(article);
   const blocks = bodyPending ? [] : resolveBlocks(article);
-  const inlineId = blocks.find((block) => block?.type === "related")?.article?.id;
-  const relatedBottom = (related || []).filter((row) => row.id !== inlineId);
+  const inlineRelated = blocks.find((block) => block?.type === "related")?.article;
+  const relatedBottom = mergeRelated(related, inlineRelated);
 
   return (
     <div className="article-shell">
       <div className="article-layout">
         <div className="article-column">
-          <ArticleHeader article={article} />
+          <ArticleHeader
+            article={article}
+            commentCount={commentCount}
+            onComments={() => scrollToComments()}
+          />
           <ArticleHero media={hero} article={article} />
           {bodyPending ? (
             <ArticleBodySkeleton />
           ) : (
             <ArticleBody blocks={blocks} title={article.title} />
           )}
+          <Comments slug={article.slug} onCount={setCommentCount} />
           {!bodyPending && (
             <ArticlePager previous={article.previous} next={article.next} />
           )}
           <RelatedStories articles={relatedBottom} />
-          <Comments slug={article.slug} />
         </div>
       </div>
+      <ArticleCommentBar commentCount={commentCount} />
     </div>
   );
 }

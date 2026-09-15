@@ -6,9 +6,10 @@ import { useI18n } from "../../context/I18nContext.jsx";
 import { publicDeck } from "../../lib/articleBlocks.js";
 import Breadcrumbs from "../Breadcrumbs.jsx";
 import SaveButton from "../SaveButton.jsx";
+import ArticleActions from "./ArticleActions.jsx";
 import ArticleShare from "./ArticleShare.jsx";
 
-export default function ArticleHeader({ article }) {
+export default function ArticleHeader({ article, commentCount = 0, onComments }) {
   const { t, dateLocale } = useI18n();
   const sportKey = sportI18nKey(article.sport);
   const sport = sportKey ? t(sportKey) : "";
@@ -49,10 +50,17 @@ export default function ArticleHeader({ article }) {
             <span>{t("minRead", { n: article.reading_time_minutes })}</span>
           ) : null}
         </div>
-        <div className="article-actions" aria-label={t("article.actions")}>
+        <div className="article-actions article-actions-desktop" aria-label={t("article.actions")}>
           <ArticleShare title={article.title} path={`/article/${article.slug}`} />
           <SaveButton article={article} />
         </div>
+      </div>
+      <div className="article-actions-mobile">
+        <ArticleActions
+          article={article}
+          commentCount={commentCount}
+          onComments={onComments}
+        />
       </div>
     </header>
   );
