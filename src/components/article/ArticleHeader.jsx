@@ -3,6 +3,7 @@ import { leaguePath, sportPath } from "../../config/sports.js";
 import { articleDate, competitionLabel } from "../../labels.js";
 import { sportI18nKey } from "../../i18n/index.js";
 import { useI18n } from "../../context/I18nContext.jsx";
+import { publicDeck } from "../../lib/articleBlocks.js";
 import Breadcrumbs from "../Breadcrumbs.jsx";
 import SaveButton from "../SaveButton.jsx";
 import ArticleShare from "./ArticleShare.jsx";
@@ -22,7 +23,7 @@ export default function ArticleHeader({ article }) {
       : null,
     { name: article.title },
   ].filter(Boolean);
-  const deck = (article.summary || "").trim();
+  const deck = publicDeck(article.summary);
   const showDeck =
     deck && deck.toLowerCase() !== String(article.title || "").toLowerCase();
 

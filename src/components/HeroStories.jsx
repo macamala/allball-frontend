@@ -2,6 +2,7 @@ import React from "react";
 import ArticleImage from "./ArticleImage.jsx";
 import ArticleLink from "./ArticleLink.jsx";
 import { isCrestMedia, publicMediaKind } from "../lib/mediaKind.js";
+import { publicDeck } from "../lib/articleBlocks.js";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -25,7 +26,7 @@ export default function HeroStories({ articles = [] }) {
   if (!articles.length) return null;
   const [lead, ...rest] = articles;
   const secondary = rest.slice(0, 4);
-  const deck = (lead.summary || "").trim();
+  const deck = publicDeck(lead.summary);
   const showDeck =
     deck && deck.toLowerCase() !== String(lead.title || "").toLowerCase();
   const leadKind = publicMediaKind(lead);

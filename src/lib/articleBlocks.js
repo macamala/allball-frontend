@@ -8,6 +8,19 @@ export function isPhotoCreditCaption(text) {
   );
 }
 
+export function publicDeck(text) {
+  const raw = (text || "").trim();
+  if (!raw) return "";
+  if (!isPhotoCreditCaption(raw) && !/\(\s*Photo by\s+/i.test(raw) && !/Getty Images/i.test(raw)) {
+    return raw;
+  }
+  const stripped = raw
+    .replace(/^[\s\S]*?(?:\(\s*Photo by [^)]+\)|\(Getty Images\))\s*/i, "")
+    .trim();
+  if (!stripped || isPhotoCreditCaption(stripped)) return "";
+  return stripped;
+}
+
 export function heroMedia(article) {
   const media = Array.isArray(article?.media) ? article.media : [];
   const hero = media.find((item) => item?.is_hero) || media[0];
