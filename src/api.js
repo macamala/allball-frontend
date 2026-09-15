@@ -233,6 +233,41 @@ export function getMatch(id) {
   return getJSON(`/sports-data/matches/${encodeURIComponent(id)}`);
 }
 
+export function getSportsDataEvents(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, String(value));
+    }
+  });
+  const qs = search.toString();
+  return getJSON(`/sports-data/events${qs ? `?${qs}` : ""}`);
+}
+
+export function getSportsDataCompetitions(sport) {
+  const qs = sport ? `?sport=${encodeURIComponent(sport)}` : "";
+  return getJSON(`/sports-data/competitions${qs}`);
+}
+
+export function getPredictions(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, String(value));
+    }
+  });
+  const qs = search.toString();
+  return getJSON(`/predictions${qs ? `?${qs}` : ""}`);
+}
+
+export function getPrediction(eventId) {
+  return getJSON(`/predictions/${encodeURIComponent(eventId)}`);
+}
+
+export function getPredictionPerformance() {
+  return getJSON("/predictions/performance");
+}
+
 export async function getMeta() {
   const now = Date.now();
   if (metaCache.data && now - metaCache.at < META_TTL) {

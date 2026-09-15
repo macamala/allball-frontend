@@ -7,6 +7,8 @@ import SportPage from "./pages/SportPage.jsx";
 import LeaguePage from "./pages/LeaguePage.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
 import LiveScoresPage from "./pages/LiveScoresPage.jsx";
+import PredictionsPage from "./pages/PredictionsPage.jsx";
+import PredictionDetailPage from "./pages/PredictionDetailPage.jsx";
 import MySportsPage from "./pages/MySportsPage.jsx";
 import MatchPage from "./pages/MatchPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
@@ -24,6 +26,16 @@ export default function App() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/live-scores" element={<LiveScoresPage />} />
         <Route path="/scores" element={<Navigate to="/live-scores" replace />} />
+        <Route
+          path="/predictions/:sportSlug/:competitionSlug/:eventId"
+          element={<PredictionDetailPage />}
+        />
+        <Route
+          path="/predictions/:sportSlug/:competitionSlug"
+          element={<PredictionsPage />}
+        />
+        <Route path="/predictions/:sportSlug" element={<PredictionsPage />} />
+        <Route path="/predictions" element={<PredictionsPage />} />
         <Route path="/my-sports" element={<MySportsPage />} />
         <Route path="/saved" element={<SavedPage />} />
         <Route path="/login" element={<LoginPage />} />

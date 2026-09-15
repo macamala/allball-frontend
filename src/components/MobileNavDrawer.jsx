@@ -52,7 +52,11 @@ export default function MobileNavDrawer() {
 
   const home = nav.find((item) => item.path === "/");
   const live = nav.find((item) => item.path === "/live-scores");
-  const sports = nav.filter((item) => item.path !== "/" && item.path !== "/live-scores");
+  const predictions = nav.find((item) => item.path === "/predictions");
+  const sports = nav.filter(
+    (item) =>
+      item.path !== "/" && item.path !== "/live-scores" && item.path !== "/predictions"
+  );
 
   return (
     <div
@@ -124,6 +128,15 @@ export default function MobileNavDrawer() {
               <p className="drawer-label">{live.label}</p>
               <NavLink to={live.path} className="drawer-link">
                 {live.label}
+              </NavLink>
+            </div>
+          ) : null}
+
+          {predictions ? (
+            <div className="drawer-block">
+              <p className="drawer-label">{predictions.label}</p>
+              <NavLink to={predictions.path} className="drawer-link">
+                {predictions.label}
               </NavLink>
             </div>
           ) : null}

@@ -14,6 +14,7 @@ export default function SiteFooter() {
           <Link to="/football">{t("sport.football")}</Link>
           <Link to="/basketball">{t("sport.basketball")}</Link>
           <Link to="/live-scores">{t("liveScores")}</Link>
+          <Link to="/predictions">{t("predictions")}</Link>
           <Link to="/search">{t("nav.search")}</Link>
           <Link to="/my-sports">{t("nav.mySports")}</Link>
           <Link to="/saved">{t("nav.saved")}</Link>

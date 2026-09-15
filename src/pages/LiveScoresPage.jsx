@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getScores } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
+import { eventDateKey, isoDate, normalizeEvent } from "../lib/sportsData.js";
 import ProviderPending from "../components/ProviderPending.jsx";
+import EmptyState from "../components/EmptyState.jsx";
 import LiveScoresRail from "../components/LiveScoresRail.jsx";
 
 export default function LiveScoresPage() {
@@ -25,6 +27,7 @@ export default function LiveScoresPage() {
     { id: "live", label: t("live.now") },
     { id: "today", label: t("live.today") },
     { id: "tomorrow", label: t("live.tomorrow") },
+    { id: "finished", label: t("live.finished") },
   ];
   const sports = [
     { id: "football", label: t("sport.football") },
@@ -32,14 +35,34 @@ export default function LiveScoresPage() {
     { id: "tennis", label: t("sport.tennis") },
     { id: "other", label: t("sport.other") },
   ];
-  const connected = Boolean(status?.connected && (status.matches || []).length);
-  const filtered = (status?.matches || []).filter((match) => {
-    if (sport && match.sport && match.sport !== sport) return false;
+
+  const events = useMemo(() => {
+    const raw = status?.events?.length ? status.events : status?.matches || [];
+    return raw.map(normalizeEvent).filter(Boolean);
+  }, [status]);
+
+  const filtered = events.filter((match) => {
+    if (sport && sport !== "other" && match.sport && match.sport !== sport) return false;
+    if (sport === "other" && ["football", "basketball", "tennis"].includes(match.sport)) {
+      return false;
+    }
+    if (date && eventDateKey(match) !== date) return false;
     if (view === "live") return match.live || match.status === "live";
-    if (view === "today") return match.when === "today";
-    if (view === "tomorrow") return match.when === "tomorrow";
+    if (view === "today") {
+      return match.when === "today" || eventDateKey(match) === isoDate(new Date());
+    }
+    if (view === "tomorrow") {
+      const next = new Date();
+      next.setDate(next.getDate() + 1);
+      return match.when === "tomorrow" || eventDateKey(match) === isoDate(next);
+    }
+    if (view === "finished") {
+      return ["finished", "ft", "final", "ended"].includes(String(match.status || "").toLowerCase());
+    }
     return true;
   });
+
+  const connected = Boolean(status?.connected);
 
   return (
     <div className="page-scores">
@@ -76,10 +99,16 @@ export default function LiveScoresPage() {
           </button>
         ))}
       </div>
-      {connected ? (
-        <LiveScoresRail scores={{ connected: true, matches: filtered }} />
-      ) : (
+      {!connected ? (
         <ProviderPending title={t("live.readyTitle")} body={t("live.readyBody")} />
+      ) : filtered.length ? (
+        <LiveScoresRail
+          scores={{ connected: true, matches: filtered }}
+          rows={filtered}
+          title={views.find((item) => item.id === view)?.label}
+        />
+      ) : (
+        <EmptyState title={t("live.emptyTitle")} body={t("live.emptyBody")} />
       )}
     </div>
   );

@@ -95,6 +95,7 @@ export function getPrimaryNav(t) {
     })),
     { label: t("sport.other"), path: "/other-sports" },
     { label: t("liveScores"), path: "/live-scores" },
+    { label: t("predictions"), path: "/predictions" },
   ];
 }
 
@@ -107,6 +108,7 @@ export const PRIMARY_NAV = getPrimaryNav((key) => {
     "sport.motorsport": "Motorsport",
     "sport.other": "Other Sports",
     liveScores: "Live Scores",
+    predictions: "Predictions",
     international: "International",
     otherLeagues: "Other Leagues",
     "sport.label": "Sport",

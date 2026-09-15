@@ -42,7 +42,9 @@ export default function SiteHeader() {
                   [
                     "nav-link",
                     isActive ? "is-active" : "",
-                    item.path === "/live-scores" ? "nav-live" : "",
+                    item.path === "/live-scores" || item.path === "/predictions"
+                      ? "nav-live"
+                      : "",
                   ]
                     .filter(Boolean)
                     .join(" ")

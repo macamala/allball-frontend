@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import App from "./App.jsx";
@@ -126,10 +126,40 @@ function mockFetch() {
     if (url.includes("/meta/sports")) return jsonResponse(["football"]);
     if (url.includes("/meta/leagues")) return jsonResponse([]);
     if (url.includes("/sports-data/scores")) {
-      return jsonResponse({ connected: false, matches: [], message: "not connected" });
+      return jsonResponse({ connected: false, matches: [], events: [], message: "not connected" });
     }
     if (url.includes("/sports-data/standings")) {
       return jsonResponse({ connected: false, rows: [] });
+    }
+    if (url.includes("/sports-data/competitions")) {
+      return jsonResponse({ connected: false, competitions: [] });
+    }
+    if (url.includes("/sports-data/events")) {
+      return jsonResponse({ connected: false, events: [], matches: [] });
+    }
+    if (url.includes("/sports-data/matches")) {
+      return jsonResponse({ connected: false, header: null, event: null });
+    }
+    if (url.includes("/predictions/performance")) {
+      return jsonResponse({ available: false, windows: { last_7_days: null } });
+    }
+    if (/\/predictions\/[^/?]+/.test(url)) {
+      return jsonResponse({
+        connected: false,
+        event: null,
+        prediction: null,
+        evidence: [],
+        message: "Predictions are being prepared. Live fixture data will appear here when sports data is connected.",
+      });
+    }
+    if (url.includes("/predictions")) {
+      return jsonResponse({
+        connected: false,
+        items: [],
+        count: 0,
+        performance_available: false,
+        message: "Predictions are being prepared. Live fixture data will appear here when sports data is connected.",
+      });
     }
     return jsonResponse([]);
   });
@@ -1326,5 +1356,143 @@ describe("Mobile UX V2", () => {
     expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
   });
 });
+
+describe("Sports Data V1 predictions foundation", () => {
+  beforeEach(() => {
+    mockFetch();
+    window.localStorage.clear();
+  });
+
+  it("renders Predictions with an honest empty state and no fake fixtures", async () => {
+    renderAt("/predictions");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "NinkoSports Predictions" })).toBeInTheDocument();
+    });
+    expect(screen.getAllByText(/Predictions are being prepared/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Arsenal/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Liverpool/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/52%/)).not.toBeInTheDocument();
+    expect(document.querySelector(".prediction-card")).toBeNull();
+  });
+
+  it("selects a sport, competition and period without crowding bottom nav", async () => {
+    renderAt("/predictions");
+    fireEvent.click(screen.getAllByRole("button", { name: "Football" })[0]);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "UEFA Champions League" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "UEFA Champions League" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "This Week" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(screen.getByRole("button", { name: "Today" }).className).toMatch(/is-active/);
+    expect(screen.getByRole("button", { name: "This Week" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next 7 Days" })).toBeInTheDocument();
+    expect(document.querySelector(".mobile-bottom-nav")?.textContent).not.toMatch(/Predictions/);
+    expect(screen.getAllByRole("link", { name: "Predictions" }).length).toBeGreaterThan(0);
+  });
+
+  it("exposes Predictions in the drawer, not as a sport group", async () => {
+    renderAt("/");
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const drawer = screen.getByRole("dialog", { name: "NinkoSports" });
+    expect(drawer.textContent).toMatch(/Predictions/);
+    const predictionLinks = [...drawer.querySelectorAll("a")].filter((node) =>
+      node.getAttribute("href") === "/predictions"
+    );
+    expect(predictionLinks.length).toBeGreaterThan(0);
+  });
+
+  it("keeps Live Scores and article routes intact", async () => {
+    renderAt("/live-scores");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Live Scores" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Finished" })).toBeInTheDocument();
+    expect(screen.getByText(/No placeholder games are shown/i)).toBeInTheDocument();
+    cleanup();
+    renderAt("/article/villa-win");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Aston Villa win late" })).toBeInTheDocument();
+    });
+  });
+
+  it("omits missing evidence sections on a prediction detail", async () => {
+    const inner = global.fetch;
+    global.fetch = vi.fn((input, init) => {
+      const url = String(input);
+      if (url.includes("/predictions/evt-real")) {
+        return jsonResponse({
+          connected: true,
+          event: {
+            id: "evt-real",
+            sport: "football",
+            competition: "UEFA Champions League",
+            home: { name: "Home FC" },
+            away: { name: "Away FC" },
+            start_time: "2026-09-16T19:00:00Z",
+            status: "scheduled",
+          },
+          prediction: {
+            market: "1x2",
+            home_win_pct: 50,
+            draw_pct: 25,
+            away_win_pct: 25,
+            evidence: [
+              { type: "recent_form", label: "Strong home form", facts: { wins: 4, matches: 5 } },
+            ],
+          },
+          form: null,
+          h2h: [],
+          availability: [],
+          standings: null,
+          statistics: null,
+        });
+      }
+      return inner(input, init);
+    });
+    renderAt("/predictions/football/champions-league/evt-real");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Home FC vs Away FC/ })).toBeInTheDocument();
+    });
+    expect(screen.getByText("Why this prediction?")).toBeInTheDocument();
+    expect(screen.getByText("Strong home form")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Head to head" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Standings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Availability" })).not.toBeInTheDocument();
+  });
+
+  it("does not hardcode fake production predictions", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, resolve } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const root = dirname(fileURLToPath(import.meta.url));
+    const files = [
+      "pages/PredictionsPage.jsx",
+      "pages/PredictionDetailPage.jsx",
+      "pages/LiveScoresPage.jsx",
+      "components/predictions/PredictionCard.jsx",
+      "lib/sportsData.js",
+    ];
+    const forbidden = ["Arsenal", "Liverpool", "52%", "Inter"];
+    for (const file of files) {
+      const text = readFileSync(resolve(root, file), "utf8");
+      for (const needle of forbidden) {
+        expect(text).not.toContain(needle);
+      }
+    }
+  });
+
+  it("keeps Predictions labels translated in Serbian", async () => {
+    window.localStorage.setItem("ninkosports.lang", "sr");
+    renderAt("/predictions");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "NinkoSports predikcije" })).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole("link", { name: "Predikcije" }).length).toBeGreaterThan(0);
+  });
+});
+
 
 
