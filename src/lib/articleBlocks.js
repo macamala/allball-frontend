@@ -3,7 +3,7 @@ export function isPhotoCreditCaption(text) {
   if (!raw) return false;
   if (/\(\s*Photo by\s+/i.test(raw) || /Getty Images/i.test(raw)) return true;
   if (/^(?:photo(?:graph)?(?:\s+by)?\s*:)/i.test(raw)) return true;
-  return /^[A-Z][A-Z .'-]{1,48},\s+[A-Z][A-Z .'-]{1,40}\s+[-–—]\s+[A-Z]{3,9}\s+\d/.test(
+  return /^(?:[A-Z][A-Z .'-]{1,48},\s+)?[A-Z][A-Z .'-]{1,40}\s+[-–—]\s+[A-Z]{3,9}\s+\d/.test(
     raw
   );
 }

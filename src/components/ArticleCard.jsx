@@ -4,6 +4,7 @@ import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { isCrestMedia, publicMediaKind } from "../lib/mediaKind.js";
+import { publicDeck } from "../lib/articleBlocks.js";
 import ArticleImage from "./ArticleImage.jsx";
 
 export default function ArticleCard({ article, variant = "grid" }) {
@@ -17,6 +18,7 @@ export default function ArticleCard({ article, variant = "grid" }) {
   const dateStr = articleDate(article, dateLocale);
   const kind = publicMediaKind(article);
   const className = `article-card card-${variant}${isCrestMedia(kind) ? " is-crest" : ""}`;
+  const deck = publicDeck(article.summary);
 
   return (
     <article className={className}>
@@ -34,8 +36,8 @@ export default function ArticleCard({ article, variant = "grid" }) {
             {league && <span className="pill pill-league">{league}</span>}
           </div>
           <h3 className="article-card-title">{article.title}</h3>
-          {variant !== "compact" && article.summary && (
-            <p className="article-card-summary">{article.summary}</p>
+          {variant !== "compact" && deck && (
+            <p className="article-card-summary">{deck}</p>
           )}
           {dateStr && (
             <time
