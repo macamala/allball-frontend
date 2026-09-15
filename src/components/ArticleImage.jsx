@@ -16,8 +16,8 @@ export default function ArticleImage({
   const valid = Boolean(src) && !failed && kind !== MEDIA_KINDS.MISSING;
   const crest = isCrestMedia(kind);
   const kindClass = crest ? "media-kind-crest" : "";
-  const imgWidth = width || (crest ? 180 : eager ? 1600 : 640);
-  const imgHeight = height || (crest ? 180 : eager ? 900 : 400);
+  const imgWidth = width || (crest ? 180 : undefined);
+  const imgHeight = height || (crest ? 180 : undefined);
 
   if (!valid) {
     return (
@@ -41,7 +41,7 @@ export default function ArticleImage({
         fetchpriority={eager ? "high" : "auto"}
         sizes={
           eager
-            ? "(max-width: 640px) 100vw, 1100px"
+            ? "(max-width: 640px) calc(100vw - 24px), 840px"
             : "(max-width: 640px) 46vw, 320px"
         }
         onError={() => setFailed(true)}

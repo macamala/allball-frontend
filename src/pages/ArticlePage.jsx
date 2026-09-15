@@ -36,10 +36,10 @@ function ArticleInner({ article, related, bodyPending }) {
 
   return (
     <div className="article-shell">
-      <ArticleHeader article={article} />
-      <ArticleHero media={hero} article={article} />
       <div className="article-layout">
         <div className="article-column">
+          <ArticleHeader article={article} />
+          <ArticleHero media={hero} article={article} />
           {bodyPending ? (
             <ArticleBodySkeleton />
           ) : (

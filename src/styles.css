@@ -27,7 +27,7 @@
   --ns-shadow-card: 0 8px 24px rgba(4, 14, 28, 0.35);
   --ns-shadow-elevated: 0 18px 40px rgba(4, 14, 28, 0.45);
   --ns-content-max: 1680px;
-  --ns-article-width: 760px;
+  --ns-article-width: 840px;
 
   --bg: var(--ns-bg);
   --bg-elev: var(--ns-surface);
@@ -587,6 +587,10 @@ select {
   padding: 12px;
 }
 
+.article-hero.is-crest img {
+  height: 100%;
+}
+
 .article-hero.is-crest .article-hero-media,
 .article-page.is-crest-media .article-hero-media {
   max-height: 140px;
@@ -695,12 +699,19 @@ select {
 .card-media img,
 .hero-lead-media img,
 .hero-side-media img,
-.article-hero-media img,
 .article-inline-frame img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center 28%;
+  display: block;
+}
+
+.article-hero-media img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
   display: block;
 }
 
@@ -711,7 +722,6 @@ select {
 
 .article-hero-media {
   width: 100%;
-  aspect-ratio: 16 / 9;
   min-height: 0;
   max-height: none;
   overflow: hidden;
@@ -895,7 +905,6 @@ select {
   line-height: 1.5;
   color: #c5d0e2;
   margin: 0 0 14px;
-  max-width: 42rem;
 }
 
 .article-byline {
@@ -908,7 +917,7 @@ select {
 .article-hero {
   margin: 8px auto 24px;
   width: 100%;
-  max-width: 1100px;
+  max-width: 100%;
 }
 
 .article-hero figcaption,
@@ -931,7 +940,7 @@ select {
 
 .article-column {
   min-width: 0;
-  max-width: 48rem;
+  max-width: var(--ns-article-width);
   width: 100%;
 }
 
@@ -1426,7 +1435,6 @@ select {
 .article-page.is-brief .article-hero-media {
   min-height: 0;
   max-height: none;
-  aspect-ratio: 16 / 9;
 }
 
 .article-page.is-standard .article-hero-media {
@@ -1821,6 +1829,10 @@ select {
   max-width: none;
 }
 
+.article-pager.is-single {
+  grid-template-columns: 1fr;
+}
+
 .pager-card {
   display: grid;
   gap: 6px;
@@ -1831,11 +1843,6 @@ select {
   text-decoration: none;
   color: var(--ns-text);
   min-height: 92px;
-}
-
-.pager-card.is-empty {
-  border-style: dashed;
-  background: transparent;
 }
 
 .pager-label {

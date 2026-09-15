@@ -364,6 +364,23 @@ describe("presentation sanitizer", () => {
     expect(cleaned).not.toMatch(/Watch now on/);
     expect(cleaned).not.toMatch(/@footballontnt/);
   });
+
+  it("drops CMS crumbs and duplicate titles without deleting those words in prose", () => {
+    const title = "Is the Premier League already a two-team title race?";
+    const cleaned = sanitizeText(
+      "Top Scorers Gossip Is the Premier League already a two-team title race? Haaland scores a controversial winner.",
+      title
+    );
+    expect(cleaned).not.toMatch(/Top Scorers/);
+    expect(cleaned).not.toMatch(/^Gossip/i);
+    expect(cleaned).not.toMatch(title);
+    expect(cleaned).toMatch(/Haaland scores a controversial winner/);
+    const prose = sanitizeText(
+      "Persistent gossip swirling around the club will not distract the manager.",
+      "Club stay calm amid transfer talk"
+    );
+    expect(prose).toMatch(/Persistent gossip swirling around the club/);
+  });
 });
 
 describe("Phase 4 portal and account UX", () => {
@@ -822,7 +839,9 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
     expect(css).toMatch(/--ns-blue:\s*#3b82ff/);
     expect(css).toMatch(/--ns-teal:\s*#2dd4bf/);
     expect(css).toMatch(/--ns-surface:\s*#102844/);
-    expect(css).toMatch(/--ns-article-width:\s*760px/);
+    expect(css).toMatch(/--ns-article-width:\s*840px/);
+    expect(css).toMatch(/\.article-hero\s*\{[^}]*max-width:\s*100%/s);
+    expect(css).not.toMatch(/\.article-hero\s*\{[^}]*max-width:\s*1100px/s);
   });
 
   it("uses a lead desk, latest stream and numbered Most Read", async () => {
@@ -911,11 +930,42 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
     expect(document.body.textContent).not.toMatch(/pic\.twitter\.com/);
     expect(document.body.textContent).not.toMatch(/Watch now on/);
     expect(document.body.textContent).not.toMatch(/@footballontnt/);
+    expect(document.querySelector(".article-column .article-hero")).toBeTruthy();
+    expect(document.querySelector(".article-column .article-body")).toBeTruthy();
     expect(document.querySelector(".pager-card")).toBeTruthy();
+    expect(document.querySelector(".pager-card.is-empty")).toBeNull();
     expect(document.querySelector(".article-related-grid")).toBeTruthy();
     expect(document.querySelector(".article-actions")).toBeTruthy();
     expect(document.querySelector(".comments-panel")).toBeTruthy();
     expect(document.querySelector(".comment-sort")).toBeTruthy();
+  });
+
+  it("does not render a blank previous or next placeholder", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/pager-one/related")) return jsonResponse([]);
+      if (url.includes("/articles/pager-one")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "pager-one",
+          title: "A late derby winner settles the night",
+          blocks: [
+            { type: "paragraph", text: "The visiting side found a late derby winner." },
+          ],
+          previous: { slug: "older-story", title: "An earlier night in the same league" },
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/pager-one");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "A late derby winner settles the night" })).toBeInTheDocument();
+    });
+    expect(document.querySelectorAll(".pager-card").length).toBe(1);
+    expect(document.querySelector(".pager-card.is-empty")).toBeNull();
+    expect(document.querySelector(".article-pager.is-single")).toBeTruthy();
   });
 
   it("uses compact treatment for crest media instead of a giant hero", async () => {

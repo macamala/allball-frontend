@@ -1,3 +1,5 @@
+import { isCmsFragment } from "./sanitize.js";
+
 export function isPhotoCreditCaption(text) {
   const raw = (text || "").trim();
   if (!raw) return false;
@@ -52,11 +54,16 @@ export function resolveBlocks(article) {
           .map((part) => part.trim())
           .filter(Boolean)
           .map((paragraph) => ({ type: "paragraph", text: paragraph }));
+  const title = article?.title || "";
   return source.filter((block) => {
     if (!block) return false;
     if (block.type === "caption") return false;
-    if (block.type === "paragraph" && isPhotoCreditCaption(block.text)) {
-      return false;
+    if (block.type === "paragraph") {
+      const text = (block.text || "").trim();
+      if (!text || isPhotoCreditCaption(text) || isCmsFragment(text)) return false;
+      if (title && text.toLowerCase() === String(title).trim().toLowerCase()) {
+        return false;
+      }
     }
     return true;
   });
