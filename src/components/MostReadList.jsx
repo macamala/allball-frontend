@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import ArticleLink from "./ArticleLink.jsx";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -19,7 +19,7 @@ export default function MostReadList({ articles = [] }) {
           : "";
         return (
           <li key={article.id || article.slug} className="most-read-item">
-            <Link to={`/article/${article.slug}`} className="most-read-link">
+            <ArticleLink article={article} className="most-read-link">
               <span className="most-read-rank" aria-hidden="true">
                 {String(index + 1).padStart(2, "0")}
               </span>
@@ -39,7 +39,7 @@ export default function MostReadList({ articles = [] }) {
                   {articleDate(article, dateLocale)}
                 </time>
               </div>
-            </Link>
+            </ArticleLink>
           </li>
         );
       })}

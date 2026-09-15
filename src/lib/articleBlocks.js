@@ -1,9 +1,20 @@
+export function isPhotoCreditCaption(text) {
+  const raw = (text || "").trim();
+  if (!raw) return false;
+  if (/\(\s*Photo by\s+/i.test(raw) || /Getty Images/i.test(raw)) return true;
+  if (/^(?:photo(?:graph)?(?:\s+by)?\s*:)/i.test(raw)) return true;
+  return /^[A-Z][A-Z .'-]{1,48},\s+[A-Z][A-Z .'-]{1,40}\s+[-–—]\s+[A-Z]{3,9}\s+\d/.test(
+    raw
+  );
+}
+
 export function heroMedia(article) {
   const media = Array.isArray(article?.media) ? article.media : [];
   const hero = media.find((item) => item?.is_hero) || media[0];
   if (hero?.url) {
     return {
       ...hero,
+      url: hero.url,
       presentation: hero.presentation || article?.hero_media_kind,
     };
   }
@@ -20,13 +31,20 @@ export function heroMedia(article) {
 }
 
 export function resolveBlocks(article) {
-  if (Array.isArray(article?.blocks) && article.blocks.length) {
-    return article.blocks;
-  }
-  const text = article?.content || "";
-  return text
-    .split(/\n+/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((paragraph) => ({ type: "paragraph", text: paragraph }));
+  const source =
+    Array.isArray(article?.blocks) && article.blocks.length
+      ? article.blocks
+      : (article?.content || "")
+          .split(/\n+/)
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((paragraph) => ({ type: "paragraph", text: paragraph }));
+  return source.filter((block) => {
+    if (!block) return false;
+    if (block.type === "caption") return false;
+    if (block.type === "paragraph" && isPhotoCreditCaption(block.text)) {
+      return false;
+    }
+    return true;
+  });
 }

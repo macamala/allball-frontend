@@ -704,15 +704,17 @@ select {
   display: block;
 }
 
-.hero-lead-media,
-.article-hero-media {
+.hero-lead-media {
   min-height: 180px;
   overflow: hidden;
 }
 
 .article-hero-media {
-  max-height: 430px;
+  width: 100%;
   aspect-ratio: 16 / 9;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
 }
 
 .hero-side-media,
@@ -905,6 +907,7 @@ select {
 
 .article-hero {
   margin: 8px auto 24px;
+  width: 100%;
   max-width: 1100px;
 }
 
@@ -1144,7 +1147,15 @@ select {
 }
 
 .skeleton-line.short {
-  width: 50%;
+  width: 55%;
+}
+
+.article-body-skeleton {
+  padding: 8px 0 24px;
+}
+
+.article-body-skeleton .skeleton-line {
+  margin: 14px 0;
 }
 
 @keyframes pulse {
@@ -1240,9 +1251,17 @@ select {
   }
 
   .hero-lead-media,
-  .article-hero-media,
   .article-inline-frame {
     min-height: 180px;
+  }
+
+  .article-hero {
+    max-width: 100%;
+  }
+
+  .article-hero-media {
+    width: 100%;
+    min-height: 0;
   }
 
   .article-headline {
@@ -1405,14 +1424,14 @@ select {
 }
 
 .article-page.is-brief .article-hero-media {
-  min-height: 180px;
-  max-height: 320px;
-  aspect-ratio: 16 / 8;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: 16 / 9;
 }
 
 .article-page.is-standard .article-hero-media {
-  min-height: 220px;
-  max-height: 430px;
+  min-height: 0;
+  max-height: none;
 }
 
 .article-page.is-major .article-headline {
@@ -1420,8 +1439,8 @@ select {
 }
 
 .article-page.is-major .article-hero-media {
-  min-height: 260px;
-  max-height: 520px;
+  min-height: 0;
+  max-height: none;
 }
 
 .article-page.is-brief .article-header,

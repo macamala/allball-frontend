@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import ArticleLink from "./ArticleLink.jsx";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -19,7 +19,7 @@ export default function LatestFeed({ articles = [] }) {
           : "";
         return (
           <article key={article.id || article.slug} className="news-stream-item">
-            <Link to={`/article/${article.slug}`} className="news-stream-link">
+            <ArticleLink article={article} className="news-stream-link">
               <ArticleImage
                 src={article.image_url}
                 alt=""
@@ -36,7 +36,7 @@ export default function LatestFeed({ articles = [] }) {
                   {articleDate(article, dateLocale)}
                 </time>
               </div>
-            </Link>
+            </ArticleLink>
           </article>
         );
       })}

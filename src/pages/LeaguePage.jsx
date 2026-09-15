@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getArticles } from "../api.js";
+import { getArticles, peekArticles } from "../api.js";
 import { featuredLeagueKeys, getSport, resolveLeague, scopedCompetitionId } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -65,12 +65,18 @@ export default function LeaguePage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     const params = { sport: sportSlug, limit: 80 };
     if (league.catchAll) {
       params.exclude_leagues = featuredLeagueKeys(sportSlug).join(",");
     } else if (league.league) {
       params.league = league.league;
+    }
+    const cached = peekArticles(params);
+    if (cached) {
+      setArticles(Array.isArray(cached) ? cached : []);
+      setLoading(false);
+    } else {
+      setLoading(true);
     }
     getArticles(params)
       .then((rows) => {

@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { useI18n } from "../../context/I18nContext.jsx";
+import ArticleLink from "../ArticleLink.jsx";
 
 export default function ArticlePager({ previous, next }) {
   const { t } = useI18n();
@@ -9,18 +9,18 @@ export default function ArticlePager({ previous, next }) {
   return (
     <nav className="article-pager" aria-label={t("article.pager")}>
       {previous ? (
-        <Link to={`/article/${previous.slug}`} className="pager-card pager-prev">
+        <ArticleLink article={previous} className="pager-card pager-prev">
           <span className="pager-label">{t("previous")}</span>
           <strong>{previous.title}</strong>
-        </Link>
+        </ArticleLink>
       ) : (
         <span className="pager-card is-empty" />
       )}
       {next ? (
-        <Link to={`/article/${next.slug}`} className="pager-card pager-next">
+        <ArticleLink article={next} className="pager-card pager-next">
           <span className="pager-label">{t("next")}</span>
           <strong>{next.title}</strong>
-        </Link>
+        </ArticleLink>
       ) : (
         <span className="pager-card is-empty" />
       )}

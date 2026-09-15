@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import ArticleLink from "./ArticleLink.jsx";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -29,7 +29,7 @@ export default function SportDesk({ articles = [] }) {
   return (
     <div className="sport-desk">
       <article className="sport-desk-lead">
-        <Link to={`/article/${lead.slug}`} className="sport-desk-lead-link">
+        <ArticleLink article={lead} className="sport-desk-lead-link">
           <ArticleImage
             src={lead.image_url}
             alt=""
@@ -42,13 +42,13 @@ export default function SportDesk({ articles = [] }) {
               {articleDate(lead, dateLocale)}
             </time>
           </div>
-        </Link>
+        </ArticleLink>
       </article>
       {supporting.length > 0 && (
         <div className="sport-desk-support">
           {supporting.map((article) => (
             <article key={article.id || article.slug} className="sport-desk-item">
-              <Link to={`/article/${article.slug}`} className="sport-desk-item-link">
+              <ArticleLink article={article} className="sport-desk-item-link">
                 <ArticleImage
                   src={article.image_url}
                   alt=""
@@ -61,7 +61,7 @@ export default function SportDesk({ articles = [] }) {
                     {articleDate(article, dateLocale)}
                   </time>
                 </div>
-              </Link>
+              </ArticleLink>
             </article>
           ))}
         </div>

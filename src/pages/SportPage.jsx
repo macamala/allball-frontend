@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getArticles } from "../api.js";
+import { getArticles, peekArticles } from "../api.js";
 import { getSport } from "../config/sports.js";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -18,13 +18,16 @@ import NotFoundPage from "./NotFoundPage.jsx";
 export default function SportPage() {
   const { sportSlug } = useParams();
   const sport = getSport(sportSlug);
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const apiSport = sportSlug === "other-sports" ? "other" : sportSlug;
+  const cachedList = peekArticles({ sport: apiSport, limit: 100 });
+  const [articles, setArticles] = useState(
+    Array.isArray(cachedList) ? cachedList : []
+  );
+  const [loading, setLoading] = useState(!cachedList);
   const [error, setError] = useState("");
   const { favorites, syncFavorites } = useAuth();
   const { t } = useI18n();
 
-  const apiSport = sportSlug === "other-sports" ? "other" : sportSlug;
   const label = sport ? t(sportI18nKey(sport.slug) || "sport.label") : t("sport.label");
   const followed = (favorites.sports || []).includes(apiSport);
 
@@ -44,8 +47,15 @@ export default function SportPage() {
   useEffect(() => {
     if (!sport) return undefined;
     let cancelled = false;
-    setLoading(true);
-    getArticles({ sport: apiSport, limit: 100 })
+    const params = { sport: apiSport, limit: 100 };
+    const cached = peekArticles(params);
+    if (cached) {
+      setArticles(Array.isArray(cached) ? cached : []);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    getArticles(params)
       .then((rows) => {
         if (!cancelled) {
           setArticles(Array.isArray(rows) ? rows : []);

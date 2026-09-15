@@ -13,6 +13,7 @@ export default function ArticleHero({ media, article }) {
       item={{ ...media, presentation: kind }}
       hero
       compact={crest}
+      alt={article?.title || ""}
     />
   );
 }

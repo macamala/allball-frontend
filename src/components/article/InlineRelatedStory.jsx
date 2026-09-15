@@ -1,7 +1,7 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { useI18n } from "../../context/I18nContext.jsx";
 import ArticleImage from "../ArticleImage.jsx";
+import ArticleLink from "../ArticleLink.jsx";
 
 export default function InlineRelatedStory({ article }) {
   const { t } = useI18n();
@@ -9,14 +9,14 @@ export default function InlineRelatedStory({ article }) {
   return (
     <aside className="inline-related" aria-label={t("related")}>
       <p className="inline-related-label">{t("related")}</p>
-      <Link to={`/article/${article.slug}`} className="inline-related-link">
+      <ArticleLink article={article} className="inline-related-link">
         <ArticleImage
           src={article.image_url}
           alt=""
           wrapperClassName="inline-related-media"
         />
         <span className="inline-related-title">{article.title}</span>
-      </Link>
+      </ArticleLink>
     </aside>
   );
 }

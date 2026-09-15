@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { getArticle, getRelated, getScores, recordView } from "../api.js";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { getArticle, getRelated, peekArticle, recordView } from "../api.js";
 import { leaguePath, sportPath } from "../config/sports.js";
 import { heroMedia, resolveBlocks } from "../lib/articleBlocks.js";
 import { articleJsonLd, breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
@@ -8,18 +8,29 @@ import { competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import { ArticleBodySkeleton } from "../components/Skeleton.jsx";
 import ArticleBody from "../components/article/ArticleBody.jsx";
 import ArticleHeader from "../components/article/ArticleHeader.jsx";
 import ArticleHero from "../components/article/ArticleHero.jsx";
 import ArticlePager from "../components/article/ArticlePager.jsx";
 import Comments from "../components/Comments.jsx";
-import LiveScoresRail, { hasLiveUtilityData } from "../components/LiveScoresRail.jsx";
-import PortalLayout from "../components/PortalLayout.jsx";
 import RelatedStories from "../components/article/RelatedStories.jsx";
 
-function ArticleInner({ article, related }) {
+function hasArticleBody(article) {
+  return Array.isArray(article?.blocks) || typeof article?.content === "string";
+}
+
+function shellFrom(location, slug) {
+  const cached = peekArticle(slug);
+  if (cached) return cached;
+  const preview = location.state?.preview;
+  if (preview?.slug === slug) return preview;
+  return null;
+}
+
+function ArticleInner({ article, related, bodyPending }) {
   const hero = heroMedia(article);
-  const blocks = resolveBlocks(article);
+  const blocks = bodyPending ? [] : resolveBlocks(article);
   const inlineId = blocks.find((block) => block?.type === "related")?.article?.id;
   const relatedBottom = (related || []).filter((row) => row.id !== inlineId);
 
@@ -29,8 +40,14 @@ function ArticleInner({ article, related }) {
       <ArticleHero media={hero} article={article} />
       <div className="article-layout">
         <div className="article-column">
-          <ArticleBody blocks={blocks} title={article.title} />
-          <ArticlePager previous={article.previous} next={article.next} />
+          {bodyPending ? (
+            <ArticleBodySkeleton />
+          ) : (
+            <ArticleBody blocks={blocks} title={article.title} />
+          )}
+          {!bodyPending && (
+            <ArticlePager previous={article.previous} next={article.next} />
+          )}
           <RelatedStories articles={relatedBottom} />
           <Comments slug={article.slug} />
         </div>
@@ -41,45 +58,55 @@ function ArticleInner({ article, related }) {
 
 export default function ArticlePage() {
   const { slug } = useParams();
+  const location = useLocation();
   const { t } = useI18n();
-  const [article, setArticle] = useState(null);
+  const initial = shellFrom(location, slug);
+  const [article, setArticle] = useState(initial);
   const [related, setRelated] = useState([]);
-  const [scores, setScores] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const shell = shellFrom(location, slug);
+    if (shell) {
+      setArticle(shell);
+      setLoading(false);
+    } else {
+      setArticle(null);
+      setLoading(true);
+    }
     setError("");
     setRelated([]);
+
     getArticle(slug)
-      .then(async (data) => {
+      .then((data) => {
         if (cancelled) return;
         setArticle(data);
+        setLoading(false);
         recordView(data.slug);
-        const extras = await Promise.allSettled([getRelated(data.slug, 6), getScores()]);
-        if (cancelled) return;
-        const [relatedData, scoresData] = extras;
-        setRelated(
-          relatedData.status === "fulfilled" && Array.isArray(relatedData.value)
-            ? relatedData.value
-            : []
-        );
-        setScores(scoresData.status === "fulfilled" ? scoresData.value : null);
       })
       .catch((err) => {
         if (cancelled) return;
-        setArticle(null);
+        if (!shell) setArticle(null);
         setError(err.status === 404 ? t("empty.articleMissing") : t("empty.loadFail"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
+
+    getRelated(slug, 6)
+      .then((rows) => {
+        if (!cancelled) {
+          setRelated(Array.isArray(rows) ? rows : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRelated([]);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [slug, t]);
+  }, [slug, t, location.state]);
 
   useEffect(() => {
     if (!article) {
@@ -114,11 +141,11 @@ export default function ArticlePage() {
     return undefined;
   }, [article, error, slug, t]);
 
-  if (loading) {
+  if (loading && !article) {
     return <p className="info-text">{t("loading.article")}</p>;
   }
 
-  if (error || !article) {
+  if ((error && !article) || !article) {
     return (
       <EmptyState
         compact
@@ -133,8 +160,6 @@ export default function ArticlePage() {
   }
 
   const presentation = article.presentation_type || "standard";
-  const liveRail = hasLiveUtilityData(scores) ? <LiveScoresRail scores={scores} /> : null;
-  const inner = <ArticleInner article={article} related={related} />;
   const heroKind = article.hero_media_kind;
   const mediaClass =
     heroKind === "CREST_OR_LOGO" || heroKind === "GRAPHIC"
@@ -145,7 +170,11 @@ export default function ArticlePage() {
 
   return (
     <article className={`article-page is-${presentation}${mediaClass}`}>
-      {liveRail ? <PortalLayout right={liveRail}>{inner}</PortalLayout> : inner}
+      <ArticleInner
+        article={article}
+        related={related}
+        bodyPending={!hasArticleBody(article)}
+      />
     </article>
   );
 }

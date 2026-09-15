@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import App from "./App.jsx";
+import { clearPublicCache } from "./api.js";
 import ArticleImage from "./components/ArticleImage.jsx";
 import { sanitizeText } from "./lib/sanitize.js";
 
@@ -142,6 +143,10 @@ function renderAt(path) {
   );
 }
 
+beforeEach(() => {
+  clearPublicCache();
+});
+
 describe("NinkoSports Phase 3 routes", () => {
   beforeEach(() => {
     mockFetch();
@@ -153,6 +158,13 @@ describe("NinkoSports Phase 3 routes", () => {
       expect(screen.getAllByText(/NinkoSports/).length).toBeGreaterThan(0);
     });
     expect(screen.getAllByRole("link", { name: "Home" }).length).toBeGreaterThan(0);
+    const leadImg = document.querySelector(".hero-lead img");
+    if (leadImg) {
+      expect(leadImg.getAttribute("loading")).toBe("eager");
+    }
+    document.querySelectorAll(".card-media img, .news-stream-thumb img, .hero-side-media img").forEach((img) => {
+      expect(img.getAttribute("loading")).toBe("lazy");
+    });
   });
 
   it("renders football page without crashing", async () => {
@@ -836,7 +848,7 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
     });
   });
 
-  it("renders captions separately and strips social chrome from prose", async () => {
+  it("hides photo credits under the hero and strips social chrome from prose", async () => {
     global.fetch = vi.fn((input) => {
       const url = String(input);
       if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
@@ -860,6 +872,10 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
           title: "Como 4-1 RB Leipzig",
           presentation_type: "major",
           blocks: [
+            {
+              type: "caption",
+              text: "COMO, ITALY - SEPTEMBER 10: Como players celebrate (Photo by Getty Images)",
+            },
             {
               type: "paragraph",
               text: "Como completed a stunning Champions League debut with a 4-1 win over RB Leipzig.",
@@ -886,7 +902,11 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Como 4-1 RB Leipzig" })).toBeInTheDocument();
     });
-    expect(document.querySelector("figcaption")?.textContent).toMatch(/Getty Images/);
+    expect(document.querySelector("figcaption")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Getty Images/);
+    expect(document.body.textContent).not.toMatch(/Photo by/);
+    expect(document.querySelector(".article-hero img")?.getAttribute("loading")).toBe("eager");
+    expect(document.querySelector(".article-hero img")?.getAttribute("alt")).toBe("Como 4-1 RB Leipzig");
     expect(document.querySelector(".article-paragraph")?.textContent).toMatch(/Champions League debut/);
     expect(document.body.textContent).not.toMatch(/pic\.twitter\.com/);
     expect(document.body.textContent).not.toMatch(/Watch now on/);
@@ -934,6 +954,38 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
     expect(document.querySelector(".article-hero.is-crest")).toBeTruthy();
     expect(document.querySelector(".media-kind-crest")).toBeTruthy();
     expect(document.querySelector(".article-page.is-crest-media")).toBeTruthy();
+  });
+
+  it("renders an article without a hero image and without a broken-image icon", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/")) return jsonResponse({ user: null, csrf: "test-csrf" });
+      if (url.includes("/comments")) return jsonResponse({ count: 0, comments: [] });
+      if (url.includes("/articles/no-photo/related")) return jsonResponse([]);
+      if (url.includes("/articles/no-photo")) {
+        return jsonResponse({
+          ...sampleArticle,
+          slug: "no-photo",
+          title: "A late point earned without a photo",
+          image_url: null,
+          hero_media_kind: "MISSING",
+          media: [],
+          blocks: [
+            { type: "paragraph", text: "Aston Villa earned a late point against Arsenal." },
+          ],
+        });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/article/no-photo");
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "A late point earned without a photo" })
+      ).toBeInTheDocument();
+    });
+    expect(document.querySelector(".article-hero img")).toBeNull();
+    expect(document.querySelector(".article-hero-empty")).toBeTruthy();
+    expect(document.querySelector(".article-paragraph")?.textContent).toMatch(/late point/);
   });
 
   it("does not hardcode acceptance fixture titles in production UI", async () => {

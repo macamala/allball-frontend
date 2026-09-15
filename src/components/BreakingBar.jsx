@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import ArticleLink from "./ArticleLink.jsx";
 
 export default function BreakingBar({ articles = [] }) {
   if (!articles.length) return null;
@@ -8,9 +8,9 @@ export default function BreakingBar({ articles = [] }) {
       <span className="breaking-label">Breaking</span>
       <div className="breaking-items">
         {articles.map((article) => (
-          <Link key={article.slug} to={`/article/${article.slug}`}>
+          <ArticleLink key={article.slug} article={article}>
             {article.title}
-          </Link>
+          </ArticleLink>
         ))}
       </div>
     </div>

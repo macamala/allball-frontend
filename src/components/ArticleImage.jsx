@@ -8,11 +8,16 @@ export default function ArticleImage({
   wrapperClassName = "",
   eager = false,
   mediaKind,
+  width,
+  height,
 }) {
   const [failed, setFailed] = useState(false);
   const kind = mediaKind || MEDIA_KINDS.UNKNOWN;
   const valid = Boolean(src) && !failed && kind !== MEDIA_KINDS.MISSING;
-  const kindClass = isCrestMedia(kind) ? "media-kind-crest" : "";
+  const crest = isCrestMedia(kind);
+  const kindClass = crest ? "media-kind-crest" : "";
+  const imgWidth = width || (crest ? 180 : eager ? 1600 : 640);
+  const imgHeight = height || (crest ? 180 : eager ? 900 : 400);
 
   if (!valid) {
     return (
@@ -29,8 +34,16 @@ export default function ArticleImage({
         src={src}
         alt={alt}
         className={className}
+        width={imgWidth}
+        height={imgHeight}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
+        fetchpriority={eager ? "high" : "auto"}
+        sizes={
+          eager
+            ? "(max-width: 640px) 100vw, 1100px"
+            : "(max-width: 640px) 46vw, 320px"
+        }
         onError={() => setFailed(true)}
       />
     </div>

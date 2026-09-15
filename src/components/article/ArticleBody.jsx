@@ -1,6 +1,7 @@
 import React from "react";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { sanitizeText } from "../../lib/sanitize.js";
+import { isPhotoCreditCaption } from "../../lib/articleBlocks.js";
 import ArticleMediaBlock from "./ArticleMediaBlock.jsx";
 import ArticleParagraph from "./ArticleParagraph.jsx";
 import ArticleQuote from "./ArticleQuote.jsx";
@@ -25,12 +26,7 @@ export default function ArticleBody({ blocks = [], title }) {
           return <ArticleMediaBlock key={`media-${idx}`} item={block} />;
         }
         if (type === "caption") {
-          const caption = sanitizeText(block.text, title);
-          return caption ? (
-            <p key={`caption-${idx}`} className="article-caption-block">
-              {caption}
-            </p>
-          ) : null;
+          return null;
         }
         if (type === "related") {
           return (
@@ -70,6 +66,7 @@ export default function ArticleBody({ blocks = [], title }) {
           );
         }
         const text = sanitizeText(block.text, title);
+        if (!text || isPhotoCreditCaption(text)) return null;
         return <ArticleParagraph key={`p-${idx}`} text={text} />;
       })}
     </div>

@@ -91,7 +91,45 @@ export async function sendJSON(path, method, body) {
   return data;
 }
 
-export function getArticles(params = {}) {
+const inflight = new Map();
+const memoryCache = new Map();
+const LIST_TTL = 30 * 1000;
+const ARTICLE_TTL = 60 * 1000;
+
+export function clearPublicCache() {
+  memoryCache.clear();
+  inflight.clear();
+}
+
+export function peekCached(path) {
+  const hit = memoryCache.get(path);
+  if (!hit) return null;
+  if (Date.now() > hit.expires) {
+    memoryCache.delete(path);
+    return null;
+  }
+  return hit.data;
+}
+
+function cachedGetJSON(path, ttlMs) {
+  const fresh = peekCached(path);
+  if (fresh !== null) return Promise.resolve(fresh);
+  if (inflight.has(path)) return inflight.get(path);
+  const pending = getJSON(path)
+    .then((data) => {
+      memoryCache.set(path, { data, expires: Date.now() + ttlMs });
+      inflight.delete(path);
+      return data;
+    })
+    .catch((err) => {
+      inflight.delete(path);
+      throw err;
+    });
+  inflight.set(path, pending);
+  return pending;
+}
+
+export function articlesPath(params = {}) {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -99,29 +137,57 @@ export function getArticles(params = {}) {
     }
   });
   const qs = search.toString();
-  return getJSON(`/articles${qs ? `?${qs}` : ""}`);
+  return `/articles${qs ? `?${qs}` : ""}`;
+}
+
+export function articlePath(slug) {
+  return `/articles/${encodeURIComponent(slug)}`;
+}
+
+export function getArticles(params = {}) {
+  return cachedGetJSON(articlesPath(params), LIST_TTL);
+}
+
+export function peekArticles(params = {}) {
+  return peekCached(articlesPath(params));
 }
 
 export function getRecentArticles(limit = 12) {
-  return getJSON(`/articles/recent?limit=${limit}`);
+  return cachedGetJSON(`/articles/recent?limit=${limit}`, LIST_TTL);
 }
 
 export function getPortalHome() {
-  return getJSON("/portal/home");
+  return cachedGetJSON("/portal/home", LIST_TTL);
+}
+
+export function peekPortalHome() {
+  return peekCached("/portal/home");
 }
 
 export function getArticle(slug) {
-  return getJSON(`/articles/${encodeURIComponent(slug)}`);
+  return cachedGetJSON(articlePath(slug), ARTICLE_TTL);
+}
+
+export function peekArticle(slug) {
+  return peekCached(articlePath(slug));
+}
+
+export function prefetchArticle(slug) {
+  if (!slug) return;
+  const path = articlePath(slug);
+  if (peekCached(path) || inflight.has(path)) return;
+  cachedGetJSON(path, ARTICLE_TTL).catch(() => {});
 }
 
 export function getRelated(slug, limit = 6) {
-  return getJSON(
-    `/articles/${encodeURIComponent(slug)}/related?limit=${limit}`
+  return cachedGetJSON(
+    `/articles/${encodeURIComponent(slug)}/related?limit=${limit}`,
+    ARTICLE_TTL
   );
 }
 
 export function getMostRead(limit = 8) {
-  return getJSON(`/articles/most-read?limit=${limit}`);
+  return cachedGetJSON(`/articles/most-read?limit=${limit}`, LIST_TTL);
 }
 
 export function getComments(slug) {
@@ -132,7 +198,7 @@ export function searchArticles(q, extra = {}) {
   const params = new URLSearchParams({ q, limit: String(extra.limit || 20) });
   if (extra.sport) params.set("sport", extra.sport);
   if (extra.league) params.set("league", extra.league);
-  return getJSON(`/search?${params.toString()}`);
+  return cachedGetJSON(`/search?${params.toString()}`, LIST_TTL);
 }
 
 export function recordView(slug) {

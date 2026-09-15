@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import ArticleLink from "../ArticleLink.jsx";
 import LatestNewsRail from "./LatestNewsRail.jsx";
 
 export default function ArticleSidebar({
@@ -23,9 +23,9 @@ export default function ArticleSidebar({
           <ol className="rail-list">
             {ranked.slice(0, 6).map((article) => (
               <li key={article.id || article.slug}>
-                <Link className="rail-item" to={`/article/${article.slug}`}>
+                <ArticleLink className="rail-item" article={article}>
                   <span>{article.title}</span>
-                </Link>
+                </ArticleLink>
               </li>
             ))}
           </ol>

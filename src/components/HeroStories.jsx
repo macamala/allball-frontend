@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import ArticleImage from "./ArticleImage.jsx";
+import ArticleLink from "./ArticleLink.jsx";
 import { isCrestMedia, publicMediaKind } from "../lib/mediaKind.js";
 import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
@@ -34,7 +34,7 @@ export default function HeroStories({ articles = [] }) {
   return (
     <section className="hero-grid" aria-label={t("topStories")}>
       <article className={`hero-lead${leadCrest ? " is-crest" : ""}`}>
-        <Link to={`/article/${lead.slug}`} className="hero-lead-link">
+        <ArticleLink article={lead} className="hero-lead-link">
           <ArticleImage
             src={lead.image_url}
             alt=""
@@ -50,12 +50,12 @@ export default function HeroStories({ articles = [] }) {
               {articleDate(lead, dateLocale)}
             </time>
           </div>
-        </Link>
+        </ArticleLink>
       </article>
       <div className="hero-side">
         {secondary.map((article) => (
           <article key={article.slug} className="hero-side-item">
-            <Link to={`/article/${article.slug}`}>
+            <ArticleLink article={article}>
               <ArticleImage
                 src={article.image_url}
                 alt=""
@@ -69,7 +69,7 @@ export default function HeroStories({ articles = [] }) {
                   {articleDate(article, dateLocale)}
                 </time>
               </div>
-            </Link>
+            </ArticleLink>
           </article>
         ))}
       </div>

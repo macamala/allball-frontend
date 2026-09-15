@@ -14,6 +14,18 @@ export function CardSkeleton({ count = 4 }) {
   );
 }
 
+export function ArticleBodySkeleton() {
+  return (
+    <div className="article-body article-body-skeleton" aria-hidden="true">
+      <div className="skeleton-line" />
+      <div className="skeleton-line" />
+      <div className="skeleton-line short" />
+      <div className="skeleton-line" />
+      <div className="skeleton-line short" />
+    </div>
+  );
+}
+
 export function HeroSkeleton() {
   return (
     <div className="hero-grid" aria-hidden="true">

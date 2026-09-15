@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import ArticleImage from "./ArticleImage.jsx";
+import ArticleLink from "./ArticleLink.jsx";
 
 export default function RailModule({
   title,
@@ -20,14 +20,14 @@ export default function RailModule({
       <List className="rail-list">
         {rows.map((article) => (
           <li key={article.id || article.slug}>
-            <Link to={`/article/${article.slug}`} className="rail-item">
+            <ArticleLink article={article} className="rail-item">
               <ArticleImage
                 src={article.image_url}
                 alt=""
                 wrapperClassName="rail-thumb"
               />
               <span>{article.title}</span>
-            </Link>
+            </ArticleLink>
           </li>
         ))}
       </List>

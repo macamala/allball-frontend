@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getPortalHome } from "../api.js";
+import { getPortalHome, peekPortalHome } from "../api.js";
 import { MAIN_SPORTS, leaguePath, sportPath } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -19,9 +19,10 @@ import SportDesk from "../components/SportDesk.jsx";
 import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 
 export default function HomePage() {
-  const [data, setData] = useState(null);
+  const cached = peekPortalHome();
+  const [data, setData] = useState(cached);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
   const { favorites } = useAuth();
   const { t } = useI18n();
 
@@ -36,7 +37,13 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const cachedHome = peekPortalHome();
+    if (cachedHome) {
+      setData(cachedHome);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     getPortalHome()
       .then((payload) => {
         if (!cancelled) {
