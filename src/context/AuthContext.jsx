@@ -19,7 +19,8 @@ export function AuthProvider({ children }) {
   const [favorites, setFavorites] = useState(() => readFavorites());
   const [saved, setSaved] = useState(() => readSaved());
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options = {}) => {
+    const hydrateFromLocal = Boolean(options.hydrateFromLocal);
     try {
       const session = await getJSON("/auth/session");
       if (session?.csrf) setCsrfToken(session.csrf);
@@ -32,20 +33,25 @@ export function AuthProvider({ children }) {
           getJSON("/auth/favorites"),
           getJSON("/auth/saved"),
         ]);
-        const local = readFavorites();
-        const remoteHas =
-          (remoteFavs?.sports || []).length +
-            (remoteFavs?.leagues || []).length +
-            (remoteFavs?.teams || []).length >
-          0;
-        const localHas =
-          (local.sports || []).length + (local.leagues || []).length + (local.teams || []).length > 0;
-        if (!remoteHas && localHas) {
-          const savedFavs = writeFavorites(
-            await sendJSON("/auth/favorites", "PUT", local)
-          );
-          setFavorites(savedFavs);
+        if (hydrateFromLocal) {
+          const local = readFavorites();
+          const remoteHas =
+            (remoteFavs?.sports || []).length +
+              (remoteFavs?.leagues || []).length +
+              (remoteFavs?.teams || []).length >
+            0;
+          const localHas =
+            (local.sports || []).length + (local.leagues || []).length + (local.teams || []).length > 0;
+          if (!remoteHas && localHas) {
+            const savedFavs = writeFavorites(
+              await sendJSON("/auth/favorites", "PUT", local)
+            );
+            setFavorites(savedFavs);
+          } else {
+            setFavorites(writeFavorites(remoteFavs || emptyFavorites()));
+          }
         } else {
+          // Authenticated state is the server copy, including an empty unfollow.
           setFavorites(writeFavorites(remoteFavs || emptyFavorites()));
         }
         const localSaved = readSaved();
@@ -75,7 +81,7 @@ export function AuthProvider({ children }) {
     const data = await sendJSON("/auth/register", "POST", payload);
     if (data.csrf) setCsrfToken(data.csrf);
     setUser(data.user);
-    await refresh();
+    await refresh({ hydrateFromLocal: true });
     return data.user;
   };
 

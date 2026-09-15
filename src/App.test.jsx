@@ -1573,6 +1573,42 @@ describe("Production quality surfaces", () => {
     const restored = JSON.parse(window.localStorage.getItem("ninkosports.favorites.v1"));
     expect(restored.sports).not.toContain("football");
   });
+
+  it("does not resurrect unfollowed sports from local storage when the account is empty", async () => {
+    window.localStorage.setItem(
+      "ninkosports.favorites.v1",
+      JSON.stringify({ sports: ["tennis", "football"], leagues: [], teams: [] })
+    );
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+      if (url.includes("/auth/providers")) {
+        return jsonResponse({ password: true, google: false, facebook: false });
+      }
+      if (url.includes("/auth/session") || url.includes("/auth/csrf")) {
+        return jsonResponse({
+          user: { id: 4, display_name: "Pat", preferred_language: "en" },
+          csrf: "test-csrf",
+        });
+      }
+      if (url.includes("/auth/favorites")) {
+        return jsonResponse({ sports: [], leagues: [], teams: [] });
+      }
+      if (url.includes("/auth/saved")) return jsonResponse([]);
+      if (url.includes("/portal/home")) {
+        return jsonResponse({ featured: [], latest: [], breaking: [], most_read: [], by_sport: {} });
+      }
+      if (url.includes("/meta/taxonomy")) {
+        return jsonResponse({ sports: [], competitions: [] });
+      }
+      return jsonResponse([]);
+    });
+    renderAt("/my-sports");
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem("ninkosports.favorites.v1"));
+      expect(stored.sports).toEqual([]);
+    });
+    expect(screen.queryByText("Currently following")).not.toBeInTheDocument();
+  });
 });
 
 
