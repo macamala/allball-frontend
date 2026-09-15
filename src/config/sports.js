@@ -78,6 +78,21 @@ export const OTHER_SPORTS = {
   leagues: [],
 };
 
+export const DIRECTORY_SPORTS = [
+  { slug: "american-football", label: "American Football", path: "/american-football" },
+  { slug: "ice-hockey", label: "Ice Hockey", path: "/ice-hockey" },
+  { slug: "baseball", label: "Baseball", path: "/baseball" },
+  { slug: "rugby", label: "Rugby", path: "/rugby" },
+  { slug: "cricket", label: "Cricket", path: "/cricket" },
+  { slug: "volleyball", label: "Volleyball", path: "/volleyball" },
+  { slug: "handball", label: "Handball", path: "/handball" },
+  { slug: "golf", label: "Golf", path: "/golf" },
+  { slug: "boxing", label: "Boxing", path: "/boxing" },
+  { slug: "mma", label: "MMA", path: "/mma" },
+  { slug: "cycling", label: "Cycling", path: "/cycling" },
+  { slug: "snooker", label: "Snooker", path: "/snooker" },
+];
+
 export function getPrimaryNav(t) {
   return [
     { label: t("nav.home"), path: "/" },
@@ -94,8 +109,22 @@ export function getPrimaryNav(t) {
       })),
     })),
     { label: t("sport.other"), path: "/other-sports" },
-    { label: t("liveScores"), path: "/live-scores" },
     { label: t("predictions"), path: "/predictions" },
+    { label: t("liveScores"), path: "/live-scores" },
+  ];
+}
+
+export function getMobileBottomNav(t) {
+  return [
+    { id: "home", label: t("nav.home"), path: "/", end: true, icon: "home" },
+    { id: "football", label: t("sport.football"), path: "/football", icon: "football" },
+    { id: "basketball", label: t("sport.basketball"), path: "/basketball", icon: "basketball" },
+    { id: "predictions", label: t("predictions"), path: "/predictions", icon: "predictions" },
+    { id: "live", label: t("nav.live"), path: "/live-scores", icon: "live" },
+    { id: "tennis", label: t("sport.tennis"), path: "/tennis", icon: "tennis" },
+    { id: "motorsport", label: t("sport.motorsport"), path: "/motorsport", icon: "motorsport" },
+    { id: "other", label: t("sport.other"), path: "/other-sports", icon: "other" },
+    { id: "more", label: t("nav.more"), more: true, icon: "more" },
   ];
 }
 
@@ -118,7 +147,11 @@ export const PRIMARY_NAV = getPrimaryNav((key) => {
 
 export function getSport(slug) {
   if (slug === "other" || slug === "other-sports") return OTHER_SPORTS;
-  return MAIN_SPORTS.find((item) => item.slug === slug) || null;
+  const main = MAIN_SPORTS.find((item) => item.slug === slug);
+  if (main) return main;
+  const directory = DIRECTORY_SPORTS.find((item) => item.slug === slug);
+  if (directory) return { ...directory, leagues: [] };
+  return null;
 }
 
 export function featuredLeagueKeys(sport) {

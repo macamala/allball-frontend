@@ -38,6 +38,7 @@ export default function SiteHeader() {
             >
               <NavLink
                 to={item.path}
+                data-nav={item.path.replace("/", "") || "home"}
                 className={({ isActive }) =>
                   [
                     "nav-link",
@@ -45,6 +46,7 @@ export default function SiteHeader() {
                     item.path === "/live-scores" || item.path === "/predictions"
                       ? "nav-live"
                       : "",
+                    item.path === "/predictions" ? "nav-predictions" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")

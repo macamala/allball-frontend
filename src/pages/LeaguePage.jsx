@@ -121,8 +121,10 @@ export default function LeaguePage() {
             className={followed ? "btn btn-ghost is-on" : "btn btn-ghost"}
             onClick={() => {
               const leagues = followed
-                ? (favorites.leagues || []).filter((item) => item !== followKey)
-                : [...(favorites.leagues || []), followKey];
+                ? (favorites.leagues || []).filter(
+                    (item) => item !== followKey && item !== league.league
+                  )
+                : [...(favorites.leagues || []).filter((item) => item !== league.league), followKey];
               syncFavorites({ ...favorites, leagues });
             }}
           >

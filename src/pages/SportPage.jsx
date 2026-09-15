@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getArticles, peekArticles } from "../api.js";
-import { getSport } from "../config/sports.js";
+import { getArticles, getJSON, peekArticles } from "../api.js";
+import { DIRECTORY_SPORTS, getSport } from "../config/sports.js";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -25,6 +25,7 @@ export default function SportPage() {
   );
   const [loading, setLoading] = useState(!cachedList);
   const [error, setError] = useState("");
+  const [directory, setDirectory] = useState(DIRECTORY_SPORTS.map((item) => ({ ...item, article_count: 0 })));
   const { favorites, syncFavorites } = useAuth();
   const { t } = useI18n();
 
@@ -68,6 +69,25 @@ export default function SportPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    if (apiSport === "other") {
+      getJSON("/meta/taxonomy")
+        .then((payload) => {
+          if (cancelled) return;
+          const bySlug = Object.fromEntries(
+            (payload.sports || []).map((row) => [row.sport, row])
+          );
+          setDirectory(
+            DIRECTORY_SPORTS.map((item) => ({
+              ...item,
+              article_count: Number(bySlug[item.slug]?.article_count || 0),
+              label: bySlug[item.slug]?.label || item.label,
+            }))
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setDirectory(DIRECTORY_SPORTS.map((item) => ({ ...item, article_count: 0 })));
+        });
+    }
     return () => {
       cancelled = true;
     };
@@ -115,9 +135,28 @@ export default function SportPage() {
         </div>
       )}
 
+      {apiSport === "other" && (
+        <section className="other-directory" aria-label={t("other.directory")}>
+          <h2>{t("other.directory")}</h2>
+          <p className="lede">{t("other.directoryBody")}</p>
+          <div className="other-directory-grid">
+            {directory.map((item) => (
+              <Link key={item.slug} to={item.path} className="other-directory-card">
+                <strong>{t(sportI18nKey(item.slug)) || item.label}</strong>
+                <span>
+                  {item.article_count > 0
+                    ? `${item.article_count}`
+                    : t("other.noStories")}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {loading && <CardSkeleton count={compactEmpty ? 3 : 6} />}
       {error && <EmptyState compact title={error} />}
-      {!loading && !error && isolated.length === 0 && (
+      {!loading && !error && isolated.length === 0 && apiSport !== "other" && (
         <EmptyState
           compact
           title={t("empty.sportNone", { sport: label })}

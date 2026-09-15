@@ -82,6 +82,45 @@ export function IconLive(props) {
   );
 }
 
+export function IconTennis(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M7 6.5c3 2 5 5.5 5 11.5M17 6.5C14 8.5 12 12 12 18" />
+    </Svg>
+  );
+}
+
+export function IconMotorsport(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="7" cy="16" r="2.4" />
+      <circle cx="17" cy="16" r="2.4" />
+      <path d="M5 16h2M17 16h2M8.6 16l2-6h5l2 6" />
+      <path d="M10.5 10h5" />
+    </Svg>
+  );
+}
+
+export function IconPredictions(props) {
+  return (
+    <Svg {...props}>
+      <path d="M5 19V9l7-5 7 5v10" />
+      <path d="M9 19v-6h6v6" />
+    </Svg>
+  );
+}
+
+export function IconOther(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="7" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="17" cy="12" r="2" />
+    </Svg>
+  );
+}
+
 export function IconShare(props) {
   return (
     <Svg width="18" height="18" {...props}>

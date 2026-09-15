@@ -123,6 +123,14 @@ function mockFetch() {
     if (url.includes("/search")) {
       return jsonResponse([]);
     }
+    if (url.includes("/meta/taxonomy")) {
+      return jsonResponse({
+        sports: [
+          { sport: "golf", label: "Golf", group: "other", path: "/golf", article_count: 0 },
+          { sport: "cricket", label: "Cricket", group: "other", path: "/cricket", article_count: 0 },
+        ],
+      });
+    }
     if (url.includes("/meta/sports")) return jsonResponse(["football"]);
     if (url.includes("/meta/leagues")) return jsonResponse([]);
     if (url.includes("/sports-data/scores")) {
@@ -1212,7 +1220,8 @@ describe("Mobile UX V2", () => {
     const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "styles.css"), "utf8");
     expect(css).toMatch(/\.mobile-drawer-scroll\s*\{[^}]*overflow-y:\s*auto/s);
     expect(css).toMatch(/\.mobile-bottom-nav\s*\{[^}]*display:\s*none/s);
-    expect(css).toMatch(/@media \(max-width: 960px\)[\s\S]*\.mobile-bottom-nav\s*\{[\s\S]*display:\s*grid/);
+    expect(css).toMatch(/@media \(max-width: 960px\)[\s\S]*\.mobile-bottom-nav\s*\{[\s\S]*display:\s*block/);
+    expect(css).toMatch(/\.mobile-bottom-nav-scroller\s*\{[^}]*overflow-x:\s*auto/s);
   });
 
   it("renders comments before previous/next and related stories", async () => {
@@ -1389,7 +1398,7 @@ describe("Sports Data V1 predictions foundation", () => {
     expect(screen.getByRole("button", { name: "Today" }).className).toMatch(/is-active/);
     expect(screen.getByRole("button", { name: "This Week" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next 7 Days" })).toBeInTheDocument();
-    expect(document.querySelector(".mobile-bottom-nav")?.textContent).not.toMatch(/Predictions/);
+    expect(document.querySelector(".mobile-bottom-nav")?.textContent).toMatch(/Predictions/);
     expect(screen.getAllByRole("link", { name: "Predictions" }).length).toBeGreaterThan(0);
   });
 
@@ -1491,6 +1500,78 @@ describe("Sports Data V1 predictions foundation", () => {
       expect(screen.getByRole("heading", { name: "NinkoSports predikcije" })).toBeInTheDocument();
     });
     expect(screen.getAllByRole("link", { name: "Predikcije" }).length).toBeGreaterThan(0);
+  });
+});
+
+describe("Production quality surfaces", () => {
+  beforeEach(() => {
+    mockFetch();
+    window.localStorage.clear();
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it("keeps Predictions visible in the desktop header nav config", () => {
+    renderAt("/");
+    const desktop = document.querySelector(".desktop-nav");
+    expect(desktop).toBeTruthy();
+    expect(desktop.textContent).toMatch(/Predictions/);
+    const predictions = desktop.querySelector('a[href="/predictions"]');
+    expect(predictions).toBeTruthy();
+    expect(predictions.className).toMatch(/nav-predictions/);
+  });
+
+  it("exposes Predictions Tennis Motorsport and Other Sports on the bottom nav rail", () => {
+    renderAt("/");
+    const bar = document.querySelector(".mobile-bottom-nav");
+    expect(bar.textContent).toMatch(/Predictions/);
+    expect(bar.textContent).toMatch(/Tennis/);
+    expect(bar.textContent).toMatch(/Motorsport/);
+    expect(bar.textContent).toMatch(/Other Sports/);
+    expect(bar.querySelector(".bottom-nav-item.is-active, .bottom-nav-item.active")).toBeTruthy();
+  });
+
+  it("scrolls the active bottom-nav item into view", () => {
+    renderAt("/tennis");
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("lets More still open the vertically scrollable drawer", () => {
+    renderAt("/");
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "NinkoSports" });
+    expect(drawer.querySelector(".mobile-drawer-scroll")).toBeTruthy();
+    expect(drawer.textContent).toMatch(/My Sports/);
+    expect(drawer.textContent).toMatch(/Predictions/);
+  });
+
+  it("renders the Other Sports directory without pretending coverage exists", async () => {
+    renderAt("/other-sports");
+    await waitFor(() => {
+      expect(document.querySelector(".other-directory-grid")).toBeTruthy();
+    });
+    expect(screen.getByText("Golf")).toBeInTheDocument();
+    expect(screen.getAllByText("No stories yet").length).toBeGreaterThan(0);
+  });
+
+  it("follows and unfollows a sport and keeps the state after reload", async () => {
+    renderAt("/my-sports");
+    const football = screen.getAllByRole("button", { name: /Football/i })[0];
+    fireEvent.click(football);
+    expect(JSON.parse(window.localStorage.getItem("ninkosports.favorites.v1")).sports).toContain(
+      "football"
+    );
+    const following = screen.getAllByRole("button", { name: /Football/i }).find((node) =>
+      node.className.includes("is-on")
+    );
+    expect(following).toBeTruthy();
+    fireEvent.click(following);
+    expect(JSON.parse(window.localStorage.getItem("ninkosports.favorites.v1")).sports).not.toContain(
+      "football"
+    );
+    cleanup();
+    renderAt("/my-sports");
+    const restored = JSON.parse(window.localStorage.getItem("ninkosports.favorites.v1"));
+    expect(restored.sports).not.toContain("football");
   });
 });
 

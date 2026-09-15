@@ -52,6 +52,22 @@ const en = {
   "sport.tennis": "Tennis",
   "sport.motorsport": "Motorsport",
   "sport.other": "Other Sports",
+  "sport.american-football": "American Football",
+  "sport.ice-hockey": "Ice Hockey",
+  "sport.baseball": "Baseball",
+  "sport.rugby": "Rugby",
+  "sport.cricket": "Cricket",
+  "sport.volleyball": "Volleyball",
+  "sport.handball": "Handball",
+  "sport.golf": "Golf",
+  "sport.boxing": "Boxing",
+  "sport.mma": "MMA",
+  "sport.cycling": "Cycling",
+  "sport.snooker": "Snooker",
+  "unfollow": "Unfollow",
+  "other.directory": "More sports",
+  "other.directoryBody": "Sports outside the main navigation. Stories appear here when NinkoSports has coverage.",
+  "other.noStories": "No stories yet",
   "sport.label": "Sport",
   "section.sport": "Sport",
   "section.competition": "Competition",
@@ -1355,8 +1371,6 @@ export function translate(lang, key, vars = {}) {
 
 export function sportI18nKey(slug) {
   if (slug === "other" || slug === "other-sports") return "sport.other";
-  if (["football", "basketball", "tennis", "motorsport"].includes(slug)) {
-    return `sport.${slug}`;
-  }
+  if (slug) return `sport.${slug}`;
   return "";
 }

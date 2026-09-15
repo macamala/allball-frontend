@@ -105,24 +105,6 @@ export default function MobileNavDrawer() {
             </div>
           ) : null}
 
-          {sports.map((item) => (
-            <div key={item.path} className="drawer-block mobile-group">
-              <p className="drawer-label">{item.label}</p>
-              <NavLink to={item.path} className="drawer-link">
-                {item.label}
-              </NavLink>
-              {item.children?.length ? (
-                <div className="mobile-sub">
-                  {item.children.map((child) => (
-                    <Link key={child.path} to={child.path} className="drawer-sublink">
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ))}
-
           {live ? (
             <div className="drawer-block">
               <p className="drawer-label">{live.label}</p>
@@ -140,6 +122,24 @@ export default function MobileNavDrawer() {
               </NavLink>
             </div>
           ) : null}
+
+          {sports.map((item) => (
+            <div key={item.path} className="drawer-block mobile-group">
+              <p className="drawer-label">{item.label}</p>
+              <NavLink to={item.path} className="drawer-link">
+                {item.label}
+              </NavLink>
+              {item.children?.length ? (
+                <div className="mobile-sub">
+                  {item.children.map((child) => (
+                    <Link key={child.path} to={child.path} className="drawer-sublink">
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
 
           <div className="drawer-block">
             <p className="drawer-label">{t("nav.personal")}</p>

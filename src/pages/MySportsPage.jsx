@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   MAIN_SPORTS,
   OTHER_SPORTS,
-  leaguePath,
   scopedCompetitionId,
   parseScopedCompetition,
 } from "../config/sports.js";
@@ -76,9 +74,11 @@ export default function MySportsPage() {
                 key={sport.slug}
                 type="button"
                 className={on ? "chip is-on" : "chip"}
+                aria-pressed={on}
                 onClick={() => toggle("sports", key)}
               >
                 {labelKey ? t(labelKey) : sport.label}
+                <span className="chip-state">{on ? t("following") : t("follow")}</span>
               </button>
             );
           })}
@@ -102,9 +102,11 @@ export default function MySportsPage() {
                       key={league.scoped}
                       type="button"
                       className={on ? "chip is-on" : "chip"}
+                      aria-pressed={on}
                       onClick={() => toggle("leagues", league.scoped)}
                     >
                       {label}
+                      <span className="chip-state">{on ? t("following") : t("follow")}</span>
                     </button>
                   );
                 })}
@@ -121,15 +123,21 @@ export default function MySportsPage() {
       {(favs.sports.length > 0 || favs.leagues.length > 0) && (
         <section className="section favorites-block">
           <h2>{t("favorites.following")}</h2>
-          <ul className="follow-list">
+          <div className="chip-list following-chip-list">
             {favs.sports.map((slug) => {
               const key = sportI18nKey(slug);
+              const label = key ? t(key) : slug;
               return (
-                <li key={slug}>
-                  <Link to={slug === "other" ? "/other-sports" : `/${slug}`}>
-                    {key ? t(key) : slug}
-                  </Link>
-                </li>
+                <button
+                  key={slug}
+                  type="button"
+                  className="chip is-on"
+                  aria-pressed="true"
+                  onClick={() => toggle("sports", slug)}
+                >
+                  <span>{label}</span>
+                  <span className="chip-state">{t("unfollow")}</span>
+                </button>
               );
             })}
             {favs.leagues.map((league) => {
@@ -139,14 +147,19 @@ export default function MySportsPage() {
                   ? t("international")
                   : competitionLabel(parsed.competition || league);
               return (
-                <li key={league}>
-                  <Link to={leaguePath(parsed.sport, parsed.competition)}>
-                    {label}
-                  </Link>
-                </li>
+                <button
+                  key={league}
+                  type="button"
+                  className="chip is-on"
+                  aria-pressed="true"
+                  onClick={() => toggle("leagues", league)}
+                >
+                  <span>{label}</span>
+                  <span className="chip-state">{t("unfollow")}</span>
+                </button>
               );
             })}
-          </ul>
+          </div>
           <button
             type="button"
             className="btn btn-ghost"

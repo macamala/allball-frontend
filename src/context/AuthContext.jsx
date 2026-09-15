@@ -32,13 +32,22 @@ export function AuthProvider({ children }) {
           getJSON("/auth/favorites"),
           getJSON("/auth/saved"),
         ]);
-        const mergedFavs = writeFavorites({
-          sports: [...(readFavorites().sports || []), ...(remoteFavs.sports || [])],
-          leagues: [...(readFavorites().leagues || []), ...(remoteFavs.leagues || [])],
-          teams: [...(readFavorites().teams || []), ...(remoteFavs.teams || [])],
-        });
-        await sendJSON("/auth/favorites", "PUT", mergedFavs);
-        setFavorites(mergedFavs);
+        const local = readFavorites();
+        const remoteHas =
+          (remoteFavs?.sports || []).length +
+            (remoteFavs?.leagues || []).length +
+            (remoteFavs?.teams || []).length >
+          0;
+        const localHas =
+          (local.sports || []).length + (local.leagues || []).length + (local.teams || []).length > 0;
+        if (!remoteHas && localHas) {
+          const savedFavs = writeFavorites(
+            await sendJSON("/auth/favorites", "PUT", local)
+          );
+          setFavorites(savedFavs);
+        } else {
+          setFavorites(writeFavorites(remoteFavs || emptyFavorites()));
+        }
         const localSaved = readSaved();
         await Promise.all(
           localSaved
