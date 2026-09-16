@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getPredictions, getSportsDataCompetitions } from "../api.js";
 import { MAIN_SPORTS, getSport, resolveLeague } from "../config/sports.js";
+import { predictionRegistrySports } from "../config/sportsRegistry.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { setPageSeo } from "../lib/seo.js";
 import {
@@ -22,9 +23,12 @@ const PERIODS = [
   { id: "next-7", labelKey: "predictions.next7" },
 ];
 
-const PREDICTION_SPORTS = MAIN_SPORTS.filter((sport) =>
-  ["football", "basketball", "tennis"].includes(sport.slug)
-);
+const PREDICTION_SPORTS = predictionRegistrySports().map((row) => ({
+  slug: row.slug,
+  label: row.name,
+  path: row.path,
+  leagues: MAIN_SPORTS.find((sport) => sport.slug === row.slug)?.leagues || [],
+}));
 
 export default function PredictionsPage() {
   const { t, lang } = useI18n();
@@ -35,7 +39,10 @@ export default function PredictionsPage() {
   const [payload, setPayload] = useState(null);
   const [providerCompetitions, setProviderCompetitions] = useState([]);
 
-  const sport = getSport(sportSlug);
+  const sport =
+    !sportSlug || PREDICTION_SPORTS.some((item) => item.slug === sportSlug)
+      ? getSport(sportSlug)
+      : null;
   const league = competitionSlug ? resolveLeague(sportSlug, competitionSlug) : null;
   const competitions = useMemo(
     () => browseCompetitions(sport, providerCompetitions),
@@ -56,7 +63,7 @@ export default function PredictionsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!sportSlug) {
+    if (!sportSlug || !PREDICTION_SPORTS.some((item) => item.slug === sportSlug)) {
       setPayload({ connected: false, items: [] });
       return undefined;
     }

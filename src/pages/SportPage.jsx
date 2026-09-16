@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { getArticles, getJSON, peekArticles } from "../api.js";
-import { DIRECTORY_SPORTS, getSport } from "../config/sports.js";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { getArticles, getJSON, getRegistry, peekArticles } from "../api.js";
+import { getSport } from "../config/sports.js";
+import {
+  CATEGORY_I18N,
+  groupedDirectorySports,
+  hydrateRegistry,
+  motorsportSeries,
+} from "../config/sportsRegistry.js";
 import { breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -15,17 +21,29 @@ import SportDesk from "../components/SportDesk.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 
+function mergeDirectory(countsBySlug) {
+  return groupedDirectorySports().map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      article_count: Number(countsBySlug[item.slug]?.article_count || 0),
+      label: countsBySlug[item.slug]?.label || item.name,
+    })),
+  }));
+}
+
 export default function SportPage() {
   const { sportSlug } = useParams();
+  const location = useLocation();
   const sport = getSport(sportSlug);
-  const apiSport = sportSlug === "other-sports" ? "other" : sportSlug;
+  const apiSport = sportSlug === "other-sports" ? "other" : sport?.slug || sportSlug;
   const cachedList = peekArticles({ sport: apiSport, limit: 100 });
   const [articles, setArticles] = useState(
     Array.isArray(cachedList) ? cachedList : []
   );
   const [loading, setLoading] = useState(!cachedList);
   const [error, setError] = useState("");
-  const [directory, setDirectory] = useState(DIRECTORY_SPORTS.map((item) => ({ ...item, article_count: 0 })));
+  const [directory, setDirectory] = useState(mergeDirectory({}));
   const { favorites, syncFavorites } = useAuth();
   const { t } = useI18n();
 
@@ -70,22 +88,20 @@ export default function SportPage() {
         if (!cancelled) setLoading(false);
       });
     if (apiSport === "other") {
-      getJSON("/meta/taxonomy")
-        .then((payload) => {
+      Promise.allSettled([getRegistry(), getJSON("/meta/taxonomy")])
+        .then(([registryResult, taxonomyResult]) => {
           if (cancelled) return;
-          const bySlug = Object.fromEntries(
-            (payload.sports || []).map((row) => [row.sport, row])
-          );
-          setDirectory(
-            DIRECTORY_SPORTS.map((item) => ({
-              ...item,
-              article_count: Number(bySlug[item.slug]?.article_count || 0),
-              label: bySlug[item.slug]?.label || item.label,
-            }))
-          );
+          const registry = registryResult.status === "fulfilled" ? registryResult.value : null;
+          const taxonomy = taxonomyResult.status === "fulfilled" ? taxonomyResult.value : null;
+          if (registry?.sports?.length) hydrateRegistry(registry);
+          const bySlug = {};
+          (taxonomy?.sports || registry?.sports || []).forEach((row) => {
+            bySlug[row.sport || row.slug] = row;
+          });
+          setDirectory(mergeDirectory(bySlug));
         })
         .catch(() => {
-          if (!cancelled) setDirectory(DIRECTORY_SPORTS.map((item) => ({ ...item, article_count: 0 })));
+          if (!cancelled) setDirectory(mergeDirectory({}));
         });
     }
     return () => {
@@ -95,9 +111,16 @@ export default function SportPage() {
 
   if (!sport) return <NotFoundPage />;
 
+  const canonical = sport.path;
+  const aliases = [`/${sport.slug}`, `/sports/${sport.slug}`];
+  if (canonical && aliases.includes(location.pathname) && location.pathname !== canonical) {
+    return <Navigate to={canonical} replace />;
+  }
+
   const isolated = articles.filter(isPremiumArticle);
   const { premium, rest } = premiumFirst(isolated);
   const compactEmpty = apiSport === "tennis" || apiSport === "motorsport";
+  const series = motorsportSeries();
 
   return (
     <div className="page-sport">
@@ -139,17 +162,33 @@ export default function SportPage() {
         <section className="other-directory" aria-label={t("other.directory")}>
           <h2>{t("other.directory")}</h2>
           <p className="lede">{t("other.directoryBody")}</p>
-          <div className="other-directory-grid">
-            {directory.map((item) => (
-              <Link key={item.slug} to={item.path} className="other-directory-card">
-                <strong>{t(sportI18nKey(item.slug)) || item.label}</strong>
-                <span>
-                  {item.article_count > 0
-                    ? `${item.article_count}`
-                    : t("other.noStories")}
-                </span>
-              </Link>
-            ))}
+          {directory.map((group) => (
+            <div key={group.category} className="other-directory-group">
+              <h3>{t(CATEGORY_I18N[group.category] || "directory.other")}</h3>
+              <div className="other-directory-grid">
+                {group.items.map((item) => (
+                  <Link key={item.slug} to={item.path} className="other-directory-card">
+                    <strong>{t(sportI18nKey(item.slug)) || item.label || item.name}</strong>
+                    <span>
+                      {item.article_count > 0
+                        ? `${item.article_count}`
+                        : t("other.noStories")}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="other-directory-group">
+            <h3>{t("directory.motorsport")}</h3>
+            <div className="other-directory-grid">
+              {series.map((item) => (
+                <Link key={item.slug} to={item.path} className="other-directory-card">
+                  <strong>{item.name}</strong>
+                  <span>{t("directory.browse")}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
       )}

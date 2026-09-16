@@ -268,6 +268,10 @@ export function getPredictionPerformance() {
   return getJSON("/predictions/performance");
 }
 
+export function getRegistry() {
+  return getJSON("/registry/sports");
+}
+
 export async function getMeta() {
   const now = Date.now();
   if (metaCache.data && now - metaCache.at < META_TTL) {

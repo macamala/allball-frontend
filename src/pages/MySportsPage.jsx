@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   MAIN_SPORTS,
-  OTHER_SPORTS,
   scopedCompetitionId,
   parseScopedCompetition,
 } from "../config/sports.js";
+import {
+  CATEGORY_I18N,
+  CATEGORY_ORDER,
+  followableRegistrySports,
+} from "../config/sportsRegistry.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
@@ -30,7 +34,15 @@ export default function MySportsPage() {
     });
   }, [t]);
 
-  const sports = useMemo(() => [...MAIN_SPORTS, OTHER_SPORTS], []);
+  const sports = useMemo(
+    () =>
+      followableRegistrySports().map((item) => ({
+        slug: item.slug,
+        label: item.name,
+        category: item.category,
+      })),
+    []
+  );
   const leagues = useMemo(
     () =>
       MAIN_SPORTS.flatMap((sport) =>
@@ -57,6 +69,11 @@ export default function MySportsPage() {
     update({ ...favs, [type]: nextList });
   };
 
+  const groupedSports = CATEGORY_ORDER.map((category) => ({
+    category,
+    items: sports.filter((item) => item.category === category),
+  })).filter((group) => group.items.length);
+
   return (
     <div className="page-favorites">
       <h1>{t("nav.mySports")}</h1>
@@ -65,24 +82,42 @@ export default function MySportsPage() {
       <section className="section favorites-block">
         <h2>{t("favorites.sports")}</h2>
         <div className="chip-list">
-          {sports.map((sport) => {
-            const key = sport.slug === "other" ? "other" : sport.slug;
-            const on = favs.sports.includes(key);
-            const labelKey = sportI18nKey(sport.slug);
-            return (
-              <button
-                key={sport.slug}
-                type="button"
-                className={on ? "chip is-on" : "chip"}
-                aria-pressed={on}
-                onClick={() => toggle("sports", key)}
-              >
-                {labelKey ? t(labelKey) : sport.label}
-                <span className="chip-state">{on ? t("following") : t("follow")}</span>
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            className={favs.sports.includes("other") ? "chip is-on" : "chip"}
+            aria-pressed={favs.sports.includes("other")}
+            onClick={() => toggle("sports", "other")}
+          >
+            {t("sport.other")}
+            <span className="chip-state">
+              {favs.sports.includes("other") ? t("following") : t("follow")}
+            </span>
+          </button>
         </div>
+        {groupedSports.map((group) => (
+          <div key={group.category} className="favorites-sport-group">
+            <h3>{t(CATEGORY_I18N[group.category] || "directory.other")}</h3>
+            <div className="chip-list">
+              {group.items.map((sport) => {
+                const key = sport.slug === "other" ? "other" : sport.slug;
+                const on = favs.sports.includes(key);
+                const labelKey = sportI18nKey(sport.slug);
+                return (
+                  <button
+                    key={sport.slug}
+                    type="button"
+                    className={on ? "chip is-on" : "chip"}
+                    aria-pressed={on}
+                    onClick={() => toggle("sports", key)}
+                  >
+                    {labelKey ? t(labelKey) : sport.label}
+                    <span className="chip-state">{on ? t("following") : t("follow")}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </section>
 
       <section className="section favorites-block">

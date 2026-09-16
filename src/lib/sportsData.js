@@ -4,6 +4,8 @@ Frontend never depends on a vendor response shape. Both ScoreMatch-style
 rows and NormalizedEvent objects are mapped here.
 */
 
+import { predictionMarketForSport } from "../config/sportsRegistry.js";
+
 export function participantName(side) {
   if (!side) return "";
   if (typeof side === "string") return side;
@@ -71,6 +73,9 @@ export function normalizeEvent(raw) {
     provider_id: raw.provider_id || null,
     updated_at: raw.updated_at || null,
     live: Boolean(raw.live || status === "live"),
+    event_family: raw.event_family || "",
+    participant_a: raw.participant_a || null,
+    participant_b: raw.participant_b || null,
   };
 }
 
@@ -83,7 +88,7 @@ export function scoreLine(event) {
 export function predictionMarket(sport) {
   if (sport === "football") return "1x2";
   if (sport === "basketball" || sport === "tennis") return "winner";
-  return null;
+  return predictionMarketForSport(sport);
 }
 
 export function formatPercent(value) {

@@ -63,6 +63,9 @@ describe("prediction markets", () => {
     expect(predictionMarket("football")).toBe("1x2");
     expect(predictionMarket("basketball")).toBe("winner");
     expect(predictionMarket("tennis")).toBe("winner");
+    expect(predictionMarket("motorsport")).toBe(null);
+    expect(predictionMarket("horse-racing")).toBe(null);
+    expect(predictionMarket("mma")).toBe(null);
     const football = outcomePercents(
       { home_win_pct: 52, draw_pct: 27, away_win_pct: 21, market: "1x2" },
       "football"

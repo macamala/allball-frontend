@@ -1241,6 +1241,18 @@ select {
   margin: 0 0 8px;
 }
 
+.other-directory-group {
+  margin-top: 22px;
+}
+
+.other-directory-group h3 {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ns-text-muted);
+}
+
 .other-directory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

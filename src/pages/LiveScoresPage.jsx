@@ -3,6 +3,8 @@ import { getScores } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { eventDateKey, isoDate, normalizeEvent } from "../lib/sportsData.js";
+import { liveFilterSports } from "../config/sportsRegistry.js";
+import { sportI18nKey } from "../i18n/index.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import LiveScoresRail from "../components/LiveScoresRail.jsx";
@@ -30,9 +32,10 @@ export default function LiveScoresPage() {
     { id: "finished", label: t("live.finished") },
   ];
   const sports = [
-    { id: "football", label: t("sport.football") },
-    { id: "basketball", label: t("sport.basketball") },
-    { id: "tennis", label: t("sport.tennis") },
+    ...liveFilterSports().map((item) => ({
+      id: item.slug,
+      label: t(sportI18nKey(item.slug) || "sport.label"),
+    })),
     { id: "other", label: t("sport.other") },
   ];
 
@@ -43,7 +46,7 @@ export default function LiveScoresPage() {
 
   const filtered = events.filter((match) => {
     if (sport && sport !== "other" && match.sport && match.sport !== sport) return false;
-    if (sport === "other" && ["football", "basketball", "tennis"].includes(match.sport)) {
+    if (sport === "other" && ["football", "basketball", "tennis", "motorsport"].includes(match.sport)) {
       return false;
     }
     if (date && eventDateKey(match) !== date) return false;

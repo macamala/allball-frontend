@@ -1,5 +1,10 @@
 import { competitionLabel, sportLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
+import {
+  directorySports,
+  getRegistrySport,
+  toSportConfig,
+} from "./sportsRegistry.js";
 
 export function scopedCompetitionId(sportSlug, competitionKey) {
   if (!competitionKey) return "";
@@ -78,20 +83,12 @@ export const OTHER_SPORTS = {
   leagues: [],
 };
 
-export const DIRECTORY_SPORTS = [
-  { slug: "american-football", label: "American Football", path: "/american-football" },
-  { slug: "ice-hockey", label: "Ice Hockey", path: "/ice-hockey" },
-  { slug: "baseball", label: "Baseball", path: "/baseball" },
-  { slug: "rugby", label: "Rugby", path: "/rugby" },
-  { slug: "cricket", label: "Cricket", path: "/cricket" },
-  { slug: "volleyball", label: "Volleyball", path: "/volleyball" },
-  { slug: "handball", label: "Handball", path: "/handball" },
-  { slug: "golf", label: "Golf", path: "/golf" },
-  { slug: "boxing", label: "Boxing", path: "/boxing" },
-  { slug: "mma", label: "MMA", path: "/mma" },
-  { slug: "cycling", label: "Cycling", path: "/cycling" },
-  { slug: "snooker", label: "Snooker", path: "/snooker" },
-];
+export const DIRECTORY_SPORTS = directorySports().map((item) => ({
+  slug: item.slug,
+  label: item.name,
+  path: item.path,
+  category: item.category,
+}));
 
 export function getPrimaryNav(t) {
   return [
@@ -149,8 +146,8 @@ export function getSport(slug) {
   if (slug === "other" || slug === "other-sports") return OTHER_SPORTS;
   const main = MAIN_SPORTS.find((item) => item.slug === slug);
   if (main) return main;
-  const directory = DIRECTORY_SPORTS.find((item) => item.slug === slug);
-  if (directory) return { ...directory, leagues: [] };
+  const registry = getRegistrySport(slug);
+  if (registry) return toSportConfig(registry);
   return null;
 }
 

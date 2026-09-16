@@ -1549,8 +1549,18 @@ describe("Production quality surfaces", () => {
     await waitFor(() => {
       expect(document.querySelector(".other-directory-grid")).toBeTruthy();
     });
-    expect(screen.getByText("Golf")).toBeInTheDocument();
+    expect(screen.getAllByText("Golf").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Horse Racing").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Team Sports").length).toBeGreaterThan(0);
     expect(screen.getAllByText("No stories yet").length).toBeGreaterThan(0);
+  });
+
+  it("opens a registry-driven sport route without inventing stories", async () => {
+    renderAt("/sports/horse-racing");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Horse Racing" })).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Arsenal 1-0/i)).not.toBeInTheDocument();
   });
 
   it("follows and unfollows a sport and keeps the state after reload", async () => {

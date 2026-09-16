@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { getPrimaryNav } from "../config/sports.js";
+import { CATEGORY_I18N, groupedDirectorySports } from "../config/sportsRegistry.js";
+import { sportI18nKey } from "../i18n/index.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { useMobileNav } from "../context/MobileNavContext.jsx";
@@ -138,6 +140,19 @@ export default function MobileNavDrawer() {
                   ))}
                 </div>
               ) : null}
+            </div>
+          ))}
+
+          {groupedDirectorySports().map((group) => (
+            <div key={group.category} className="drawer-block mobile-group">
+              <p className="drawer-label">{t(CATEGORY_I18N[group.category] || "other.directory")}</p>
+              <div className="mobile-sub">
+                {group.items.map((item) => (
+                  <NavLink key={item.slug} to={item.path} className="drawer-sublink">
+                    {t(sportI18nKey(item.slug)) || item.name}
+                  </NavLink>
+                ))}
+              </div>
             </div>
           ))}
 

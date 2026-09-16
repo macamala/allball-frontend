@@ -42,6 +42,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/match/:matchId" element={<MatchPage />} />
+        <Route path="/sports/:sportSlug" element={<SportPage />} />
         <Route path="/:sportSlug" element={<SportPage />} />
         <Route path="/:sportSlug/:leagueSlug" element={<LeaguePage />} />
         <Route path="*" element={<NotFoundPage />} />
