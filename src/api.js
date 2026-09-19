@@ -212,6 +212,10 @@ export function getSportsDataStatus() {
   return getJSON("/sports-data/status");
 }
 
+export function getDataSources() {
+  return getJSON("/sports-data/attribution");
+}
+
 export function getAuthProviders() {
   return getJSON("/auth/providers");
 }
@@ -220,8 +224,35 @@ export function startSocialLogin(provider) {
   return getJSON(`/auth/${provider}/start`);
 }
 
+const SCORES_LIVE_TTL = 8 * 1000;
+const SCORES_LIST_TTL = 45 * 1000;
+const SCORES_DETAIL_TTL = 15 * 1000;
+
+export function sportsDataQueryPath(base, params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, String(value));
+    }
+  });
+  const qs = search.toString();
+  return `${base}${qs ? `?${qs}` : ""}`;
+}
+
 export function getScores() {
-  return getJSON("/sports-data/scores");
+  return cachedGetJSON("/sports-data/scores", SCORES_LIST_TTL);
+}
+
+export function getSportsDataLive(params = {}) {
+  return cachedGetJSON(sportsDataQueryPath("/sports-data/live", params), SCORES_LIVE_TTL);
+}
+
+export function getSportsDataUpcoming(params = {}) {
+  return cachedGetJSON(sportsDataQueryPath("/sports-data/upcoming", params), SCORES_LIST_TTL);
+}
+
+export function getSportsDataRecent(params = {}) {
+  return cachedGetJSON(sportsDataQueryPath("/sports-data/recent", params), SCORES_LIST_TTL);
 }
 
 export function getStandings(league) {
@@ -230,18 +261,14 @@ export function getStandings(league) {
 }
 
 export function getMatch(id) {
-  return getJSON(`/sports-data/matches/${encodeURIComponent(id)}`);
+  return cachedGetJSON(
+    `/sports-data/matches/${encodeURIComponent(id)}`,
+    SCORES_DETAIL_TTL
+  );
 }
 
 export function getSportsDataEvents(params = {}) {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      search.set(key, String(value));
-    }
-  });
-  const qs = search.toString();
-  return getJSON(`/sports-data/events${qs ? `?${qs}` : ""}`);
+  return cachedGetJSON(sportsDataQueryPath("/sports-data/events", params), SCORES_LIST_TTL);
 }
 
 export function getSportsDataCompetitions(sport) {

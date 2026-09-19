@@ -400,6 +400,15 @@ select {
   color: var(--muted);
 }
 
+.footer-data-sources {
+  margin: 0 0 10px;
+}
+
+.footer-data-sources a {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .footer-nav {
   display: flex;
   flex-wrap: wrap;
@@ -408,6 +417,22 @@ select {
 
 .footer-nav a {
   color: var(--muted);
+}
+
+.page-data-sources .data-source-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+
+.page-data-sources .data-source-list li {
+  margin: 0 0 10px;
+}
+
+.data-source-license {
+  color: var(--muted);
+  margin-left: 8px;
+  font-size: 0.9rem;
 }
 
 .breaking-bar {
@@ -2728,4 +2753,175 @@ select {
     transition: none !important;
   }
 }
+
+.score-sports {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.score-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.score-comp {
+  background: var(--ns-surface, var(--bg-elev));
+  border: 1px solid var(--ns-border, var(--border));
+  border-radius: var(--ns-radius-sm, var(--radius));
+  overflow: hidden;
+}
+
+.score-comp-head {
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--ns-border, var(--border));
+}
+
+.score-comp-title {
+  margin: 0;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-comp-meta {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.score-comp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.score-row {
+  border-top: 1px solid var(--ns-border, var(--border));
+}
+
+.score-row:first-child {
+  border-top: 0;
+}
+
+.score-row-link {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+  min-height: 48px;
+}
+
+.score-row.is-live {
+  box-shadow: inset 3px 0 0 var(--ns-teal, var(--accent));
+}
+
+.score-pair {
+  display: grid;
+  gap: 8px;
+}
+
+.score-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.score-side.is-away {
+  justify-content: flex-start;
+}
+
+.score-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+}
+
+.score-num {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.score-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.score-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.score-row.is-live .score-status {
+  color: var(--ns-teal, var(--accent));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.score-race-title,
+.score-athletes {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.score-hero-pair {
+  display: grid;
+  gap: 10px;
+}
+
+.score-hero-score {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.date-field input {
+  min-height: 40px;
+}
+
+@media (min-width: 720px) {
+  .score-pair {
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+  }
+
+  .score-side.is-away {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .score-hero-pair {
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-scores,
+  .page-match {
+    overflow-x: hidden;
+  }
+}
+
 

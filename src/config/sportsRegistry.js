@@ -255,6 +255,14 @@ export function liveFilterSports() {
   return allRegistrySports().filter((row) => row.live_filter);
 }
 
+export function scoreboardSports() {
+  const rows = allRegistrySports().filter(
+    (row) => row.active !== false && row.supports_live !== false && !row.parent_id
+  );
+  if (rows.length) return rows;
+  return liveFilterSports();
+}
+
 export function motorsportSeries() {
   return remoteSeries.length ? remoteSeries : MOTORSPORT_SERIES;
 }

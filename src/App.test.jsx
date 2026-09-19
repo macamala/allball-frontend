@@ -133,6 +133,22 @@ function mockFetch() {
     }
     if (url.includes("/meta/sports")) return jsonResponse(["football"]);
     if (url.includes("/meta/leagues")) return jsonResponse([]);
+    if (url.includes("/sports-data/attribution") || url.includes("/registry/data-sources")) {
+      return jsonResponse({
+        items: [],
+        count: 0,
+        message: "No third-party sports-data sources currently require credit.",
+      });
+    }
+    if (url.includes("/sports-data/live")) {
+      return jsonResponse({ connected: false, events: [], matches: [], message: "not connected" });
+    }
+    if (url.includes("/sports-data/upcoming")) {
+      return jsonResponse({ connected: false, events: [], matches: [] });
+    }
+    if (url.includes("/sports-data/recent")) {
+      return jsonResponse({ connected: false, events: [], matches: [] });
+    }
     if (url.includes("/sports-data/scores")) {
       return jsonResponse({ connected: false, matches: [], events: [], message: "not connected" });
     }
@@ -298,6 +314,25 @@ describe("NinkoSports Phase 3 routes", () => {
     expect(
       screen.getByText(/Standings coming when live data is connected/i)
     ).toBeInTheDocument();
+  });
+
+  it("keeps data-source credits off Live Scores and on a global page", async () => {
+    renderAt("/data-sources");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Data sources" })).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/No third-party sports-data sources currently require credit/i)
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Data sources" }).length).toBeGreaterThan(0);
+    cleanup();
+    renderAt("/live-scores");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Live Scores" })).toBeInTheDocument();
+    });
+    expect(document.body.textContent).not.toMatch(/Powered by/i);
+    expect(document.body.textContent).not.toMatch(/sportscore/i);
+    expect(document.body.textContent).not.toMatch(/TheSportsDB/i);
   });
 
   it("article image fails gracefully without a broken-image icon", () => {
@@ -1417,9 +1452,9 @@ describe("Sports Data V1 predictions foundation", () => {
     renderAt("/live-scores");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Live Scores" })).toBeInTheDocument();
+      expect(screen.getByText(/No placeholder games are shown/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "Finished" })).toBeInTheDocument();
-    expect(screen.getByText(/No placeholder games are shown/i)).toBeInTheDocument();
     cleanup();
     renderAt("/article/villa-win");
     await waitFor(() => {
@@ -1562,6 +1597,47 @@ describe("Production quality surfaces", () => {
     });
     expect(screen.queryByText(/Arsenal 1-0/i)).not.toBeInTheDocument();
   });
+
+  it("renders connected live scores without leaking providers", async () => {
+    const inner = global.fetch;
+    global.fetch = vi.fn((input, init) => {
+      const url = String(input);
+      if (url.includes("/sports-data/live")) {
+        return jsonResponse({
+          connected: true,
+          events: [
+            {
+              id: "ninko-evt-live-1",
+              sport: "tennis",
+              competition: "atp-tour",
+              competition_key: "atp-tour",
+              event_family: "individual_match",
+              home: { name: "Ilia Simakin" },
+              away: { name: "Hunter Heck" },
+              start_time: "2026-09-19T03:00:00Z",
+              status: "live",
+              live: true,
+              score: { home: 0, away: 0 },
+              field_sources: { home: "sportscore:widget" },
+            },
+          ],
+          matches: [],
+        });
+      }
+      return inner(input, init);
+    });
+    renderAt("/live-scores");
+    await waitFor(() => {
+      expect(screen.getByText("Ilia Simakin")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Hunter Heck")).toBeInTheDocument();
+    expect(screen.getAllByText("ATP Tour").length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toMatch(/sportscore/i);
+    fireEvent.click(screen.getByRole("button", { name: "Upcoming" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tennis" }));
+    expect(screen.getByRole("button", { name: "Tennis" }).className).toMatch(/is-active/);
+  });
+
 
   it("follows and unfollows a sport and keeps the state after reload", async () => {
     renderAt("/my-sports");

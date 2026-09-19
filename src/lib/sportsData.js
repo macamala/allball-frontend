@@ -6,42 +6,130 @@ rows and NormalizedEvent objects are mapped here.
 
 import { predictionMarketForSport } from "../config/sportsRegistry.js";
 
+const INTERNAL_EVENT_KEYS = new Set([
+  "provider",
+  "provider_id",
+  "field_sources",
+  "source_event_ids",
+  "source_kickoffs",
+  "source_family",
+  "source_fetch_time",
+  "source_status",
+  "source_timezone",
+  "source_local_datetime",
+  "source_event_updated_at",
+  "obs_signature",
+  "observed_at",
+  "canonical_last_observed_at",
+  "status_reconciliation",
+  "timezone_resolution_method",
+  "attribution",
+  "collector",
+]);
+
+const LIVE_STATUSES = new Set(["live", "halftime", "break", "inplay", "ht"]);
+const FINISHED_STATUSES = new Set([
+  "finished",
+  "ft",
+  "final",
+  "ended",
+  "cancelled",
+  "canceled",
+]);
+
+const FAMILY_TO_TYPE = {
+  team_match: "TEAM_MATCH",
+  individual_match: "HEAD_TO_HEAD",
+  combat: "HEAD_TO_HEAD",
+  racing: "RACE",
+  motorsport_race: "RACE",
+  tournament: "TOURNAMENT",
+  esports_match: "TEAM_MATCH",
+};
+
 export function participantName(side) {
   if (!side) return "";
   if (typeof side === "string") return side;
   return side.name || "";
 }
 
+export function participantLogo(side) {
+  if (!side || typeof side !== "object") return "";
+  return side.logo || side.crest || side.image || "";
+}
+
+function normalizeSide(raw, fallbackName, fallbackSlug, side) {
+  if (raw && typeof raw === "object") {
+    return {
+      id: raw.id || "",
+      slug: raw.slug || fallbackSlug || "",
+      name: raw.name || fallbackName || "",
+      side,
+      logo: participantLogo(raw),
+    };
+  }
+  return {
+    id: "",
+    slug: fallbackSlug || "",
+    name: raw || fallbackName || "",
+    side,
+    logo: "",
+  };
+}
+
+export function eventShape(raw) {
+  const explicit = String(raw?.event_type || "").toUpperCase();
+  if (
+    [
+      "TEAM_MATCH",
+      "HEAD_TO_HEAD",
+      "RACE",
+      "MEET",
+      "TOURNAMENT",
+      "BRACKET",
+      "MULTI_EVENT_MEET",
+    ].includes(explicit)
+  ) {
+    return explicit;
+  }
+  const family = String(raw?.event_family || "").toLowerCase();
+  if (family === "racing" && (raw?.meeting_id || raw?.race_number)) return "MEET";
+  if (family === "tournament" && raw?.bracket) return "BRACKET";
+  return FAMILY_TO_TYPE[family] || "TEAM_MATCH";
+}
+
+export function isLiveStatus(status, liveFlag) {
+  if (liveFlag) return true;
+  return LIVE_STATUSES.has(String(status || "").toLowerCase());
+}
+
+export function isFinishedStatus(status) {
+  return FINISHED_STATUSES.has(String(status || "").toLowerCase());
+}
+
+export function publicEventSafe(value) {
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(publicEventSafe);
+  const out = {};
+  Object.entries(value).forEach(([key, item]) => {
+    if (INTERNAL_EVENT_KEYS.has(key)) return;
+    out[key] = publicEventSafe(item);
+  });
+  return out;
+}
+
 export function normalizeEvent(raw) {
   if (!raw) return null;
-  const home =
-    raw.home && typeof raw.home === "object"
-      ? {
-          id: raw.home.id || "",
-          slug: raw.home.slug || raw.home_slug || "",
-          name: raw.home.name || raw.home_team || "",
-          side: "home",
-        }
-      : {
-          id: raw.home_id || "",
-          slug: raw.home_slug || "",
-          name: raw.home || raw.home_team || "",
-          side: "home",
-        };
-  const away =
-    raw.away && typeof raw.away === "object"
-      ? {
-          id: raw.away.id || "",
-          slug: raw.away.slug || raw.away_slug || "",
-          name: raw.away.name || raw.away_team || "",
-          side: "away",
-        }
-      : {
-          id: raw.away_id || "",
-          slug: raw.away_slug || "",
-          name: raw.away || raw.away_team || "",
-          side: "away",
-        };
+  const home = normalizeSide(raw.home, raw.home_team, raw.home_slug, "home");
+  const away = normalizeSide(raw.away, raw.away_team, raw.away_slug, "away");
+  const participantA =
+    raw.participant_a && typeof raw.participant_a === "object"
+      ? normalizeSide(raw.participant_a, "", "", "a")
+      : home;
+  const participantB =
+    raw.participant_b && typeof raw.participant_b === "object"
+      ? normalizeSide(raw.participant_b, "", "", "b")
+      : away;
   const score =
     raw.score && typeof raw.score === "object"
       ? {
@@ -49,33 +137,55 @@ export function normalizeEvent(raw) {
           away: raw.score.away ?? raw.away_score ?? null,
           period: raw.score.period || raw.period || null,
           minute: raw.score.minute || raw.minute || null,
+          clock: raw.score.clock || null,
+          set: raw.score.set || null,
         }
       : {
           home: raw.home_score ?? null,
           away: raw.away_score ?? null,
           period: raw.period || null,
           minute: raw.minute || null,
+          clock: null,
+          set: null,
         };
   const status = raw.status || (raw.live ? "live" : "scheduled");
+  const live = isLiveStatus(status, raw.live);
   return {
     id: String(raw.id || ""),
     sport: raw.sport || "",
     competition: raw.competition || raw.league || "",
-    competition_key: raw.competition_key || raw.league || "",
+    competition_key: raw.competition_key || raw.league || raw.competition || "",
     season: raw.season || null,
-    home,
-    away,
+    home: participantName(participantA) ? participantA : home,
+    away: participantName(participantB) ? participantB : away,
     start_time: raw.start_time || raw.kickoff || null,
     status,
     score,
     venue: raw.venue || null,
-    provider: raw.provider || null,
-    provider_id: raw.provider_id || null,
+    provider: null,
+    provider_id: null,
     updated_at: raw.updated_at || null,
-    live: Boolean(raw.live || status === "live"),
+    live,
     event_family: raw.event_family || "",
-    participant_a: raw.participant_a || null,
-    participant_b: raw.participant_b || null,
+    event_type: eventShape(raw),
+    participant_a: participantA,
+    participant_b: participantB,
+    round: raw.round || raw.stage || null,
+    stage: raw.stage || raw.round || null,
+    country_id: raw.country_id || null,
+    start_precision: raw.start_precision || null,
+    start_date: raw.start_date || null,
+    meeting_id: raw.meeting_id || null,
+    race_number: raw.race_number || null,
+    session_type: raw.session_type || null,
+    series_id: raw.series_id || null,
+    athletes: Array.isArray(raw.athletes) ? raw.athletes : null,
+    classification: Array.isArray(raw.classification) ? raw.classification : null,
+    runners: Array.isArray(raw.runners) ? raw.runners : null,
+    leaderboard: Array.isArray(raw.leaderboard) ? raw.leaderboard : null,
+    maps: Array.isArray(raw.maps) ? raw.maps : null,
+    winner: raw.winner || null,
+    tournament: raw.tournament || null,
   };
 }
 
@@ -170,6 +280,82 @@ export function eventDateKey(event) {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return "undated";
   return date.toISOString().slice(0, 10);
+}
+
+export function addLocalDays(dateKey, days) {
+  const [year, month, day] = String(dateKey)
+    .split("-")
+    .map((part) => Number(part));
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return isoDate(date);
+}
+
+export function localDayUtcBounds(dateKey) {
+  const [year, month, day] = String(dateKey)
+    .split("-")
+    .map((part) => Number(part));
+  const from = new Date(year, month - 1, day, 0, 0, 0, 0);
+  const to = new Date(year, month - 1, day, 23, 59, 59, 999);
+  return { date_from: from.toISOString(), date_to: to.toISOString() };
+}
+
+export function eventLocalDateKey(event) {
+  if (event?.start_precision === "DATE_ONLY" && event?.start_date) {
+    return String(event.start_date).slice(0, 10);
+  }
+  const raw = event?.start_time || event?.kickoff || "";
+  if (!raw) return event?.start_date ? String(event.start_date).slice(0, 10) : "undated";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "undated";
+  return isoDate(date);
+}
+
+export function formatEventTime(event, locale = "en-GB") {
+  if (!event?.start_time) return "";
+  if (event.start_precision === "DATE_ONLY") return "";
+  const date = new Date(event.start_time);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatEventDateTime(event, locale = "en-GB") {
+  if (!event?.start_time) return "";
+  const date = new Date(event.start_time);
+  if (Number.isNaN(date.getTime())) return "";
+  if (event.start_precision === "DATE_ONLY") {
+    return date.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
+  }
+  return date.toLocaleString(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function groupEventsByCompetition(events) {
+  const groups = new Map();
+  for (const event of events || []) {
+    const key = event.competition_key || event.competition || "unknown";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        sport: event.sport,
+        competition: event.competition || key,
+        country_id: event.country_id || null,
+        events: [],
+      });
+    }
+    groups.get(key).events.push(event);
+  }
+  return [...groups.values()];
+}
+
+export function eventPath(eventId) {
+  if (!eventId) return "/live-scores";
+  return `/scores/event/${encodeURIComponent(eventId)}`;
 }
 
 export function formatWeekdayLabel(dateKey, locale = "en-GB") {

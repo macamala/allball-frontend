@@ -1,7 +1,7 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { useI18n } from "../context/I18nContext.jsx";
-import { normalizeEvent, participantName, scoreLine } from "../lib/sportsData.js";
+import { normalizeEvent } from "../lib/sportsData.js";
+import EventRow from "./scores/EventRow.jsx";
 
 export function hasLiveUtilityData(scores, live = [], today = [], upcoming = []) {
   const connected =
@@ -18,34 +18,7 @@ export function hasLiveUtilityData(scores, live = [], today = [], upcoming = [])
 
 function MatchRow({ match }) {
   const event = normalizeEvent(match) || match;
-  const home = participantName(event.home) || event.home_team || "";
-  const away = participantName(event.away) || event.away_team || "";
-  const score =
-    scoreLine(event) ||
-    match.score ||
-    (match.home_score != null && match.away_score != null
-      ? `${match.home_score}–${match.away_score}`
-      : "");
-  const status = event.status || match.minute || match.kickoff || event.start_time || "";
-  const inner = (
-    <>
-      <span className="live-match-comp">{event.competition || match.league || ""}</span>
-      <span className="live-match-teams">
-        {home} {score ? score : "v"} {away}
-      </span>
-      {status ? <span className="live-match-status">{status}</span> : null}
-    </>
-  );
-  if (event.id) {
-    return (
-      <li className="live-match">
-        <Link to={`/match/${encodeURIComponent(event.id)}`} className="live-match-link">
-          {inner}
-        </Link>
-      </li>
-    );
-  }
-  return <li className="live-match">{inner}</li>;
+  return <EventRow event={event} compact />;
 }
 
 export default function LiveScoresRail({

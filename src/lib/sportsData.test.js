@@ -3,6 +3,7 @@ import {
   browseCompetitions,
   displayConfidence,
   eventDateKey,
+  eventLocalDateKey,
   formatPercent,
   groupEventsByDate,
   normalizeEvent,
@@ -128,5 +129,39 @@ describe("browse competitions", () => {
     expect(editorial[0].path).toBe("champions-league");
     const fromProvider = browseCompetitions(sport, [{ slug: "nba", label: "NBA", key: "nba" }]);
     expect(fromProvider[0].league).toBe("nba");
+  });
+});
+
+describe("scores helpers", () => {
+  it("maps families onto canonical event types without inventing scores", () => {
+    const tennis = normalizeEvent({
+      id: "t1",
+      sport: "tennis",
+      event_family: "individual_match",
+      home: { name: "A" },
+      away: { name: "B" },
+      status: "live",
+      start_time: "2026-09-19T03:00:00Z",
+      field_sources: { home: "sportscore:hidden" },
+    });
+    expect(tennis.event_type).toBe("HEAD_TO_HEAD");
+    expect(tennis.provider).toBeNull();
+    expect(tennis.live).toBe(true);
+    const race = normalizeEvent({
+      id: "r1",
+      event_family: "motorsport_race",
+      home: { name: "Monaco GP" },
+      status: "scheduled",
+    });
+    expect(race.event_type).toBe("RACE");
+  });
+
+  it("keeps DATE_ONLY events on the source calendar date", () => {
+    const event = {
+      start_time: "2026-09-19T00:00:00Z",
+      start_precision: "DATE_ONLY",
+      start_date: "2026-09-19",
+    };
+    expect(eventLocalDateKey(event)).toBe("2026-09-19");
   });
 });
