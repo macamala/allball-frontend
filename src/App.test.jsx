@@ -1540,6 +1540,7 @@ describe("Sports Data V1 predictions foundation", () => {
 
 describe("Production quality surfaces", () => {
   beforeEach(() => {
+    cleanup();
     mockFetch();
     window.localStorage.clear();
     Element.prototype.scrollIntoView = vi.fn();
@@ -1636,6 +1637,45 @@ describe("Production quality surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Upcoming" }));
     fireEvent.click(screen.getByRole("button", { name: "Tennis" }));
     expect(screen.getByRole("button", { name: "Tennis" }).className).toMatch(/is-active/);
+  });
+
+  it("opens a live event detail from the canonical scores route", async () => {
+    const inner = global.fetch;
+    global.fetch = vi.fn((input, init) => {
+      const url = String(input);
+      if (url.includes("/sports-data/matches/ninko-evt-live-1")) {
+        return jsonResponse({
+          connected: true,
+          event: {
+            id: "ninko-evt-live-1",
+            sport: "tennis",
+            competition: "atp-tour",
+            event_family: "individual_match",
+            home: { name: "Ilia Simakin" },
+            away: { name: "Hunter Heck" },
+            start_time: "2026-09-19T03:00:00Z",
+            status: "live",
+            live: true,
+            score: { home: 0, away: 0 },
+          },
+          header: {
+            id: "ninko-evt-live-1",
+            sport: "tennis",
+            competition: "atp-tour",
+            home: { name: "Ilia Simakin" },
+            away: { name: "Hunter Heck" },
+            status: "live",
+            score: { home: 0, away: 0 },
+          },
+        });
+      }
+      return inner(input, init);
+    });
+    renderAt("/scores/event/ninko-evt-live-1");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Ilia Simakin vs Hunter Heck/ })).toBeInTheDocument();
+    });
+    expect(document.body.textContent).not.toMatch(/sportscore/i);
   });
 
 

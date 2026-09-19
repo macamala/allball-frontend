@@ -226,7 +226,6 @@ export function startSocialLogin(provider) {
 
 const SCORES_LIVE_TTL = 8 * 1000;
 const SCORES_LIST_TTL = 45 * 1000;
-const SCORES_DETAIL_TTL = 15 * 1000;
 
 export function sportsDataQueryPath(base, params = {}) {
   const search = new URLSearchParams();
@@ -261,10 +260,7 @@ export function getStandings(league) {
 }
 
 export function getMatch(id) {
-  return cachedGetJSON(
-    `/sports-data/matches/${encodeURIComponent(id)}`,
-    SCORES_DETAIL_TTL
-  );
+  return getJSON(`/sports-data/matches/${encodeURIComponent(id)}`);
 }
 
 export function getSportsDataEvents(params = {}) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getMatch, getStandings } from "../api.js";
 import { setPageSeo, breadcrumbJsonLd } from "../lib/seo.js";
@@ -10,7 +10,6 @@ import {
   normalizeEvent,
   participantLogo,
   participantName,
-  publicEventSafe,
   scoreLine,
 } from "../lib/sportsData.js";
 import { competitionLabel } from "../labels.js";
@@ -69,7 +68,7 @@ export default function MatchPage() {
     getMatch(matchId)
       .then((payload) => {
         if (!cancelled) {
-          setData(publicEventSafe(payload));
+          setData(payload);
           setError(false);
         }
       })
@@ -84,7 +83,10 @@ export default function MatchPage() {
     };
   }, [matchId]);
 
-  const event = normalizeEvent(data?.event || data?.header);
+  const event = useMemo(
+    () => normalizeEvent(data?.event || data?.header),
+    [data]
+  );
   const home = participantName(event?.home);
   const away = participantName(event?.away);
   const title =
@@ -103,9 +105,9 @@ export default function MatchPage() {
         { name: t("liveScores"), path: "/live-scores" },
         { name: title, path },
       ]),
-      noindex: !event,
+      noindex: !event?.id,
     });
-  }, [event, path, t, title]);
+  }, [event?.id, event?.competition, path, t, title]);
 
   useEffect(() => {
     if (!event?.competition_key) return undefined;
@@ -231,7 +233,7 @@ export default function MatchPage() {
             show={Array.isArray(classification) && classification.length > 0}
           >
             <ol>
-              {classification.slice(0, 20).map((row, index) => (
+              {(Array.isArray(classification) ? classification : []).slice(0, 20).map((row, index) => (
                 <li key={row.id || row.name || index}>
                   {typeof row === "string" ? row : row.name || row.driver || row.team}
                 </li>
