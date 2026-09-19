@@ -24,9 +24,10 @@ async function parseBody(res) {
   }
 }
 
-export async function getJSON(path) {
+export async function getJSON(path, { signal } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
+    signal,
   });
   const data = await parseBody(res);
   if (data && data.csrf) setCsrfToken(data.csrf);
@@ -111,11 +112,11 @@ export function peekCached(path) {
   return hit.data;
 }
 
-function cachedGetJSON(path, ttlMs) {
+function cachedGetJSON(path, ttlMs, { signal } = {}) {
   const fresh = peekCached(path);
   if (fresh !== null) return Promise.resolve(fresh);
-  if (inflight.has(path)) return inflight.get(path);
-  const pending = getJSON(path)
+  if (inflight.has(path) && !signal) return inflight.get(path);
+  const pending = getJSON(path, { signal })
     .then((data) => {
       memoryCache.set(path, { data, expires: Date.now() + ttlMs });
       inflight.delete(path);
@@ -259,8 +260,13 @@ export function getStandings(league) {
   return getJSON(`/sports-data/standings${qs}`);
 }
 
-export function getMatch(id) {
-  return getJSON(`/sports-data/matches/${encodeURIComponent(id)}`);
+export function matchPath(id) {
+  if (!id) return "/sports-data/matches/";
+  return `/sports-data/matches/${encodeURIComponent(id)}`;
+}
+
+export function getMatch(id, options = {}) {
+  return cachedGetJSON(matchPath(id), SCORES_LIVE_TTL, options);
 }
 
 export function getSportsDataEvents(params = {}) {

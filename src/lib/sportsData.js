@@ -5,6 +5,7 @@ rows and NormalizedEvent objects are mapped here.
 */
 
 import { predictionMarketForSport } from "../config/sportsRegistry.js";
+import { sanitizeParticipantName } from "./participantDisplay.js";
 
 const INTERNAL_EVENT_KEYS = new Set([
   "provider",
@@ -35,6 +36,24 @@ const FINISHED_STATUSES = new Set([
   "ended",
   "cancelled",
   "canceled",
+  "abandoned",
+  "walkover",
+  "aet",
+  "pen",
+  "awarded",
+]);
+const UPCOMING_STATUSES = new Set([
+  "scheduled",
+  "not_started",
+  "ns",
+  "fixture",
+  "postponed",
+  "delayed",
+  "tbd",
+  "stale",
+  "unknown",
+  "status_unknown",
+  "suspended",
 ]);
 
 const FAMILY_TO_TYPE = {
@@ -43,14 +62,18 @@ const FAMILY_TO_TYPE = {
   combat: "HEAD_TO_HEAD",
   racing: "RACE",
   motorsport_race: "RACE",
+  stage_race: "RACE",
   tournament: "TOURNAMENT",
   esports_match: "TEAM_MATCH",
+  individual: "MEET",
 };
+
+const MEET_SPORTS = new Set(["athletics", "swimming", "winter-sports"]);
 
 export function participantName(side) {
   if (!side) return "";
-  if (typeof side === "string") return side;
-  return side.name || "";
+  if (typeof side === "string") return sanitizeParticipantName(side);
+  return sanitizeParticipantName(side.display_name || side.name || "");
 }
 
 export function participantLogo(side) {
@@ -60,20 +83,26 @@ export function participantLogo(side) {
 
 function normalizeSide(raw, fallbackName, fallbackSlug, side) {
   if (raw && typeof raw === "object") {
+    const name = raw.name || fallbackName || "";
     return {
       id: raw.id || "",
       slug: raw.slug || fallbackSlug || "",
-      name: raw.name || fallbackName || "",
+      name,
+      display_name: sanitizeParticipantName(name),
       side,
       logo: participantLogo(raw),
+      country_id: raw.country_id || raw.country || raw.nationality || "",
     };
   }
+  const name = raw || fallbackName || "";
   return {
     id: "",
     slug: fallbackSlug || "",
-    name: raw || fallbackName || "",
+    name,
+    display_name: sanitizeParticipantName(name),
     side,
     logo: "",
+    country_id: "",
   };
 }
 
@@ -93,18 +122,65 @@ export function eventShape(raw) {
     return explicit;
   }
   const family = String(raw?.event_family || "").toLowerCase();
-  if (family === "racing" && (raw?.meeting_id || raw?.race_number)) return "MEET";
-  if (family === "tournament" && raw?.bracket) return "BRACKET";
-  return FAMILY_TO_TYPE[family] || "TEAM_MATCH";
+  if (raw?.bracket) return "BRACKET";
+  if (MEET_SPORTS.has(String(raw?.sport || "")) || family === "individual") {
+    return Array.isArray(raw?.disciplines) ? "MULTI_EVENT_MEET" : "MEET";
+  }
+  if (family === "tournament" && MEET_SPORTS.has(String(raw?.sport || ""))) return "MEET";
+  if (FAMILY_TO_TYPE[family]) return FAMILY_TO_TYPE[family];
+  return "UNKNOWN";
 }
 
 export function isLiveStatus(status, liveFlag) {
-  if (liveFlag) return true;
-  return LIVE_STATUSES.has(String(status || "").toLowerCase());
+  const value = String(status || "").toLowerCase();
+  if (LIVE_STATUSES.has(value)) return true;
+  return false;
 }
 
 export function isFinishedStatus(status) {
   return FINISHED_STATUSES.has(String(status || "").toLowerCase());
+}
+
+export function isUpcomingStatus(status, liveFlag) {
+  if (isLiveStatus(status, liveFlag) || isFinishedStatus(status)) return false;
+  const raw = String(status || "").toLowerCase();
+  return !raw || UPCOMING_STATUSES.has(raw);
+}
+
+export function eventStatusView(event) {
+  if (isLiveStatus(event?.status, event?.live)) return "live";
+  if (isFinishedStatus(event?.status)) return "finished";
+  return "upcoming";
+}
+
+export function matchesStatusView(event, view) {
+  if (!view || view === "all") return true;
+  return eventStatusView(event) === view;
+}
+
+export function statusCounts(events) {
+  const counts = { all: 0, live: 0, upcoming: 0, finished: 0 };
+  for (const event of events || []) {
+    counts.all += 1;
+    counts[eventStatusView(event)] += 1;
+  }
+  return counts;
+}
+
+export function dateKeyInTimeZone(iso, timeZone) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "undated";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) return "undated";
+  return `${year}-${month}-${day}`;
 }
 
 export function publicEventSafe(value) {
@@ -125,11 +201,11 @@ export function normalizeEvent(raw) {
   const participantA =
     raw.participant_a && typeof raw.participant_a === "object"
       ? normalizeSide(raw.participant_a, "", "", "a")
-      : home;
+      : { ...home, side: "a" };
   const participantB =
     raw.participant_b && typeof raw.participant_b === "object"
       ? normalizeSide(raw.participant_b, "", "", "b")
-      : away;
+      : { ...away, side: "b" };
   const score =
     raw.score && typeof raw.score === "object"
       ? {
@@ -139,6 +215,13 @@ export function normalizeEvent(raw) {
           minute: raw.score.minute || raw.minute || null,
           clock: raw.score.clock || null,
           set: raw.score.set || null,
+          quarter: raw.score.quarter || null,
+          runs: raw.score.runs ?? null,
+          wickets: raw.score.wickets ?? null,
+          hits: raw.score.hits ?? null,
+          errors: raw.score.errors ?? null,
+          sets: raw.score.sets || null,
+          games: raw.score.games || null,
         }
       : {
           home: raw.home_score ?? null,
@@ -147,17 +230,23 @@ export function normalizeEvent(raw) {
           minute: raw.minute || null,
           clock: null,
           set: null,
+          quarter: null,
+          runs: null,
+          wickets: null,
+          sets: null,
+          games: null,
         };
-  const status = raw.status || (raw.live ? "live" : "scheduled");
-  const live = isLiveStatus(status, raw.live);
+  const status = raw.status || "scheduled";
+  const live = isLiveStatus(status);
   return {
     id: String(raw.id || ""),
     sport: raw.sport || "",
-    competition: raw.competition || raw.league || "",
+    competition: raw.competition_name || raw.competition || raw.league || "",
     competition_key: raw.competition_key || raw.league || raw.competition || "",
+    competition_name: raw.competition_name || "",
     season: raw.season || null,
-    home: participantName(participantA) ? participantA : home,
-    away: participantName(participantB) ? participantB : away,
+    home,
+    away,
     start_time: raw.start_time || raw.kickoff || null,
     status,
     score,
@@ -173,7 +262,9 @@ export function normalizeEvent(raw) {
     round: raw.round || raw.stage || null,
     stage: raw.stage || raw.round || null,
     country_id: raw.country_id || null,
+    country_based: Boolean(raw.country_based),
     start_precision: raw.start_precision || null,
+    live_class: raw.live_class || null,
     start_date: raw.start_date || null,
     meeting_id: raw.meeting_id || null,
     race_number: raw.race_number || null,
@@ -186,6 +277,30 @@ export function normalizeEvent(raw) {
     maps: Array.isArray(raw.maps) ? raw.maps : null,
     winner: raw.winner || null,
     tournament: raw.tournament || null,
+    tournament_id: raw.tournament_id || null,
+    tournament_name: raw.tournament_name || null,
+    surface: raw.surface || null,
+    category: raw.category || null,
+    periods: raw.periods || raw.sets || null,
+    best_of: raw.best_of || null,
+    bracket: raw.bracket || null,
+    result_type: raw.result_type || null,
+    walkover: raw.walkover || null,
+    forfeit: raw.forfeit || null,
+    race_name: raw.race_name || null,
+    disciplines: raw.disciplines || null,
+    timezone: raw.timezone || null,
+    game_id: raw.game_id || null,
+    parent_sport_id: raw.parent_sport_id || null,
+    lineups: raw.lineups ?? null,
+    statistics: raw.statistics ?? null,
+    incidents: raw.incidents ?? null,
+    form: raw.form ?? null,
+    attendance: raw.attendance ?? null,
+    referee: raw.referee ?? null,
+    innings: raw.innings ?? null,
+    player_statistics: raw.player_statistics ?? null,
+    officials: raw.officials ?? null,
   };
 }
 
@@ -193,6 +308,10 @@ export function scoreLine(event) {
   const score = event?.score || {};
   if (score.home == null || score.away == null) return "";
   return `${score.home}–${score.away}`;
+}
+
+export function missingScorePlaceholder() {
+  return "–";
 }
 
 export function predictionMarket(sport) {
@@ -313,9 +432,14 @@ export function eventLocalDateKey(event) {
 
 export function formatEventTime(event, locale = "en-GB") {
   if (!event?.start_time) return "";
-  if (event.start_precision === "DATE_ONLY") return "";
+  if (event.start_precision === "DATE_ONLY" || event.start_precision === "UNKNOWN") return "";
   const date = new Date(event.start_time);
   if (Number.isNaN(date.getTime())) return "";
+  if (event.start_precision !== "EXACT_TIME") {
+    const utcMidnight =
+      date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0;
+    if (utcMidnight) return "";
+  }
   return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -323,7 +447,7 @@ export function formatEventDateTime(event, locale = "en-GB") {
   if (!event?.start_time) return "";
   const date = new Date(event.start_time);
   if (Number.isNaN(date.getTime())) return "";
-  if (event.start_precision === "DATE_ONLY") {
+  if (event.start_precision === "DATE_ONLY" || event.start_precision === "UNKNOWN") {
     return date.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
   }
   return date.toLocaleString(locale, {
@@ -345,10 +469,22 @@ export function groupEventsByCompetition(events) {
         sport: event.sport,
         competition: event.competition || key,
         country_id: event.country_id || null,
+        series_id: event.series_id || null,
+        country_based: Boolean(event.country_based),
         events: [],
       });
     }
     groups.get(key).events.push(event);
+  }
+  for (const group of groups.values()) {
+    group.events.sort((left, right) => {
+      const leftStart = left.start_time || "";
+      const rightStart = right.start_time || "";
+      if (leftStart !== rightStart) return leftStart.localeCompare(rightStart);
+      return String(left.id).localeCompare(String(right.id));
+    });
+    group.hasLive = group.events.some((item) => item.live);
+    group.earliest = group.events[0]?.start_time || "";
   }
   return [...groups.values()];
 }

@@ -4,136 +4,150 @@ import { useI18n } from "../../context/I18nContext.jsx";
 import {
   eventPath,
   formatEventTime,
-  isFinishedStatus,
-  participantLogo,
+  isLiveStatus,
   participantName,
-  scoreLine,
 } from "../../lib/sportsData.js";
+import {
+  eventTitle,
+  namedField,
+  namedLeader,
+  pairScoreText,
+  rendererForEvent,
+  sportScoreText,
+  statusLabel,
+} from "../../lib/scorePresentation.js";
+import Crest from "./Crest.jsx";
+import { flagEmoji, sideCountry } from "../../lib/identityAssets.js";
 
-function Logo({ side }) {
-  const src = participantLogo(side);
-  if (!src) return null;
-  return <img className="score-logo" src={src} alt="" width="20" height="20" />;
+function StatusCell({ event, t, locale }) {
+  const time = formatEventTime(event, locale);
+  const label = statusLabel(event, t, time);
+  const live = isLiveStatus(event.status);
+  return (
+    <div className={`score-status-col ${live ? "is-live" : ""}`}>
+      {live ? <span className="live-dot" aria-hidden="true" /> : null}
+      <span className="score-status-text">{label}</span>
+    </div>
+  );
 }
 
-function PairRow({ event, left, right, showScore, timeLabel, statusLabel }) {
-  const leftName = participantName(left);
-  const rightName = participantName(right);
-  const score = showScore ? scoreLine(event) : "";
+function PairNames({ left, right, event }) {
+  const leftFlag = flagEmoji(sideCountry(left, event.country_id));
+  const rightFlag = flagEmoji(sideCountry(right, event.country_id));
   return (
     <>
-      <div className="score-pair">
-        <span className="score-side">
-          <Logo side={left} />
-          <span className="score-name">{leftName || "—"}</span>
-          {showScore && score ? <span className="score-num">{event.score?.home}</span> : null}
-        </span>
-        <span className="score-side is-away">
-          {showScore && score ? <span className="score-num">{event.score?.away}</span> : null}
-          <span className="score-name">{rightName || "—"}</span>
-          <Logo side={right} />
+      <div className="score-team is-home">
+        <Crest side={left} />
+        <span className="score-name">
+          {leftFlag ? <span className="score-flag">{leftFlag}</span> : null}
+          {participantName(left) || "—"}
         </span>
       </div>
-      <div className="score-row-meta">
-        {statusLabel ? <span className="score-status">{statusLabel}</span> : null}
-        {timeLabel ? <span className="score-time">{timeLabel}</span> : null}
-        {event.round ? <span className="score-round">{event.round}</span> : null}
+      <div className="score-mid" aria-hidden={!sportScoreText(event)}>
+        {isLiveStatus(event.status) || pairScoreText(event) !== "–" ? sportScoreText(event) : "–"}
+      </div>
+      <div className="score-team is-away">
+        <span className="score-name">
+          {participantName(right) || "—"}
+          {rightFlag ? <span className="score-flag">{rightFlag}</span> : null}
+        </span>
+        <Crest side={right} />
       </div>
     </>
   );
 }
 
-function namedItems(list) {
-  return (list || [])
-    .map((item) => (typeof item === "string" ? item : item?.name || item?.driver || ""))
-    .filter(Boolean)
-    .slice(0, 4);
+function TeamMatchBody({ event, t, locale }) {
+  return (
+    <>
+      <StatusCell event={event} t={t} locale={locale} />
+      <PairNames left={event.home} right={event.away} event={event} />
+    </>
+  );
 }
 
-function EventBody({ event, locale, t }) {
-  const live = event.live;
-  const finished = isFinishedStatus(event.status);
-  const timeLabel = live || finished ? "" : formatEventTime(event, locale);
-  const statusLabel = live
-    ? t("live.now")
-    : finished
-      ? t("live.finished")
-      : event.status && event.status !== "scheduled"
-        ? event.status.replace(/_/g, " ")
-        : "";
-  const showScore = live || finished || scoreLine(event);
-  const type = event.event_type || "TEAM_MATCH";
-
-  if (type === "RACE" || type === "MEET" || type === "MULTI_EVENT_MEET") {
-    const title =
-      event.tournament ||
-      participantName(event.home) ||
-      event.session_type ||
-      event.competition;
-    const names = namedItems(event.athletes || event.runners || event.classification);
-    return (
-      <>
-        <div className="score-race-title">{title}</div>
-        {event.race_number ? (
-          <div className="score-row-meta">
-            {t("live.round")} {event.race_number}
-          </div>
-        ) : null}
-        {names.length ? <p className="score-athletes">{names.join(" · ")}</p> : null}
-        <div className="score-row-meta">
-          {statusLabel ? <span className="score-status">{statusLabel}</span> : null}
-          {timeLabel ? <span className="score-time">{timeLabel}</span> : null}
-          {event.stage && event.stage !== event.round ? (
-            <span className="score-round">{event.stage}</span>
-          ) : null}
-        </div>
-      </>
-    );
-  }
-
-  if (type === "TOURNAMENT" || type === "BRACKET") {
-    const names = namedItems(event.leaderboard || event.athletes);
-    return (
-      <>
-        <div className="score-race-title">
-          {event.tournament || participantName(event.home) || event.competition}
-        </div>
-        {names.length ? <p className="score-athletes">{names.join(" · ")}</p> : null}
-        <div className="score-row-meta">
-          {statusLabel ? <span className="score-status">{statusLabel}</span> : null}
-          {timeLabel ? <span className="score-time">{timeLabel}</span> : null}
-          {event.round ? <span className="score-round">{event.round}</span> : null}
-        </div>
-      </>
-    );
-  }
-
+function HeadToHeadBody({ event, t, locale }) {
   return (
-    <PairRow
-      event={event}
-      left={event.home}
-      right={event.away}
-      showScore={Boolean(showScore)}
-      timeLabel={timeLabel}
-      statusLabel={statusLabel}
-    />
+    <>
+      <StatusCell event={event} t={t} locale={locale} />
+      <PairNames
+        left={event.participant_a?.name ? event.participant_a : event.home}
+        right={event.participant_b?.name ? event.participant_b : event.away}
+        event={event}
+      />
+    </>
   );
+}
+
+function MetaEventBody({ event, t, locale, extra }) {
+  const names = namedField(
+    event.athletes || event.runners || event.classification || event.leaderboard,
+    3
+  );
+  const leader = namedLeader(event);
+  return (
+    <>
+      <StatusCell event={event} t={t} locale={locale} />
+      <div className="score-meta-main">
+        <div className="score-race-title">{eventTitle(event)}</div>
+        {extra ? <div className="score-row-note">{extra}</div> : null}
+        {leader ? <div className="score-row-note">{leader}</div> : null}
+        {!leader && names.length ? <div className="score-row-note">{names.join(" · ")}</div> : null}
+      </div>
+    </>
+  );
+}
+
+function EventBody({ event, t, locale }) {
+  const kind = rendererForEvent(event);
+  if (kind === "HEAD_TO_HEAD") return <HeadToHeadBody event={event} t={t} locale={locale} />;
+  if (kind === "RACE") {
+    const extra = [
+      event.session_type,
+      event.race_number ? `${t("live.round")} ${event.race_number}` : "",
+      event.stage,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return <MetaEventBody event={event} t={t} locale={locale} extra={extra} />;
+  }
+  if (kind === "MEET" || kind === "MULTI_EVENT_MEET") {
+    const extra = [event.session_type, event.round, event.stage].filter(Boolean).join(" · ");
+    return <MetaEventBody event={event} t={t} locale={locale} extra={extra} />;
+  }
+  if (kind === "TOURNAMENT") {
+    const extra = [event.round, event.stage].filter(Boolean).join(" · ");
+    return <MetaEventBody event={event} t={t} locale={locale} extra={extra} />;
+  }
+  if (kind === "BRACKET") {
+    const extra = [event.round, event.best_of ? `Bo${event.best_of}` : ""].filter(Boolean).join(" · ");
+    if (participantName(event.home) && participantName(event.away)) {
+      return <TeamMatchBody event={event} t={t} locale={locale} />;
+    }
+    return <MetaEventBody event={event} t={t} locale={locale} extra={extra} />;
+  }
+  if (kind === "UNKNOWN") {
+    return <MetaEventBody event={event} t={t} locale={locale} extra={event.event_family || ""} />;
+  }
+  return <TeamMatchBody event={event} t={t} locale={locale} />;
 }
 
 export default function EventRow({ event, compact = false }) {
   const { t, dateLocale } = useI18n();
   if (!event?.id) return null;
+  const kind = rendererForEvent(event);
   const className = [
     "score-row",
     compact ? "is-compact" : "",
-    event.live ? "is-live" : "",
+    isLiveStatus(event.status) ? "is-live" : "",
+    `is-${kind.toLowerCase()}`,
   ]
     .filter(Boolean)
     .join(" ");
   return (
-    <li className={className}>
-      <Link to={eventPath(event.id)} className="score-row-link">
-        <EventBody event={event} locale={dateLocale} t={t} />
+    <li className={className} data-renderer={kind}>
+      <Link to={eventPath(event.id)} state={{ event }} className="score-row-link">
+        <EventBody event={event} t={t} locale={dateLocale} />
       </Link>
     </li>
   );

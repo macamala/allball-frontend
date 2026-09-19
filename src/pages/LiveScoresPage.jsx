@@ -1,33 +1,45 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-  getSportsDataLive,
-  getSportsDataRecent,
-  getSportsDataUpcoming,
-} from "../api.js";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { getRecentArticles, getSportsDataEvents } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
-  addLocalDays,
   eventLocalDateKey,
   isoDate,
   localDayUtcBounds,
+  matchesStatusView,
   normalizeEvent,
+  statusCounts,
 } from "../lib/sportsData.js";
 import { scoreboardSports } from "../config/sportsRegistry.js";
 import { sportI18nKey } from "../i18n/index.js";
+import { competitionLabel } from "../labels.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import EventList from "../components/scores/EventList.jsx";
+import EventRow from "../components/scores/EventRow.jsx";
+import SportRail from "../components/scores/SportRail.jsx";
+import DateRail from "../components/scores/DateRail.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
-import { CardSkeleton } from "../components/Skeleton.jsx";
+import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
 
 const STATUSES = [
-  { id: "live", labelKey: "live.now" },
+  { id: "all", labelKey: "live.all" },
+  { id: "live", labelKey: "live.live" },
   { id: "upcoming", labelKey: "live.upcoming" },
   { id: "finished", labelKey: "live.finished" },
 ];
+
+const SPORT_ICONS = {
+  team: "●",
+  racket: "◌",
+  combat: "◆",
+  motorsport: "▣",
+  racing: "▸",
+  esports: "▦",
+  individual: "○",
+};
 
 function payloadEvents(data) {
   const raw = data?.events?.length ? data.events : data?.matches || [];
@@ -39,44 +51,34 @@ export default function LiveScoresPage() {
   const { favorites } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const today = isoDate(new Date());
-  const status = searchParams.get("status") || "live";
+  const status = searchParams.get("status") || "all";
   const date = searchParams.get("date") || today;
   const sport = searchParams.get("sport") || "all";
   const competition = searchParams.get("competition") || "";
-  const [payload, setPayload] = useState(null);
+  const [board, setBoard] = useState({ key: "", payload: null });
+  const [news, setNews] = useState([]);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const requestSeq = useRef(0);
+
+  const requestKey = `${date}|${sport}|${competition}`;
 
   const sports = useMemo(() => {
     const followed = favorites?.sports || [];
     const rows = scoreboardSports();
-    const ranked = [...rows].sort((left, right) => {
+    return [...rows].sort((left, right) => {
       const leftFav = followed.includes(left.slug) ? 0 : 1;
       const rightFav = followed.includes(right.slug) ? 0 : 1;
       if (leftFav !== rightFav) return leftFav - rightFav;
       return (left.display_priority || 200) - (right.display_priority || 200);
     });
-    return ranked;
   }, [favorites]);
 
-  const dateChips = [
-    { id: addLocalDays(today, -1), label: t("live.yesterday") },
-    { id: today, label: t("live.today") },
-    { id: addLocalDays(today, 1), label: t("live.tomorrow") },
-  ];
-
   function updateParams(patch) {
-    const next = {
-      status,
-      date,
-      sport,
-      competition,
-      ...patch,
-    };
+    const next = { status, date, sport, competition, ...patch };
     const params = {};
-    if (next.status && next.status !== "live") params.status = next.status;
-    if (next.status !== "live" && next.date) params.date = next.date;
-    else if (next.date && next.date !== today) params.date = next.date;
+    if (next.status && next.status !== "all") params.status = next.status;
+    if (next.date && next.date !== today) params.date = next.date;
     if (next.sport && next.sport !== "all") params.sport = next.sport;
     if (next.competition) params.competition = next.competition;
     setSearchParams(params);
@@ -84,29 +86,28 @@ export default function LiveScoresPage() {
 
   const fetchScores = useCallback(
     (silent = false) => {
-      const filters = {};
+      const filters = { ...localDayUtcBounds(date) };
       if (sport && sport !== "all" && sport !== "mine") filters.sport = sport;
       if (competition) filters.competition = competition;
-      if (status !== "live") Object.assign(filters, localDayUtcBounds(date));
-      const request =
-        status === "finished"
-          ? getSportsDataRecent(filters)
-          : status === "upcoming"
-            ? getSportsDataUpcoming(filters)
-            : getSportsDataLive(filters);
+      const key = `${date}|${sport}|${competition}`;
+      const seq = ++requestSeq.current;
       if (!silent) setLoading(true);
-      request
+      getSportsDataEvents(filters)
         .then((data) => {
-          setPayload(data);
+          if (seq !== requestSeq.current) return;
+          setBoard({ key, payload: data });
           setError(false);
         })
         .catch(() => {
+          if (seq !== requestSeq.current) return;
           setError(true);
-          if (!silent) setPayload(null);
+          if (!silent) setBoard({ key, payload: null });
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (seq === requestSeq.current) setLoading(false);
+        });
     },
-    [competition, date, sport, status]
+    [competition, date, sport]
   );
 
   useEffect(() => {
@@ -121,15 +122,12 @@ export default function LiveScoresPage() {
     fetchScores(false);
   }, [fetchScores]);
 
-  const pollMs = status === "live" ? 30000 : 180000;
   const silentRefresh = useCallback(() => fetchScores(true), [fetchScores]);
-  useVisiblePoll(silentRefresh, pollMs);
+  useVisiblePoll(silentRefresh, 30000);
 
-  const events = (() => {
-    let rows = payloadEvents(payload);
-    if (status !== "live") {
-      rows = rows.filter((event) => eventLocalDateKey(event) === date);
-    }
+  const dayEvents = useMemo(() => {
+    if (board.key !== requestKey || !board.payload) return [];
+    let rows = payloadEvents(board.payload).filter((event) => eventLocalDateKey(event) === date);
     if (sport === "mine") {
       const followedSports = favorites?.sports || [];
       const followedLeagues = favorites?.leagues || [];
@@ -140,7 +138,54 @@ export default function LiveScoresPage() {
       });
     }
     return rows;
-  })();
+  }, [board, date, favorites, requestKey, sport]);
+
+  const counts = useMemo(() => statusCounts(dayEvents), [dayEvents]);
+  const events = useMemo(
+    () => dayEvents.filter((event) => matchesStatusView(event, status)),
+    [dayEvents, status]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getRecentArticles(6)
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows)) setNews(rows.slice(0, 5));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const topComps = useMemo(() => {
+    const countsMap = new Map();
+    dayEvents.forEach((event) => {
+      const key = event.competition_key || event.competition;
+      if (!key) return;
+      countsMap.set(key, (countsMap.get(key) || 0) + 1);
+    });
+    return [...countsMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([key, count]) => ({ key, count, label: competitionLabel(key) }));
+  }, [dayEvents]);
+
+  const sportItems = [
+    { id: "all", label: t("live.allSports"), icon: "◎" },
+    { id: "mine", label: t("live.mySports"), icon: "★" },
+    ...sports.map((item) => ({
+      id: item.slug,
+      label: t(sportI18nKey(item.slug) || "sport.label"),
+      icon: SPORT_ICONS[item.category] || "●",
+    })),
+  ];
+
+  const sidebarLive = dayEvents.filter((item) => item.live).slice(0, 6);
+  const payloadReady = board.key === requestKey && board.payload;
+  const showSidebar = Boolean(
+    payloadReady && (sidebarLive.length || topComps.length || (favorites?.sports || []).length || news.length)
+  );
 
   let emptyTitle = t("live.emptyTitle");
   let emptyBody = t("live.emptyBody");
@@ -153,89 +198,105 @@ export default function LiveScoresPage() {
 
   return (
     <div className="page-scores">
-      <h1>{t("liveScores")}</h1>
-      <div className="score-toolbar" role="tablist" aria-label={t("liveScores")}>
-        {STATUSES.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={item.id === status ? "tab is-active" : "tab"}
-            onClick={() => updateParams({ status: item.id, date: item.id === "live" ? date : date || today })}
-          >
-            {t(item.labelKey)}
-          </button>
-        ))}
-      </div>
-      <div className="score-toolbar">
-        {dateChips.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={item.id === date ? "tab is-active" : "tab"}
-            onClick={() => updateParams({ date: item.id, status: status === "live" ? "upcoming" : status })}
-          >
-            {item.label}
-          </button>
-        ))}
-        <label className="date-field">
-          {t("live.date")}
-          <input
-            type="date"
-            value={date}
-            onChange={(event) =>
-              updateParams({
-                date: event.target.value,
-                status: status === "live" ? "upcoming" : status,
-              })
-            }
-          />
-        </label>
-      </div>
-      <div className="score-toolbar score-sports">
-        <button
-          type="button"
-          className={sport === "all" ? "tab is-active" : "tab"}
-          onClick={() => updateParams({ sport: "all", competition: "" })}
-        >
-          {t("live.allSports")}
-        </button>
-        <button
-          type="button"
-          className={sport === "mine" ? "tab is-active" : "tab"}
-          onClick={() => updateParams({ sport: "mine", competition: "" })}
-        >
-          {t("live.mySports")}
-        </button>
-        {sports.map((item) => (
-          <button
-            key={item.slug}
-            type="button"
-            className={item.slug === sport ? "tab is-active" : "tab"}
-            onClick={() => updateParams({ sport: item.slug, competition: "" })}
-          >
-            {t(sportI18nKey(item.slug) || "sport.label")}
-          </button>
-        ))}
-      </div>
-      {loading && !payload ? (
-        <CardSkeleton count={4} />
-      ) : error ? (
-        <EmptyState
-          title={t("live.unavailableTitle")}
-          body={t("live.unavailableBody")}
-          action={
-            <button type="button" className="btn" onClick={() => fetchScores(false)}>
-              {t("live.retry")}
+      <header className="score-centre-head">
+        <div>
+          <h1>{t("liveScores")}</h1>
+        </div>
+        <div className="score-status-tabs" role="tablist" aria-label={t("liveScores")}>
+          {STATUSES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={item.id === status}
+              className={item.id === status ? `status-tab is-active is-${item.id}` : `status-tab is-${item.id}`}
+              onClick={() => updateParams({ status: item.id })}
+            >
+              {t(item.labelKey)}
+              {counts[item.id] > 0 ? <span className="status-count">{counts[item.id]}</span> : null}
             </button>
-          }
-        />
-      ) : payload && payload.connected === false ? (
-        <ProviderPending title={t("live.readyTitle")} body={t("live.readyBody")} />
-      ) : events.length ? (
-        <EventList events={events} />
-      ) : (
-        <EmptyState title={emptyTitle} body={emptyBody} />
-      )}
+          ))}
+        </div>
+      </header>
+      <DateRail date={date} today={today} t={t} onChange={(next) => updateParams({ date: next })} />
+      <SportRail
+        ariaLabel={t("live.allSports")}
+        value={sport}
+        items={sportItems}
+        onChange={(id) => updateParams({ sport: id, competition: "" })}
+      />
+      <div className={showSidebar ? "score-centre-layout has-aside" : "score-centre-layout"}>
+        <div className="score-centre-main">
+          {error ? (
+            <EmptyState
+              title={t("live.unavailableTitle")}
+              body={t("live.unavailableBody")}
+              action={
+                <button type="button" className="btn" onClick={() => fetchScores(false)}>
+                  {t("live.retry")}
+                </button>
+              }
+            />
+          ) : !payloadReady ? (
+            <ScoreBoardSkeleton />
+          ) : board.payload.connected === false ? (
+            <ProviderPending title={t("live.readyTitle")} body={t("live.readyBody")} />
+          ) : events.length ? (
+            <EventList events={events} />
+          ) : (
+            <EmptyState title={emptyTitle} body={emptyBody} compact />
+          )}
+        </div>
+        {showSidebar ? (
+          <aside className="score-centre-aside">
+            {sidebarLive.length && (status === "upcoming" || status === "finished") ? (
+              <section>
+                <h2>{t("live.liveNow")}</h2>
+                <ul className="score-aside-list">
+                  {sidebarLive.map((event) => (
+                    <EventRow key={event.id} event={event} compact />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {topComps.length ? (
+              <section>
+                <h2>{t("live.topCompetitions")}</h2>
+                <ul className="score-aside-links">
+                  {topComps.map((item) => (
+                    <li key={item.key}>
+                      <button type="button" onClick={() => updateParams({ competition: item.key })}>
+                        {item.label}
+                        <span>{item.count}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {(favorites?.sports || []).length ? (
+              <section>
+                <h2>{t("live.mySports")}</h2>
+                <p>
+                  <Link to="/my-sports">{t("seeAll")}</Link>
+                </p>
+              </section>
+            ) : null}
+            {news.length ? (
+              <section>
+                <h2>{t("latest")}</h2>
+                <ul className="score-aside-news">
+                  {news.map((article) => (
+                    <li key={article.id || article.slug}>
+                      <Link to={`/article/${article.slug}`}>{article.title}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </aside>
+        ) : null}
+      </div>
     </div>
   );
 }

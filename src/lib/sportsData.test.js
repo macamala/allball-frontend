@@ -4,6 +4,7 @@ import {
   displayConfidence,
   eventDateKey,
   eventLocalDateKey,
+  formatEventTime,
   formatPercent,
   groupEventsByDate,
   normalizeEvent,
@@ -56,6 +57,23 @@ describe("normalizeEvent", () => {
     expect(nested.score.away).toBe(0);
     expect(legacy.start_time).toBe(nested.start_time);
     expect(legacy.live).toBe(true);
+  });
+
+  it("does not display participant_a when it belongs to a different pair", () => {
+    const event = normalizeEvent({
+      id: "ninko-evt-a2c6648428d9820b31b9",
+      home: { name: "Gabriela Dabrowski / Luisa Stefani" },
+      away: { name: "Kaitlin Quevedo / Dominika Salkova" },
+      participant_a: { name: "Estelle Cascino / Shuo Feng" },
+      participant_b: { name: "Kristina Novak / Ivana Sebestova" },
+      score: { home: 2, away: 0 },
+      periods: [
+        { home: 6, away: 4 },
+        { home: 6, away: 4 },
+      ],
+    });
+    expect(event.home.name).toBe("Gabriela Dabrowski / Luisa Stefani");
+    expect(event.away.name).toBe("Kaitlin Quevedo / Dominika Salkova");
   });
 });
 
@@ -154,6 +172,14 @@ describe("scores helpers", () => {
       status: "scheduled",
     });
     expect(race.event_type).toBe("RACE");
+    const meet = normalizeEvent({
+      id: "m1",
+      sport: "athletics",
+      event_family: "individual",
+      home: { name: "Diamond League" },
+      status: "scheduled",
+    });
+    expect(meet.event_type).toBe("MEET");
   });
 
   it("keeps DATE_ONLY events on the source calendar date", () => {
@@ -163,5 +189,12 @@ describe("scores helpers", () => {
       start_date: "2026-09-19",
     };
     expect(eventLocalDateKey(event)).toBe("2026-09-19");
+  });
+
+  it("does not render date-only or unknown precision as 00:00", () => {
+    expect(formatEventTime({ start_time: "2026-09-20T00:00:00Z", start_precision: "DATE_ONLY" })).toBe("");
+    expect(formatEventTime({ start_time: "2026-09-20T00:00:00Z", start_precision: "UNKNOWN" })).toBe("");
+    expect(formatEventTime({ start_time: "2026-09-20T00:00:00Z", start_precision: "EXACT_TIME" })).not.toBe("");
+    expect(formatEventTime({ start_time: "2026-09-20T00:00:00Z" })).toBe("");
   });
 });

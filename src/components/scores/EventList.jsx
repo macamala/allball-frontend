@@ -1,18 +1,36 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { competitionLabel, countryLabel } from "../../labels.js";
 import { sportI18nKey } from "../../i18n/index.js";
 import { groupEventsByCompetition } from "../../lib/sportsData.js";
 import { scopedCompetitionId } from "../../config/sports.js";
+import { competitionKind } from "../../lib/scorePresentation.js";
+import { flagEmoji } from "../../lib/identityAssets.js";
+import { getRegistrySport } from "../../config/sportsRegistry.js";
 import EventRow from "./EventRow.jsx";
 
-const PAGE = 12;
+function headerMeta(group, t) {
+  const sample = group.events[0] || {};
+  const kind = competitionKind(sample);
+  const sportLabelText = t(sportI18nKey(group.sport) || "sport.label");
+  const country = group.country_id ? countryLabel(group.country_id) : "";
+  const registry = getRegistrySport(group.sport);
+  if (kind === "esports") {
+    return { kicker: registry?.name || sportLabelText, showFlag: false };
+  }
+  if (kind === "race") {
+    return { kicker: sample.series_id || sportLabelText, showFlag: Boolean(country && sample.country_based) };
+  }
+  if (kind === "meet" || kind === "tournament") {
+    return { kicker: sportLabelText, showFlag: false };
+  }
+  return { kicker: country || sportLabelText, showFlag: Boolean(group.country_id && country) };
+}
 
 export default function EventList({ events, compact = false }) {
   const { t } = useI18n();
-  const { favorites } = useAuth();
-  const [visible, setVisible] = useState(PAGE);
+  const { favorites, syncFavorites } = useAuth();
   const followedLeagues = favorites?.leagues || [];
   const followedSports = favorites?.sports || [];
 
@@ -21,27 +39,39 @@ export default function EventList({ events, compact = false }) {
     const rank = (group) => {
       const scoped = scopedCompetitionId(group.sport, group.key);
       if (followedLeagues.includes(scoped) || followedLeagues.includes(group.key)) return 0;
-      if (followedSports.includes(group.sport)) return 1;
-      return 2;
+      if (group.hasLive) return 1;
+      if (followedSports.includes(group.sport)) return 2;
+      return 3;
     };
     return [...list].sort((left, right) => {
       const diff = rank(left) - rank(right);
       if (diff) return diff;
+      if (left.earliest !== right.earliest) return String(left.earliest).localeCompare(String(right.earliest));
       return String(left.competition).localeCompare(String(right.competition));
     });
   }, [events, followedLeagues, followedSports]);
 
-  const shown = groups.slice(0, visible);
+  function toggleFollow(group, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const scoped = scopedCompetitionId(group.sport, group.key);
+    const exists = followedLeagues.includes(scoped) || followedLeagues.includes(group.key);
+    const leagues = exists
+      ? followedLeagues.filter((item) => item !== scoped && item !== group.key)
+      : [...followedLeagues, scoped];
+    syncFavorites({ ...favorites, leagues });
+  }
 
   return (
     <div className="score-groups">
-      {shown.map((group) => {
-        const sportLabelText = t(sportI18nKey(group.sport) || "sport.label");
+      {groups.map((group) => {
         const title = competitionLabel(group.competition);
-        const country = group.country_id ? countryLabel(group.country_id) : "";
         const followed =
           followedLeagues.includes(scopedCompetitionId(group.sport, group.key)) ||
           followedLeagues.includes(group.key);
+        const meta = headerMeta(group, t);
+        const flag = meta.showFlag ? flagEmoji(group.country_id) : "";
+        const initial = title.slice(0, 1).toUpperCase();
         return (
           <section
             key={group.key}
@@ -49,25 +79,31 @@ export default function EventList({ events, compact = false }) {
             aria-label={title}
           >
             <header className="score-comp-head">
-              <h2 className="score-comp-title">{title}</h2>
-              <p className="score-comp-meta">
-                {sportLabelText}
-                {country ? ` · ${country}` : ""}
-              </p>
+              <span className="score-comp-mark" aria-hidden="true">
+                {flag || initial}
+              </span>
+              <div className="score-comp-copy">
+                {meta.kicker ? <p className="score-comp-kicker">{meta.kicker}</p> : null}
+                <h2 className="score-comp-title">{title}</h2>
+              </div>
+              <button
+                type="button"
+                className={followed ? "score-star is-on" : "score-star"}
+                aria-label={title}
+                aria-pressed={followed}
+                onClick={(ev) => toggleFollow(group, ev)}
+              >
+                {followed ? "★" : "☆"}
+              </button>
             </header>
             <ul className="score-comp-list">
-              {group.events.map((event) => (
-                <EventRow key={event.id} event={event} compact={compact} />
+              {group.events.map((item) => (
+                <EventRow key={item.id} event={item} compact={compact} />
               ))}
             </ul>
           </section>
         );
       })}
-      {groups.length > visible ? (
-        <button type="button" className="btn-ghost" onClick={() => setVisible((n) => n + PAGE)}>
-          {t("live.showMore")}
-        </button>
-      ) : null}
     </div>
   );
 }

@@ -1454,7 +1454,7 @@ describe("Sports Data V1 predictions foundation", () => {
       expect(screen.getByRole("heading", { name: "Live Scores" })).toBeInTheDocument();
       expect(screen.getByText(/No placeholder games are shown/i)).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: "Finished" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Finished/i })).toBeInTheDocument();
     cleanup();
     renderAt("/article/villa-win");
     await waitFor(() => {
@@ -1603,7 +1603,7 @@ describe("Production quality surfaces", () => {
     const inner = global.fetch;
     global.fetch = vi.fn((input, init) => {
       const url = String(input);
-      if (url.includes("/sports-data/live")) {
+      if (url.includes("/sports-data/events")) {
         return jsonResponse({
           connected: true,
           events: [
@@ -1615,7 +1615,7 @@ describe("Production quality surfaces", () => {
               event_family: "individual_match",
               home: { name: "Ilia Simakin" },
               away: { name: "Hunter Heck" },
-              start_time: "2026-09-19T03:00:00Z",
+              start_time: "2026-09-19T04:00:00Z",
               status: "live",
               live: true,
               score: { home: 0, away: 0 },
@@ -1627,16 +1627,125 @@ describe("Production quality surfaces", () => {
       }
       return inner(input, init);
     });
-    renderAt("/live-scores");
+    renderAt("/live-scores?date=2026-09-19");
     await waitFor(() => {
-      expect(screen.getByText("Ilia Simakin")).toBeInTheDocument();
+      expect(screen.getAllByText("Ilia Simakin").length).toBeGreaterThan(0);
     });
-    expect(screen.getByText("Hunter Heck")).toBeInTheDocument();
+    expect(screen.getAllByText("Hunter Heck").length).toBeGreaterThan(0);
     expect(screen.getAllByText("ATP Tour").length).toBeGreaterThan(0);
     expect(document.body.textContent).not.toMatch(/sportscore/i);
-    fireEvent.click(screen.getByRole("button", { name: "Upcoming" }));
+    fireEvent.click(screen.getByRole("tab", { name: /Upcoming/i }));
     fireEvent.click(screen.getByRole("button", { name: "Tennis" }));
     expect(screen.getByRole("button", { name: "Tennis" }).className).toMatch(/is-active/);
+  });
+
+  it("shows finished, live and upcoming events together on Today ALL", async () => {
+    const inner = global.fetch;
+    global.fetch = vi.fn((input, init) => {
+      const url = String(input);
+      if (url.includes("/sports-data/events")) {
+        return jsonResponse({
+          connected: true,
+          events: [
+            {
+              id: "ninko-evt-fin-1",
+              sport: "football",
+              competition: "premier-league",
+              competition_key: "premier-league",
+              event_family: "team_match",
+              home: { name: "Arsenal" },
+              away: { name: "Aston Villa" },
+              start_time: "2026-09-19T04:00:00Z",
+              status: "finished",
+              live: false,
+              score: { home: 2, away: 1 },
+            },
+            {
+              id: "ninko-evt-live-1",
+              sport: "tennis",
+              competition: "atp-tour",
+              competition_key: "atp-tour",
+              event_family: "individual_match",
+              home: { name: "Ilia Simakin" },
+              away: { name: "Hunter Heck" },
+              start_time: "2026-09-19T05:00:00Z",
+              status: "live",
+              live: true,
+              score: { home: 0, away: 0 },
+            },
+            {
+              id: "ninko-evt-up-1",
+              sport: "football",
+              competition: "premier-league",
+              competition_key: "premier-league",
+              event_family: "team_match",
+              home: { name: "Chelsea" },
+              away: { name: "Fulham" },
+              start_time: "2026-09-19T12:00:00Z",
+              status: "scheduled",
+              live: false,
+              score: { home: null, away: null },
+            },
+          ],
+        });
+      }
+      return inner(input, init);
+    });
+    renderAt("/live-scores?date=2026-09-19");
+    await waitFor(() => {
+      expect(screen.getByText("Arsenal")).toBeInTheDocument();
+    });
+    expect(screen.getAllByText("Ilia Simakin").length).toBeGreaterThan(0);
+    expect(screen.getByText("Chelsea")).toBeInTheDocument();
+    expect(screen.getByText("2 – 1")).toBeInTheDocument();
+    expect(screen.getByText("0 – 0")).toBeInTheDocument();
+    const scoreCells = [...document.querySelectorAll(".score-mid")].map((node) => node.textContent);
+    expect(scoreCells).toContain("–");
+    fireEvent.click(screen.getByRole("tab", { name: /LIVE/i }));
+    expect(screen.getAllByText("Ilia Simakin").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Arsenal")).toBeNull();
+    expect(screen.getByRole("button", { name: "Today" }).className).toMatch(/is-active/);
+    fireEvent.click(screen.getByRole("tab", { name: /Finished/i }));
+    expect(screen.getByText("Arsenal")).toBeInTheDocument();
+    expect(document.querySelector(".score-centre-main")?.textContent).not.toMatch(/Ilia Simakin/);
+    fireEvent.click(screen.getByRole("button", { name: "Football" }));
+    expect(screen.getByRole("button", { name: "Football" }).className).toMatch(/is-active/);
+    expect(screen.getByRole("tab", { name: /Finished/i }).className).toMatch(/is-active/);
+    await waitFor(() => {
+      expect(screen.getByText("Arsenal")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("tab", { name: /^All/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Arsenal")).toBeInTheDocument();
+    });
+  });
+
+  it("never renders an empty state while the scoreboard request is pending", async () => {
+    let release;
+    const inner = global.fetch;
+    global.fetch = vi.fn((input, init) => {
+      const url = String(input);
+      if (url.includes("/sports-data/events")) {
+        return new Promise((resolve) => {
+          release = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({ connected: true, events: [] }),
+              text: async () => JSON.stringify({ connected: true, events: [] }),
+            });
+        });
+      }
+      return inner(input, init);
+    });
+    renderAt("/live-scores?date=2026-09-19");
+    expect(screen.queryByText(/No live events right now/i)).toBeNull();
+    expect(screen.queryByText(/No events on this date/i)).toBeNull();
+    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+    release();
+    await waitFor(() => {
+      expect(screen.getByText(/No events on this date/i)).toBeInTheDocument();
+    });
   });
 
   it("opens a live event detail from the canonical scores route", async () => {

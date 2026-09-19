@@ -184,6 +184,9 @@ export default function MobileNavDrawer() {
                   </Link>
                 </>
               )}
+              <Link className="drawer-link" to="/data-sources">
+                {t("footer.dataSources")}
+              </Link>
             </nav>
           </div>
 
