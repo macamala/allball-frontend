@@ -541,6 +541,27 @@ export function browseCompetitions(sportConfig, providerCompetitions) {
   return (sportConfig?.leagues || []).filter((item) => item.league && !item.catchAll);
 }
 
+export function mergeEventPayload(payload, incomingRows) {
+  const list = [...(payload?.events || [])];
+  const index = new Map(list.map((row, i) => [row?.id, i]));
+  for (const row of incomingRows || []) {
+    if (!row?.id) continue;
+    const at = index.get(row.id);
+    if (at == null) {
+      index.set(row.id, list.length);
+      list.push(row);
+      continue;
+    }
+    const current = list[at] || {};
+    list[at] = {
+      ...current,
+      ...row,
+      score: { ...(current.score || {}), ...(row.score || {}) },
+    };
+  }
+  return { ...(payload || {}), events: list };
+}
+
 export function predictionPath(sportSlug, competitionSlug, eventId) {
   if (!sportSlug) return "/predictions";
   if (!competitionSlug) return `/predictions/${sportSlug}`;

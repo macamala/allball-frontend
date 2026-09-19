@@ -247,6 +247,10 @@ export function getSportsDataLive(params = {}) {
   return cachedGetJSON(sportsDataQueryPath("/sports-data/live", params), SCORES_LIVE_TTL);
 }
 
+export function getSportsDataStatusDelta(params = {}) {
+  return cachedGetJSON(sportsDataQueryPath("/sports-data/status-delta", params), SCORES_LIVE_TTL);
+}
+
 export function getSportsDataUpcoming(params = {}) {
   return cachedGetJSON(sportsDataQueryPath("/sports-data/upcoming", params), SCORES_LIST_TTL);
 }

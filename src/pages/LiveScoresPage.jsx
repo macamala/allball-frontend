@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getRecentArticles, getSportsDataEvents } from "../api.js";
+import { getRecentArticles, getSportsDataEvents, getSportsDataLive, getSportsDataStatusDelta } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   eventLocalDateKey,
   isoDate,
+  isLiveStatus,
   localDayUtcBounds,
   matchesStatusView,
+  mergeEventPayload,
   normalizeEvent,
   statusCounts,
 } from "../lib/sportsData.js";
@@ -60,6 +62,7 @@ export default function LiveScoresPage() {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const requestSeq = useRef(0);
+  const sinceRef = useRef(new Date().toISOString());
 
   const requestKey = `${date}|${sport}|${competition}`;
 
@@ -96,6 +99,7 @@ export default function LiveScoresPage() {
         .then((data) => {
           if (seq !== requestSeq.current) return;
           setBoard({ key, payload: data });
+          sinceRef.current = new Date().toISOString();
           setError(false);
         })
         .catch(() => {
@@ -123,7 +127,31 @@ export default function LiveScoresPage() {
   }, [fetchScores]);
 
   const silentRefresh = useCallback(() => fetchScores(true), [fetchScores]);
-  useVisiblePoll(silentRefresh, 30000);
+  const livePresent = useMemo(
+    () => payloadEvents(board.payload || {}).some((event) => event.live || isLiveStatus(event.status)),
+    [board.payload]
+  );
+  const refreshLive = useCallback(() => {
+    const filters = {};
+    if (sport && sport !== "all" && sport !== "mine") filters.sport = sport;
+    Promise.all([
+      getSportsDataLive(filters),
+      getSportsDataStatusDelta({ since: sinceRef.current, ...(filters.sport ? { sport: filters.sport } : {}) }),
+    ])
+      .then(([live, delta]) => {
+        sinceRef.current = new Date().toISOString();
+        setBoard((prev) => {
+          if (!prev.payload) return prev;
+          return {
+            ...prev,
+            payload: mergeEventPayload(prev.payload, [...(live?.events || []), ...(delta?.events || [])]),
+          };
+        });
+      })
+      .catch(() => {});
+  }, [sport]);
+  useVisiblePoll(silentRefresh, livePresent ? 120000 : 45000);
+  useVisiblePoll(refreshLive, livePresent ? 8000 : 25000);
 
   const dayEvents = useMemo(() => {
     if (board.key !== requestKey || !board.payload) return [];
