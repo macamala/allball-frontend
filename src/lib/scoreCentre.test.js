@@ -194,7 +194,7 @@ describe("all-sport renderer coverage", () => {
     expect(statusLabel({ sport: "baseball", status: "live", score: { inning: 5, inning_half: "top" } }, t, "18:10")).toBe(
       "▲5"
     );
-    expect(statusLabel({ sport: "football", status: "live", score: {} }, t, "21:00")).toBe("LIVE");
+    expect(statusLabel({ sport: "football", status: "live", score: { minute: "Finished" } }, t, "21:00")).toBe("LIVE");
   });
 
   it("selects the correct renderer for observed production families", () => {

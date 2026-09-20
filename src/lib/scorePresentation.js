@@ -196,7 +196,11 @@ export function liveClockLabel(event, t) {
 
   if (MINUTE_SPORTS.has(sport)) {
     if (minute != null && minute !== "") {
-      return String(minute).includes("'") ? String(minute) : `${minute}’`;
+      const rawMinute = String(minute).trim();
+      if (/^\d/.test(rawMinute)) {
+        return rawMinute.includes("'") || rawMinute.includes("’") ? rawMinute : `${rawMinute}’`;
+      }
+      if (/^(ht|ft|et|pen)$/i.test(rawMinute)) return rawMinute.toUpperCase();
     }
     if (clock != null && clock !== "") return String(clock);
     return t("live.live");
