@@ -222,6 +222,9 @@ export function normalizeEvent(raw) {
           errors: raw.score.errors ?? null,
           sets: raw.score.sets || null,
           games: raw.score.games || null,
+          inning: raw.score.inning ?? raw.inning ?? null,
+          inning_half: raw.score.inning_half || raw.score.inning_state || null,
+          outs: raw.score.outs ?? null,
         }
       : {
           home: raw.home_score ?? null,
@@ -235,6 +238,9 @@ export function normalizeEvent(raw) {
           wickets: null,
           sets: null,
           games: null,
+          inning: raw.inning || null,
+          inning_half: null,
+          outs: null,
         };
   const status = raw.status || "scheduled";
   const live = isLiveStatus(status);

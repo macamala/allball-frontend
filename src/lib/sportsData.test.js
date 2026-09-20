@@ -59,6 +59,20 @@ describe("normalizeEvent", () => {
     expect(legacy.live).toBe(true);
   });
 
+  it("keeps baseball inning half so Score Centre can show Top/Bot", () => {
+    const event = normalizeEvent({
+      id: "mlb-1",
+      sport: "baseball",
+      status: "live",
+      home: { name: "Cardinals" },
+      away: { name: "Nationals" },
+      score: { home: 3, away: 3, inning: 10, inning_half: "top", outs: 0 },
+    });
+    expect(event.score.inning).toBe(10);
+    expect(event.score.inning_half).toBe("top");
+    expect(event.score.outs).toBe(0);
+  });
+
   it("does not display participant_a when it belongs to a different pair", () => {
     const event = normalizeEvent({
       id: "ninko-evt-a2c6648428d9820b31b9",
