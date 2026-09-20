@@ -16,7 +16,6 @@ import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import SavedPage from "./pages/SavedPage.jsx";
-import DataSourcesPage from "./pages/DataSourcesPage.jsx";
 
 export default function App() {
   return (
@@ -26,7 +25,7 @@ export default function App() {
         <Route path="/article/:slug" element={<ArticlePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/live-scores" element={<LiveScoresPage />} />
-        <Route path="/data-sources" element={<DataSourcesPage />} />
+        <Route path="/data-sources" element={<Navigate to="/" replace />} />
         <Route path="/scores/event/:matchId" element={<MatchPage />} />
         <Route path="/scores" element={<Navigate to="/live-scores" replace />} />
         <Route

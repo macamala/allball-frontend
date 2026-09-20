@@ -316,23 +316,21 @@ describe("NinkoSports Phase 3 routes", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps data-source credits off Live Scores and on a global page", async () => {
-    renderAt("/data-sources");
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Data sources" })).toBeInTheDocument();
-    });
-    expect(
-      screen.getByText(/No third-party sports-data sources currently require credit/i)
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Data sources" }).length).toBeGreaterThan(0);
-    cleanup();
+  it("does not expose Data Sources in public navigation", async () => {
     renderAt("/live-scores");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Live Scores" })).toBeInTheDocument();
     });
+    expect(screen.queryByRole("link", { name: /Data sources/i })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Data Sources/i);
     expect(document.body.textContent).not.toMatch(/Powered by/i);
     expect(document.body.textContent).not.toMatch(/sportscore/i);
     expect(document.body.textContent).not.toMatch(/TheSportsDB/i);
+    cleanup();
+    renderAt("/data-sources");
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Data sources" })).toBeNull();
+    });
   });
 
   it("article image fails gracefully without a broken-image icon", () => {

@@ -2069,9 +2069,13 @@ select {
   max-width: 960px;
 }
 
-.page-scores,
-.page-match {
+.page-scores {
   max-width: 1240px;
+  width: 100%;
+}
+
+.page-match {
+  max-width: 760px;
   width: 100%;
 }
 
@@ -3089,15 +3093,15 @@ select {
 }
 
 .score-centre-main {
-  max-width: 880px;
+  max-width: 720px;
 }
 
 .score-centre-layout.has-aside {
   display: grid;
-  grid-template-columns: minmax(0, 880px) 260px;
-  gap: 28px;
+  grid-template-columns: minmax(0, 720px) 240px;
+  gap: 24px;
   align-items: start;
-  justify-content: space-between;
+  justify-content: start;
 }
 
 .score-centre-aside {
@@ -3192,15 +3196,20 @@ select {
 }
 
 .score-comp-mark {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
-  background: var(--ns-surface-2);
-  font-size: 0.75rem;
-  font-weight: 800;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ns-surface-2) 70%, transparent);
+  overflow: hidden;
+}
+
+.score-comp-mark img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 .score-comp-kicker {
@@ -3299,7 +3308,7 @@ select {
 
 .score-line {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 22px minmax(0, 1fr) 2.2rem;
   align-items: center;
   gap: 8px;
   min-height: 22px;
@@ -3493,10 +3502,10 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ns-surface-2);
-  color: var(--ns-text-secondary);
-  font-size: 0.62rem;
-  font-weight: 800;
+  background: color-mix(in srgb, var(--ns-surface-2) 55%, transparent);
+  color: transparent;
+  font-size: 0;
+  border: 1px solid color-mix(in srgb, var(--ns-border) 50%, transparent);
 }
 
 .score-meta-main,
@@ -3517,11 +3526,34 @@ select {
   margin-top: 8px;
 }
 
+.match-centre {
+  max-width: 720px;
+}
+
 .match-centre .mc-hero {
   background: var(--ns-bg-elevated);
   border-radius: 14px;
-  padding: 22px 18px 18px;
-  margin: 8px 0 16px;
+  padding: 18px 16px 16px;
+  margin: 8px 0 14px;
+}
+
+.mc-body {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+
+.mc-state {
+  margin: 10px 0 0;
+  text-align: center;
+  color: var(--ns-teal);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.mc-incidents {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .mc-hero.is-live {
@@ -3679,7 +3711,12 @@ select {
   }
 
   .mc-board {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .mc-player strong {
+    font-size: 0.92rem;
   }
 
   .score-centre-layout.has-aside {

@@ -81,8 +81,8 @@ export default function EventList({ events, compact = false }) {
           followedLeagues.includes(scopedCompetitionId(group.sport, group.key)) ||
           followedLeagues.includes(group.key);
         const meta = headerMeta(group, t);
+        const logo = group.events.find((item) => item.competition_logo)?.competition_logo;
         const flag = meta.showFlag ? flagEmoji(group.country_id) : "";
-        const initial = title.slice(0, 1).toUpperCase();
         const isCollapsed = collapsed.has(group.key);
         return (
           <section
@@ -92,7 +92,11 @@ export default function EventList({ events, compact = false }) {
           >
             <header className="score-comp-head">
               <span className="score-comp-mark" aria-hidden="true">
-                {flag || initial}
+                {logo ? (
+                  <img src={logo} alt="" width={22} height={22} loading="lazy" decoding="async" />
+                ) : (
+                  flag || ""
+                )}
               </span>
               <button
                 type="button"

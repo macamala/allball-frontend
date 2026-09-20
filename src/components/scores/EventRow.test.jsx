@@ -7,6 +7,7 @@ import { AuthProvider } from "../../context/AuthContext.jsx";
 import EventList from "./EventList.jsx";
 import EventRow from "./EventRow.jsx";
 import { normalizeEvent } from "../../lib/sportsData.js";
+import { collapseDisplayEvents } from "../../lib/scoreIdentity.js";
 
 function jsonResponse(data) {
   return Promise.resolve({
@@ -79,6 +80,64 @@ describe("Score Centre rows", () => {
       "/scores/event/fb-live"
     );
     expect(document.body.textContent).not.toMatch(/source_family/i);
+  });
+
+  it("renders 0-0 and keeps a missing score as a dash", () => {
+    const finished = normalizeEvent({
+      id: "zero",
+      sport: "football",
+      competition: "Premier League",
+      home: { name: "Everton" },
+      away: { name: "Fulham" },
+      status: "finished",
+      score: { home: 0, away: 0 },
+    });
+    const upcoming = normalizeEvent({
+      id: "nulls",
+      sport: "football",
+      competition: "Premier League",
+      home: { name: "Brentford" },
+      away: { name: "Wolves" },
+      status: "scheduled",
+      score: { home: null, away: null },
+      start_time: "2026-09-20T19:00:00Z",
+    });
+    wrap(
+      <ul>
+        <EventRow event={finished} />
+        <EventRow event={upcoming} />
+      </ul>
+    );
+    expect(screen.getAllByText("0").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("–").length).toBeGreaterThan(1);
+  });
+
+  it("renders one row when alias names represent the same fixture", () => {
+    const shortName = normalizeEvent({
+      id: "m1",
+      sport: "football",
+      competition_key: "ligue-1",
+      competition: "Ligue 1",
+      home: { name: "Monaco" },
+      away: { name: "Lens" },
+      status: "finished",
+      score: { home: 2, away: 1 },
+      start_time: "2026-09-20T18:00:00Z",
+    });
+    const longName = normalizeEvent({
+      id: "m2",
+      sport: "football",
+      competition_key: "ligue-1",
+      competition: "Ligue 1",
+      home: { name: "AS Monaco FC" },
+      away: { name: "Racing Club de Lens" },
+      status: "scheduled",
+      score: { home: null, away: null },
+      start_time: "2026-09-20T18:00:00Z",
+    });
+    wrap(<EventList events={collapseDisplayEvents([shortName, longName])} />);
+    expect(screen.getAllByText("Monaco").length).toBe(1);
+    expect(screen.queryByText("AS Monaco FC")).toBeNull();
   });
 
   it("collapses a competition group and keeps tennis set columns", () => {

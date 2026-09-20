@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
@@ -60,7 +60,7 @@ function ParticipantBlock({ side, event, align }) {
   const flag = flagEmoji(sideCountry(side, event.country_id));
   return (
     <div className={`mc-player is-${align}`}>
-      <Crest side={side} size={56} />
+      <Crest side={side} size={48} />
       <strong>
         {flag ? <span className="score-flag">{flag}</span> : null}
         {name}
@@ -76,7 +76,7 @@ function PairScoreboard({ event, t, locale }) {
   const score = live || finished ? sportScoreText(event) : t("predictions.vs");
   const stamp = formatEventDateTime(event, locale);
   return (
-    <div className={`mc-hero ${live ? "is-live" : ""}`}>
+    <header className={`mc-hero ${live ? "is-live" : ""} ${finished ? "is-finished" : ""}`}>
       <p className="mc-kicker">
         {competitionLabel(event.competition)}
         {event.round ? ` · ${event.round}` : ""}
@@ -91,23 +91,23 @@ function PairScoreboard({ event, t, locale }) {
         </div>
         <ParticipantBlock side={event.away} event={event} align="away" />
       </div>
-      {stamp ? <p className="mc-when">{stamp}</p> : null}
-    </div>
+      {live ? <p className="mc-state">{statusLabel(event, t, time)}</p> : null}
+      {!live && stamp ? <p className="mc-when">{stamp}</p> : null}
+    </header>
   );
 }
 
 function MetaScoreboard({ event, t, locale }) {
   const live = isConfirmedLive(event);
   const stamp = formatEventDateTime(event, locale);
-  const names = namedField(
-    event.classification || event.leaderboard || event.runners || event.athletes,
-    8
-  );
+  const names = namedField(event.classification || event.leaderboard || event.runners || event.athletes, 8);
   return (
-    <div className={`mc-hero is-meta ${live ? "is-live" : ""}`}>
+    <header className={`mc-hero is-meta ${live ? "is-live" : ""}`}>
       <p className="mc-kicker">{competitionLabel(event.competition)}</p>
       <h2 className="mc-event-title">{eventTitle(event)}</h2>
-      <div className={`mc-score-status ${live ? "is-live" : ""}`}>{statusLabel(event, t, formatEventTime(event, locale))}</div>
+      <div className={`mc-score-status ${live ? "is-live" : ""}`}>
+        {statusLabel(event, t, formatEventTime(event, locale))}
+      </div>
       {stamp ? <p className="mc-when">{stamp}</p> : null}
       {event.session_type || event.stage || event.race_number ? (
         <p className="mc-when">
@@ -116,7 +116,11 @@ function MetaScoreboard({ event, t, locale }) {
             .join(" · ")}
         </p>
       ) : null}
-      {event.winner ? <p className="mc-when">{t("match.winner")}: {event.winner}</p> : null}
+      {event.winner ? (
+        <p className="mc-when">
+          {t("match.winner")}: {event.winner}
+        </p>
+      ) : null}
       {names.length ? (
         <ol className="mc-leader">
           {names.map((name) => (
@@ -124,28 +128,22 @@ function MetaScoreboard({ event, t, locale }) {
           ))}
         </ol>
       ) : null}
-    </div>
+    </header>
   );
 }
 
-function InfoGrid({ event, t, locale }) {
+function InfoRows({ event, t, locale }) {
   const rows = [
-    event.competition ? [t("match.competition"), competitionLabel(event.competition)] : null,
-    event.round ? [t("live.round"), event.round] : null,
+    event.venue ? [t("match.venue"), event.venue] : null,
     event.season ? [t("match.season"), event.season] : null,
     event.series_id ? [t("match.series"), event.series_id] : null,
     event.session_type ? [t("match.session"), event.session_type] : null,
-    event.venue ? [t("match.venue"), event.venue] : null,
     event.attendance != null && event.attendance !== "" ? [t("match.attendance"), event.attendance] : null,
     event.referee ? [t("match.referee"), event.referee] : null,
     event.best_of ? [t("match.series"), `BO${event.best_of}`] : null,
     event.winner ? [t("match.winner"), event.winner] : null,
     event.game_id ? [t("match.game"), event.game_id] : null,
-    event.start_time ? [t("match.kickoff"), formatEventDateTime(event, locale)] : null,
-    event.status ? [t("match.status"), statusLabel(event, t, formatEventTime(event, locale))] : null,
-    event.attendance != null ? [t("match.attendance"), event.attendance] : null,
-    event.referee ? [t("match.referee"), event.referee] : null,
-    event.best_of ? [t("match.series"), `BO${event.best_of}`] : null,
+    event.surface ? [t("match.surface") || "Surface", event.surface] : null,
   ].filter(Boolean);
   if (!rows.length) return null;
   return (
@@ -163,6 +161,25 @@ function InfoGrid({ event, t, locale }) {
   );
 }
 
+function IncidentList({ incidents }) {
+  return (
+    <ul className="mc-incidents">
+      {incidents.map((row, index) => (
+        <li key={row.id || index}>
+          {[
+            row.minute != null ? `${row.minute}’` : "",
+            row.player || row.name || row.label,
+            row.type && row.type !== "goal" ? String(row.type).replace(/_/g, " ") : "",
+            row.score_after ? `${row.score_after.home ?? ""}–${row.score_after.away ?? ""}` : row.summary,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function MatchCentre({ event, data, standings, detailPending = false }) {
   const { t, dateLocale } = useI18n();
   const kind = rendererForEvent(event);
@@ -177,22 +194,8 @@ export default function MatchCentre({ event, data, standings, detailPending = fa
   const sets = setTable(event);
   const classification = asList(event.classification || event.leaderboard || event.runners || event.athletes);
   const maps = asList(event.maps);
-  const tabs = useMemo(() => {
-    const rows = [{ id: "overview", label: t("match.overview") }];
-    if (statistics.length) rows.push({ id: "stats", label: t("predictions.statistics") });
-    if (lineups.length) rows.push({ id: "lineups", label: t("match.lineups") });
-    if (incidents.length) rows.push({ id: "timeline", label: t("match.incidents") });
-    if (h2h.length) rows.push({ id: "h2h", label: t("predictions.h2h") });
-    if (standings.length) rows.push({ id: "standings", label: t("match.standings") });
-    if (classification.length && (kind === "RACE" || kind === "MEET" || kind === "TOURNAMENT" || kind === "MULTI_EVENT_MEET")) {
-      rows.push({ id: "classification", label: t("match.classification") });
-    }
-    if (maps.length) rows.push({ id: "maps", label: t("match.maps") });
-    return rows;
-  }, [classification.length, h2h.length, incidents.length, kind, lineups.length, maps.length, standings.length, statistics.length, t]);
-  const [tab, setTab] = useState("overview");
-  const active = tabs.some((item) => item.id === tab) ? tab : "overview";
   const pair = kind === "TEAM_MATCH" || kind === "HEAD_TO_HEAD" || kind === "BRACKET";
+  const related = Array.isArray(data?.related) ? data.related : [];
 
   return (
     <div className="match-centre">
@@ -206,186 +209,145 @@ export default function MatchCentre({ event, data, standings, detailPending = fa
         <MetaScoreboard event={event} t={t} locale={dateLocale} />
       )}
       {detailPending ? <p className="mc-when">{t("match.loadingDetails")}</p> : null}
-      {sets ? (
-        <section className="mc-card">
-          <h2>
-            {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis"
-              ? t("match.sets")
-              : event.sport === "baseball"
-                ? t("match.innings")
-                : t("match.periods")}
-          </h2>
-          <table className="mc-sets">
-            <thead>
-              <tr>
-                <th>{t("match.center")}</th>
-                {sets.map((row, index) => (
-                  <th key={index}>{row.label}</th>
-                ))}
-                <th>{t("live.finished") === "Finished" ? "Tot" : "Tot"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th>{participantName(event.home)}</th>
-                {sets.map((row, index) => (
-                  <td key={`h-${index}`}>{row.home ?? "–"}</td>
-                ))}
-                <td>{event.score?.home ?? "–"}</td>
-              </tr>
-              <tr>
-                <th>{participantName(event.away)}</th>
-                {sets.map((row, index) => (
-                  <td key={`a-${index}`}>{row.away ?? "–"}</td>
-                ))}
-                <td>{event.score?.away ?? "–"}</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
-      ) : null}
-      {tabs.length > 1 ? (
-        <div className="mc-tabs" role="tablist">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={item.id === active}
-              className={item.id === active ? "tab is-active" : "tab"}
-              onClick={() => setTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {active === "overview" ? (
-        <div className="mc-overview">
-          <InfoGrid event={event} t={t} locale={dateLocale} />
-          {incidents.length ? (
-            <section className="mc-card">
-              <h2>{t("match.incidents")}</h2>
-              <ul>
-                {incidents.map((row, index) => (
-                  <li key={row.id || index}>
-                    {[
-                      row.minute != null ? `${row.minute}’` : "",
-                      row.player || row.name || row.label,
-                      row.type && row.type !== "goal" ? String(row.type).replace(/_/g, " ") : "",
-                      row.score_after
-                        ? `${row.score_after.home ?? ""}–${row.score_after.away ?? ""}`
-                        : row.summary,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || String(row.score?.home ?? "")}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          {formUseful ? (
-            <section className="mc-card">
-              <h2>{t("predictions.recentForm")}</h2>
-              {form.home?.summary ? <p>{form.home.summary}</p> : null}
-              {form.away?.summary ? <p>{form.away.summary}</p> : null}
-            </section>
-          ) : null}
-          {hits || errors ? (
-            <section className="mc-card">
-              <h2>{t("match.box")}</h2>
-              <p>
-                {t("match.hits")}: {hits?.home ?? "–"} – {hits?.away ?? "–"}
-                {errors ? ` · ${t("match.errors")}: ${errors?.home ?? "–"} – ${errors?.away ?? "–"}` : ""}
-              </p>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
-      {active === "stats" ? (
-        <section className="mc-card">
-          <h2>{t("predictions.statistics")}</h2>
-          <ul>
-            {statistics.map((row, index) => (
-              <li key={row.label || index}>
-                {row.label || row.name}: {String(row.value ?? row.summary ?? "")}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {active === "lineups" ? (
-        <section className="mc-card">
-          <h2>{t("match.lineups")}</h2>
-          <ul>
-            {lineups.map((row, index) => (
-              <li key={row.id || row.name || index}>{row.name || row.label}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {active === "timeline" ? (
-        <section className="mc-card">
-          <h2>{t("match.incidents")}</h2>
-          <ul>
-            {incidents.map((row, index) => (
-              <li key={row.id || index}>
-                {[
-                  row.minute != null ? `${row.minute}’` : "",
-                  row.player || row.name || row.label,
-                  row.type && row.type !== "goal" ? String(row.type).replace(/_/g, " ") : "",
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {active === "h2h" ? (
-        <section className="mc-card">
-          <h2>{t("predictions.h2h")}</h2>
-          <ul>
-            {h2h.map((row, index) => (
-              <li key={row.id || index}>{row.label || row.summary}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {active === "standings" ? (
-        <section className="mc-card">
-          <h2>{t("match.standings")}</h2>
-          <StandingsTable sport={event.sport} rows={standings} />
-        </section>
-      ) : null}
-      {active === "classification" ? (
-        <section className="mc-card">
-          <h2>{t("match.classification")}</h2>
-          <ol className="mc-leader">
-            {classification.map((row, index) => {
-              const name =
-                typeof row === "string"
-                  ? row
-                  : [row.position, row.trap != null ? `T${row.trap}` : "", row.name || row.player || row.driver || row.label]
-                      .filter((part) => part !== "" && part != null)
-                      .join(" ");
-              return <li key={row.id || name || index}>{name || String(row.value ?? "")}</li>;
-            })}
-          </ol>
-        </section>
-      ) : null}
-      {active === "maps" ? (
-        <section className="mc-card">
-          <h2>{t("match.maps")}</h2>
-          <ul>
-            {maps.map((row, index) => (
-              <li key={row.id || row.name || index}>
-                {row.name || row.map || row.label || String(row.value ?? "")}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <div className="mc-body">
+        {sets ? (
+          <section className="mc-card">
+            <h2>
+              {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis"
+                ? t("match.sets")
+                : event.sport === "baseball"
+                  ? t("match.innings")
+                  : t("match.periods")}
+            </h2>
+            <table className="mc-sets">
+              <thead>
+                <tr>
+                  <th>{t("match.center")}</th>
+                  {sets.map((row, index) => (
+                    <th key={index}>{row.label}</th>
+                  ))}
+                  <th>Tot</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>{participantName(event.home)}</th>
+                  {sets.map((row, index) => (
+                    <td key={`h-${index}`}>{row.home ?? "–"}</td>
+                  ))}
+                  <td>{event.score?.home ?? "–"}</td>
+                </tr>
+                <tr>
+                  <th>{participantName(event.away)}</th>
+                  {sets.map((row, index) => (
+                    <td key={`a-${index}`}>{row.away ?? "–"}</td>
+                  ))}
+                  <td>{event.score?.away ?? "–"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+        {incidents.length ? (
+          <section className="mc-card">
+            <h2>{t("match.incidents")}</h2>
+            <IncidentList incidents={incidents} />
+          </section>
+        ) : null}
+        {statistics.length ? (
+          <section className="mc-card">
+            <h2>{t("predictions.statistics")}</h2>
+            <ul>
+              {statistics.map((row, index) => (
+                <li key={row.label || index}>
+                  {row.label || row.name}: {String(row.value ?? row.summary ?? "")}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {lineups.length ? (
+          <section className="mc-card">
+            <h2>{t("match.lineups")}</h2>
+            <ul>
+              {lineups.map((row, index) => (
+                <li key={row.id || row.name || index}>{row.name || row.label}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {formUseful ? (
+          <section className="mc-card">
+            <h2>{t("predictions.recentForm")}</h2>
+            {form.home?.summary ? <p>{form.home.summary}</p> : null}
+            {form.away?.summary ? <p>{form.away.summary}</p> : null}
+          </section>
+        ) : null}
+        {hits || errors ? (
+          <section className="mc-card">
+            <h2>{t("match.box")}</h2>
+            <p>
+              {t("match.hits")}: {hits?.home ?? "–"} – {hits?.away ?? "–"}
+              {errors ? ` · ${t("match.errors")}: ${errors?.home ?? "–"} – ${errors?.away ?? "–"}` : ""}
+            </p>
+          </section>
+        ) : null}
+        {h2h.length ? (
+          <section className="mc-card">
+            <h2>{t("predictions.h2h")}</h2>
+            <ul>
+              {h2h.map((row, index) => (
+                <li key={row.id || index}>{row.label || row.summary}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {standings.length ? (
+          <section className="mc-card">
+            <h2>{t("match.standings")}</h2>
+            <StandingsTable sport={event.sport} rows={standings} />
+          </section>
+        ) : null}
+        {classification.length && (kind === "RACE" || kind === "MEET" || kind === "TOURNAMENT" || kind === "MULTI_EVENT_MEET") ? (
+          <section className="mc-card">
+            <h2>{t("match.classification")}</h2>
+            <ol className="mc-leader">
+              {classification.map((row, index) => {
+                const name =
+                  typeof row === "string"
+                    ? row
+                    : [row.position, row.trap != null ? `T${row.trap}` : "", row.name || row.player || row.driver || row.label]
+                        .filter((part) => part !== "" && part != null)
+                        .join(" ");
+                return <li key={row.id || name || index}>{name || String(row.value ?? "")}</li>;
+              })}
+            </ol>
+          </section>
+        ) : null}
+        {maps.length ? (
+          <section className="mc-card">
+            <h2>{t("match.maps")}</h2>
+            <ul>
+              {maps.map((row, index) => (
+                <li key={row.id || row.name || index}>
+                  {row.name || row.map || row.label || String(row.value ?? "")}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        <InfoRows event={event} t={t} locale={dateLocale} />
+        {related.length ? (
+          <section className="mc-card">
+            <h2>{t("live.upcoming")}</h2>
+            <ul>
+              {related.slice(0, 6).map((row) => (
+                <li key={row.id || row.label}>{row.label || `${participantName(row.home)} vs ${participantName(row.away)}`}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }

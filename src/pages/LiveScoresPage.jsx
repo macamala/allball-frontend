@@ -27,6 +27,7 @@ import SportRail from "../components/scores/SportRail.jsx";
 import DateRail from "../components/scores/DateRail.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
 import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
+import { collapseDisplayEvents } from "../lib/scoreIdentity.js";
 
 const STATUSES = [
   { id: "all", labelKey: "live.all" },
@@ -165,7 +166,9 @@ export default function LiveScoresPage() {
 
   const dayEvents = useMemo(() => {
     if (board.key !== requestKey || !board.payload) return [];
-    return payloadEvents(board.payload).filter((event) => eventLocalDateKey(event) === date);
+    return collapseDisplayEvents(
+      payloadEvents(board.payload).filter((event) => eventLocalDateKey(event) === date)
+    );
   }, [board, date, requestKey]);
 
   const sportFiltered = useMemo(() => {

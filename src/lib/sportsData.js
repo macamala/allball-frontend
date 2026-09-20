@@ -288,6 +288,7 @@ export function normalizeEvent(raw) {
     stage: raw.stage || raw.round || null,
     country_id: raw.country_id || null,
     country_based: Boolean(raw.country_based),
+    competition_logo: raw.competition_logo || raw.competition_image || "",
     start_precision: raw.start_precision || null,
     live_class: raw.live_class || null,
     start_date: raw.start_date || null,

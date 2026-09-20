@@ -226,7 +226,7 @@ export function startSocialLogin(provider) {
 }
 
 const SCORES_LIVE_TTL = 8 * 1000;
-const SCORES_LIST_TTL = 45 * 1000;
+const SCORES_LIST_TTL = 90 * 1000;
 
 export function sportsDataQueryPath(base, params = {}) {
   const search = new URLSearchParams();
