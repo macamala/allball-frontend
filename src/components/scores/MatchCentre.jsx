@@ -8,8 +8,8 @@ import { sportI18nKey } from "../../i18n/index.js";
 import {
   formatEventDateTime,
   formatEventTime,
+  isConfirmedLive,
   isFinishedStatus,
-  isLiveStatus,
   participantName,
 } from "../../lib/sportsData.js";
 import {
@@ -70,7 +70,7 @@ function ParticipantBlock({ side, event, align }) {
 }
 
 function PairScoreboard({ event, t, locale }) {
-  const live = isLiveStatus(event.status);
+  const live = isConfirmedLive(event);
   const finished = isFinishedStatus(event.status);
   const time = formatEventTime(event, locale);
   const score = live || finished ? sportScoreText(event) : t("predictions.vs");
@@ -97,7 +97,7 @@ function PairScoreboard({ event, t, locale }) {
 }
 
 function MetaScoreboard({ event, t, locale }) {
-  const live = isLiveStatus(event.status);
+  const live = isConfirmedLive(event);
   const stamp = formatEventDateTime(event, locale);
   const names = namedField(
     event.classification || event.leaderboard || event.runners || event.athletes,

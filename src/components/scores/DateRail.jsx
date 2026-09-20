@@ -1,13 +1,22 @@
 import React, { useRef } from "react";
 import { addLocalDays } from "../../lib/sportsData.js";
 
-export default function DateRail({ date, today, onChange, t }) {
+function stripLabel(dateKey, today, locale) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return dateKey;
+  if (dateKey === today) return "TODAY";
+  const weekday = date.toLocaleDateString(locale, { weekday: "short" }).toUpperCase();
+  return `${weekday} ${date.getDate()}`;
+}
+
+export default function DateRail({ date, today, onChange, t, locale = "en-GB" }) {
   const inputRef = useRef(null);
   const chips = [
     { id: addLocalDays(today, -1), label: t("live.yesterday") },
     { id: today, label: t("live.today") },
     { id: addLocalDays(today, 1), label: t("live.tomorrow") },
   ];
+  const strip = [-2, -1, 0, 1, 2].map((offset) => addLocalDays(date, offset));
 
   return (
     <div className="date-rail">
@@ -19,16 +28,30 @@ export default function DateRail({ date, today, onChange, t }) {
       >
         ‹
       </button>
-      {chips.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className={item.id === date ? "date-chip is-active" : "date-chip"}
-          onClick={() => onChange(item.id)}
-        >
-          {item.label}
-        </button>
-      ))}
+      <div className="date-strip" aria-hidden="false">
+        {strip.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={id === date ? `date-chip is-strip ${id === today ? "is-today is-active" : "is-active"}` : `date-chip is-strip ${id === today ? "is-today" : ""}`}
+            onClick={() => onChange(id)}
+          >
+            {stripLabel(id, today, locale)}
+          </button>
+        ))}
+      </div>
+      <div className="date-chips">
+        {chips.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={item.id === date ? "date-chip is-active" : "date-chip"}
+            onClick={() => onChange(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <button
         type="button"
         className="date-rail-step"

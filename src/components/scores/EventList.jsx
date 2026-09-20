@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { competitionLabel, countryLabel } from "../../labels.js";
@@ -9,6 +9,7 @@ import { competitionKind } from "../../lib/scorePresentation.js";
 import { flagEmoji } from "../../lib/identityAssets.js";
 import { getRegistrySport } from "../../config/sportsRegistry.js";
 import EventRow from "./EventRow.jsx";
+import FavoriteButton from "./FavoriteButton.jsx";
 
 function headerMeta(group, t) {
   const sample = group.events[0] || {};
@@ -33,6 +34,7 @@ export default function EventList({ events, compact = false }) {
   const { favorites, syncFavorites } = useAuth();
   const followedLeagues = favorites?.leagues || [];
   const followedSports = favorites?.sports || [];
+  const [collapsed, setCollapsed] = useState(() => new Set());
 
   const groups = useMemo(() => {
     const list = groupEventsByCompetition(events);
@@ -62,6 +64,15 @@ export default function EventList({ events, compact = false }) {
     syncFavorites({ ...favorites, leagues });
   }
 
+  function toggleCollapse(key) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   return (
     <div className="score-groups">
       {groups.map((group) => {
@@ -72,6 +83,7 @@ export default function EventList({ events, compact = false }) {
         const meta = headerMeta(group, t);
         const flag = meta.showFlag ? flagEmoji(group.country_id) : "";
         const initial = title.slice(0, 1).toUpperCase();
+        const isCollapsed = collapsed.has(group.key);
         return (
           <section
             key={group.key}
@@ -82,25 +94,33 @@ export default function EventList({ events, compact = false }) {
               <span className="score-comp-mark" aria-hidden="true">
                 {flag || initial}
               </span>
-              <div className="score-comp-copy">
-                {meta.kicker ? <p className="score-comp-kicker">{meta.kicker}</p> : null}
-                <h2 className="score-comp-title">{title}</h2>
-              </div>
               <button
                 type="button"
-                className={followed ? "score-star is-on" : "score-star"}
-                aria-label={title}
-                aria-pressed={followed}
-                onClick={(ev) => toggleFollow(group, ev)}
+                className="score-comp-toggle"
+                aria-expanded={!isCollapsed}
+                onClick={() => toggleCollapse(group.key)}
               >
-                {followed ? "★" : "☆"}
+                <div className="score-comp-copy">
+                  {meta.kicker ? <p className="score-comp-kicker">{meta.kicker}</p> : null}
+                  <h2 className="score-comp-title">{title}</h2>
+                </div>
+                <span className="score-comp-caret" aria-hidden="true">
+                  {isCollapsed ? "›" : "▾"}
+                </span>
               </button>
+              <FavoriteButton
+                pressed={followed}
+                label={title}
+                onClick={(ev) => toggleFollow(group, ev)}
+              />
             </header>
-            <ul className="score-comp-list">
-              {group.events.map((item) => (
-                <EventRow key={item.id} event={item} compact={compact} />
-              ))}
-            </ul>
+            {isCollapsed ? null : (
+              <ul className="score-comp-list">
+                {group.events.map((item) => (
+                  <EventRow key={item.id} event={item} compact={compact} />
+                ))}
+              </ul>
+            )}
           </section>
         );
       })}

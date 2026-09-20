@@ -2782,31 +2782,71 @@ select {
 
 .page-scores h1 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.01em;
 }
 
 .score-centre-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 10px 16px;
+  gap: 8px 16px;
   margin-bottom: 10px;
+}
+
+.score-centre-sub {
+  margin: 2px 0 0;
+  color: var(--ns-text-muted);
+  font-size: 0.78rem;
+}
+
+.score-live-global {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ns-teal);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.score-stale {
+  margin: 0 0 10px;
+  color: var(--ns-text-muted);
+  font-size: 0.78rem;
+}
+
+.score-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 @media (max-width: 720px) {
   .score-centre-head {
-    display: block;
+    display: flex;
   }
 
   .score-status-tabs {
-    margin-top: 8px;
+    margin-top: 0;
+    margin-bottom: 12px;
   }
 }
 
 .score-status-tabs {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+  margin: 0 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.score-status-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .status-tab {
@@ -2844,7 +2884,33 @@ select {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
+}
+
+.date-strip {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.date-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 860px) {
+  .date-strip {
+    display: flex;
+  }
+
+  .date-chips {
+    display: none;
+  }
 }
 
 .date-chip,
@@ -2863,6 +2929,19 @@ select {
 .date-chip.is-active {
   background: var(--ns-blue-soft);
   color: var(--ns-text);
+  font-weight: 700;
+}
+
+.date-chip.is-today {
+  box-shadow: inset 0 0 0 1px var(--ns-teal);
+  color: var(--ns-teal);
+}
+
+.date-chip.is-strip {
+  min-width: 64px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   font-weight: 700;
 }
 
@@ -2930,6 +3009,59 @@ select {
   font-weight: 700;
 }
 
+.sport-chip-count {
+  min-width: 1.1rem;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 16%, transparent);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.sport-chip.is-active .sport-chip-count {
+  background: color-mix(in srgb, #000 18%, transparent);
+}
+
+.sport-other {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.sport-other-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 8;
+  min-width: 220px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px;
+  background: var(--ns-bg-elevated);
+  border: 1px solid var(--ns-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.sport-other-menu button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.sport-other-menu button.is-active,
+.sport-other-menu button:hover {
+  background: var(--ns-surface-2);
+}
+
 .sport-chip-icon {
   font-size: 0.7rem;
   opacity: 0.85;
@@ -2952,11 +3084,20 @@ select {
 .sport-rail-arrow.is-left { left: 0; }
 .sport-rail-arrow.is-right { right: 0; }
 
+.score-centre-layout {
+  width: 100%;
+}
+
+.score-centre-main {
+  max-width: 880px;
+}
+
 .score-centre-layout.has-aside {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 880px) 260px;
+  gap: 28px;
   align-items: start;
+  justify-content: space-between;
 }
 
 .score-centre-aside {
@@ -3017,18 +3158,37 @@ select {
 
 .score-comp {
   background: var(--ns-bg-elevated);
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .score-comp-head {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 32px;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  min-height: 40px;
-  padding: 6px 10px;
-  background: color-mix(in srgb, var(--ns-surface) 70%, transparent);
+  min-height: 36px;
+  padding: 4px 8px 4px 10px;
+  background: color-mix(in srgb, var(--ns-surface) 78%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ns-border) 55%, transparent);
+}
+
+.score-comp-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.score-comp-caret {
+  color: var(--ns-text-muted);
 }
 
 .score-comp-mark {
@@ -3077,40 +3237,173 @@ select {
   padding: 0;
 }
 
-.score-row-link {
+.score-row-frame {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 72px minmax(0, 1fr);
-  grid-template-areas: "status home score away";
-  align-items: center;
-  gap: 8px;
-  min-height: 56px;
-  padding: 6px 10px;
-  color: inherit;
-  text-decoration: none;
-  border-top: 1px solid color-mix(in srgb, var(--ns-border) 45%, transparent);
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: stretch;
 }
 
-.score-status-col { grid-area: status; }
-.score-team.is-home { grid-area: home; }
-.score-mid { grid-area: score; }
-.score-team.is-away { grid-area: away; }
-.score-meta-main { grid-area: home / home / home / away; }
+.score-row-link {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 6px 8px 6px 0;
+  color: inherit;
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-top: 1px solid color-mix(in srgb, var(--ns-border) 40%, transparent);
+}
+
+.score-row .score-star {
+  align-self: center;
+}
+
+.score-status-col { min-width: 0; }
+.score-pair,
+.score-period-grid,
+.score-meta-main,
+.score-golf {
+  min-width: 0;
+}
 
 .score-row.is-race .score-row-link,
 .score-row.is-meet .score-row-link,
 .score-row.is-multi_event_meet .score-row-link,
 .score-row.is-tournament .score-row-link,
 .score-row.is-unknown .score-row-link {
-  grid-template-columns: 72px minmax(0, 1fr);
-  grid-template-areas: "status home";
+  grid-template-columns: 58px minmax(0, 1fr) 16px;
 }
 
 .score-row-link:hover {
   background: var(--ns-surface-hover);
 }
 
+.score-row-link:active {
+  background: color-mix(in srgb, var(--ns-surface-hover) 80%, var(--ns-teal-soft));
+}
+
 .score-row.is-live .score-row-link {
-  box-shadow: inset 3px 0 0 var(--ns-teal);
+  box-shadow: inset 2px 0 0 var(--ns-teal);
+}
+
+.score-chevron {
+  color: var(--ns-text-muted);
+  font-size: 0.85rem;
+}
+
+.score-line {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.score-line.is-winner .score-name,
+.score-line.is-winner .score-mid {
+  font-weight: 800;
+}
+
+.score-sets {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-set {
+  color: var(--ns-text-muted);
+  font-size: 0.75rem;
+  min-width: 1.1rem;
+  text-align: right;
+}
+
+.score-golf-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 48px 28px;
+  gap: 8px;
+  align-items: center;
+  min-height: 22px;
+  font-size: 0.82rem;
+}
+
+.score-golf-pos,
+.score-golf-thru {
+  color: var(--ns-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-quick {
+  padding: 8px 12px 12px 36px;
+  border-top: 1px dashed color-mix(in srgb, var(--ns-border) 55%, transparent);
+  background: color-mix(in srgb, var(--ns-surface) 55%, transparent);
+}
+
+.score-quick-sets {
+  width: 100%;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-quick-sets th {
+  text-align: left;
+  font-weight: 650;
+}
+
+.score-quick-sets td {
+  text-align: right;
+  padding: 2px 4px;
+}
+
+.score-quick-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.score-quick-facts div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.score-quick-facts dt {
+  color: var(--ns-text-muted);
+}
+
+.score-quick-note,
+.score-quick-fresh,
+.score-quick-list {
+  margin: 0 0 6px;
+  color: var(--ns-text-muted);
+  font-size: 0.78rem;
+}
+
+.score-quick-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-quick-link {
+  color: var(--ns-blue);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.score-quick-close {
+  border: 0;
+  background: transparent;
+  color: var(--ns-text-muted);
+  cursor: pointer;
 }
 
 .score-status-col {
@@ -3143,6 +3436,12 @@ select {
   height: 7px;
   border-radius: 50%;
   background: var(--ns-teal);
+  animation: ns-live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ns-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 .score-team {
@@ -3170,14 +3469,12 @@ select {
 }
 
 .score-mid {
-  text-align: center;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   font-size: 0.95rem;
   color: var(--ns-text);
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
+  min-width: 1.4rem;
 }
 
 .score-row.is-live .score-mid {
@@ -3364,13 +3661,9 @@ select {
 
 @media (max-width: 720px) {
   .score-row-link {
-    grid-template-columns: 52px minmax(0, 1fr) 48px;
-    grid-template-areas:
-      "status home score"
-      "status away score";
-    min-height: 58px;
-    gap: 2px 8px;
-    padding: 8px 10px;
+    grid-template-columns: 52px minmax(0, 1fr) 14px;
+    min-height: 64px;
+    gap: 6px;
   }
 
   .score-row.is-race .score-row-link,
@@ -3378,13 +3671,11 @@ select {
   .score-row.is-multi_event_meet .score-row-link,
   .score-row.is-tournament .score-row-link,
   .score-row.is-unknown .score-row-link {
-    grid-template-columns: 52px minmax(0, 1fr);
-    grid-template-areas: "status home";
+    grid-template-columns: 52px minmax(0, 1fr) 14px;
   }
 
-  .score-team.is-away {
-    justify-content: flex-start;
-    text-align: left;
+  .score-sets {
+    gap: 5px;
   }
 
   .mc-board {
@@ -3405,7 +3696,7 @@ select {
 
 @media (max-width: 390px) {
   .score-row-link {
-    grid-template-columns: 56px minmax(0, 1fr) 52px;
+    grid-template-columns: 48px minmax(0, 1fr) 14px;
     overflow: hidden;
   }
 
@@ -3417,9 +3708,8 @@ select {
 
 @media (max-width: 320px) {
   .score-row-link {
-    grid-template-columns: 52px minmax(0, 1fr) 48px;
-    padding-left: 8px;
-    padding-right: 8px;
+    grid-template-columns: 46px minmax(0, 1fr) 12px;
+    padding-right: 4px;
   }
 
   .page-scores {

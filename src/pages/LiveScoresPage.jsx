@@ -1,20 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getRecentArticles, getSportsDataEvents, getSportsDataLive, getSportsDataStatusDelta } from "../api.js";
+import { getSportsDataEvents, getSportsDataLive, getSportsDataStatusDelta } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   eventLocalDateKey,
+  eventMatchesFavorite,
   isoDate,
-  isLiveStatus,
+  isConfirmedLive,
   localDayUtcBounds,
   matchesStatusView,
   mergeEventPayload,
   normalizeEvent,
+  sportCounts,
   statusCounts,
 } from "../lib/sportsData.js";
-import { scoreboardSports } from "../config/sportsRegistry.js";
+import { allRegistrySports, getRegistrySport } from "../config/sportsRegistry.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { competitionLabel } from "../labels.js";
 import ProviderPending from "../components/ProviderPending.jsx";
@@ -31,44 +33,57 @@ const STATUSES = [
   { id: "live", labelKey: "live.live" },
   { id: "upcoming", labelKey: "live.upcoming" },
   { id: "finished", labelKey: "live.finished" },
+  { id: "favorites", labelKey: "live.favorites" },
 ];
 
-const SPORT_ICONS = {
-  team: "●",
-  racket: "◌",
-  combat: "◆",
-  motorsport: "▣",
-  racing: "▸",
-  esports: "▦",
-  individual: "○",
-};
+const PRIMARY_SPORTS = [
+  "football",
+  "basketball",
+  "tennis",
+  "ice-hockey",
+  "baseball",
+  "rugby",
+  "cricket",
+  "handball",
+  "volleyball",
+  "motorsport",
+  "golf",
+  "esports",
+];
 
 function payloadEvents(data) {
   const raw = data?.events?.length ? data.events : data?.matches || [];
   return raw.map(normalizeEvent).filter((item) => item?.id);
 }
 
+function eventMatchesSport(event, sport) {
+  if (!sport || sport === "all" || sport === "mine") return true;
+  if (sport === "esports") {
+    const registry = getRegistrySport(event.sport);
+    return event.sport === "esports" || registry?.parent_id === "esports" || event.parent_sport_id === "esports";
+  }
+  return event.sport === sport;
+}
+
 export default function LiveScoresPage() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const { favorites } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const today = isoDate(new Date());
-  const status = searchParams.get("status") || "all";
+  const status = searchParams.get("filter") || searchParams.get("status") || "all";
   const date = searchParams.get("date") || today;
   const sport = searchParams.get("sport") || "all";
   const competition = searchParams.get("competition") || "";
   const [board, setBoard] = useState({ key: "", payload: null });
-  const [news, setNews] = useState([]);
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
   const requestSeq = useRef(0);
   const sinceRef = useRef(new Date().toISOString());
 
-  const requestKey = `${date}|${sport}|${competition}`;
+  const requestKey = `${date}|${competition}`;
 
   const sports = useMemo(() => {
     const followed = favorites?.sports || [];
-    const rows = scoreboardSports();
+    const rows = allRegistrySports().filter((item) => item.active !== false);
     return [...rows].sort((left, right) => {
       const leftFav = followed.includes(left.slug) ? 0 : 1;
       const rightFav = followed.includes(right.slug) ? 0 : 1;
@@ -80,7 +95,7 @@ export default function LiveScoresPage() {
   function updateParams(patch) {
     const next = { status, date, sport, competition, ...patch };
     const params = {};
-    if (next.status && next.status !== "all") params.status = next.status;
+    if (next.status && next.status !== "all") params.filter = next.status;
     if (next.date && next.date !== today) params.date = next.date;
     if (next.sport && next.sport !== "all") params.sport = next.sport;
     if (next.competition) params.competition = next.competition;
@@ -90,11 +105,9 @@ export default function LiveScoresPage() {
   const fetchScores = useCallback(
     (silent = false) => {
       const filters = { ...localDayUtcBounds(date) };
-      if (sport && sport !== "all" && sport !== "mine") filters.sport = sport;
       if (competition) filters.competition = competition;
-      const key = `${date}|${sport}|${competition}`;
+      const key = `${date}|${competition}`;
       const seq = ++requestSeq.current;
-      if (!silent) setLoading(true);
       getSportsDataEvents(filters)
         .then((data) => {
           if (seq !== requestSeq.current) return;
@@ -105,13 +118,12 @@ export default function LiveScoresPage() {
         .catch(() => {
           if (seq !== requestSeq.current) return;
           setError(true);
-          if (!silent) setBoard({ key, payload: null });
-        })
-        .finally(() => {
-          if (seq === requestSeq.current) setLoading(false);
+          if (!silent) {
+            setBoard((prev) => (prev.key === key && prev.payload ? prev : { key, payload: prev.payload }));
+          }
         });
     },
-    [competition, date, sport]
+    [competition, date]
   );
 
   useEffect(() => {
@@ -128,15 +140,13 @@ export default function LiveScoresPage() {
 
   const silentRefresh = useCallback(() => fetchScores(true), [fetchScores]);
   const livePresent = useMemo(
-    () => payloadEvents(board.payload || {}).some((event) => event.live || isLiveStatus(event.status)),
+    () => payloadEvents(board.payload || {}).some((event) => isConfirmedLive(event)),
     [board.payload]
   );
   const refreshLive = useCallback(() => {
-    const filters = {};
-    if (sport && sport !== "all" && sport !== "mine") filters.sport = sport;
     Promise.all([
-      getSportsDataLive(filters),
-      getSportsDataStatusDelta({ since: sinceRef.current, ...(filters.sport ? { sport: filters.sport } : {}) }),
+      getSportsDataLive({}),
+      getSportsDataStatusDelta({ since: sinceRef.current }),
     ])
       .then(([live, delta]) => {
         sinceRef.current = new Date().toISOString();
@@ -149,42 +159,44 @@ export default function LiveScoresPage() {
         });
       })
       .catch(() => {});
-  }, [sport]);
+  }, []);
   useVisiblePoll(silentRefresh, livePresent ? 120000 : 45000);
   useVisiblePoll(refreshLive, livePresent ? 8000 : 25000);
 
   const dayEvents = useMemo(() => {
     if (board.key !== requestKey || !board.payload) return [];
-    let rows = payloadEvents(board.payload).filter((event) => eventLocalDateKey(event) === date);
+    return payloadEvents(board.payload).filter((event) => eventLocalDateKey(event) === date);
+  }, [board, date, requestKey]);
+
+  const sportFiltered = useMemo(() => {
+    let rows = dayEvents.filter((event) => eventMatchesSport(event, sport));
     if (sport === "mine") {
-      const followedSports = favorites?.sports || [];
-      const followedLeagues = favorites?.leagues || [];
-      rows = rows.filter((event) => {
-        if (followedSports.includes(event.sport)) return true;
-        const key = `${event.sport}:${event.competition_key}`;
-        return followedLeagues.includes(key) || followedLeagues.includes(event.competition_key);
-      });
+      rows = rows.filter((event) => eventMatchesFavorite(event, favorites));
     }
     return rows;
-  }, [board, date, favorites, requestKey, sport]);
+  }, [dayEvents, favorites, sport]);
 
-  const counts = useMemo(() => statusCounts(dayEvents), [dayEvents]);
-  const events = useMemo(
-    () => dayEvents.filter((event) => matchesStatusView(event, status)),
-    [dayEvents, status]
-  );
+  const counts = useMemo(() => statusCounts(sportFiltered), [sportFiltered]);
+  const events = useMemo(() => {
+    if (status === "favorites") {
+      return sportFiltered.filter((event) => eventMatchesFavorite(event, favorites));
+    }
+    return sportFiltered.filter((event) => matchesStatusView(event, status));
+  }, [favorites, sportFiltered, status]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getRecentArticles(6)
-      .then((rows) => {
-        if (!cancelled && Array.isArray(rows)) setNews(rows.slice(0, 5));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const bySport = useMemo(() => {
+    const raw = sportCounts(dayEvents);
+    const rolled = { ...raw };
+    for (const [slug, count] of Object.entries(raw)) {
+      const registry = getRegistrySport(slug);
+      if (registry?.parent_id === "esports") {
+        rolled.esports = (rolled.esports || 0) + count;
+      }
+    }
+    return rolled;
+  }, [dayEvents]);
+
+  const liveCount = useMemo(() => dayEvents.filter((event) => isConfirmedLive(event)).length, [dayEvents]);
 
   const topComps = useMemo(() => {
     const countsMap = new Map();
@@ -199,63 +211,100 @@ export default function LiveScoresPage() {
       .map(([key, count]) => ({ key, count, label: competitionLabel(key) }));
   }, [dayEvents]);
 
-  const sportItems = [
-    { id: "all", label: t("live.allSports"), icon: "◎" },
-    { id: "mine", label: t("live.mySports"), icon: "★" },
-    ...sports.map((item) => ({
-      id: item.slug,
-      label: t(sportI18nKey(item.slug) || "sport.label"),
-      icon: SPORT_ICONS[item.category] || "●",
-    })),
+  const primaryItems = [
+    { id: "all", label: t("live.allSports"), icon: "◎", count: dayEvents.length },
+    { id: "mine", label: t("live.mySports"), icon: "★", count: 0 },
+    ...PRIMARY_SPORTS.map((slug) => {
+      const row = sports.find((item) => item.slug === slug) || getRegistrySport(slug);
+      return {
+        id: slug,
+        label: t(sportI18nKey(slug) || "sport.label"),
+        count: bySport[slug] || 0,
+        icon: "",
+        hidden: !row,
+      };
+    }).filter((item) => !item.hidden),
   ];
 
-  const sidebarLive = dayEvents.filter((item) => item.live).slice(0, 6);
+  const otherItems = sports
+    .filter((item) => !PRIMARY_SPORTS.includes(item.slug) && item.slug !== "esports")
+    .map((item) => ({
+      id: item.slug,
+      label: t(sportI18nKey(item.slug) || "sport.label"),
+      count: bySport[item.slug] || 0,
+    }))
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+
+  const sidebarLive = dayEvents.filter((item) => isConfirmedLive(item)).slice(0, 6);
   const payloadReady = board.key === requestKey && board.payload;
   const showSidebar = Boolean(
-    payloadReady && (sidebarLive.length || topComps.length || (favorites?.sports || []).length || news.length)
+    payloadReady && (sidebarLive.length || topComps.length || (favorites?.sports || []).length)
   );
 
-  let emptyTitle = t("live.emptyTitle");
+  let emptyTitle = t("live.emptyDateTitle");
   let emptyBody = t("live.emptyBody");
   if (status === "live") {
     emptyTitle = t("live.emptyLiveTitle");
     emptyBody = t("live.emptyLiveBody");
-  } else {
-    emptyTitle = t("live.emptyDateTitle");
+  } else if (status === "favorites") {
+    emptyTitle = t("live.emptyFavoritesTitle");
+    emptyBody = t("live.emptyFavoritesBody");
+  } else if (sport !== "all" && sport !== "mine") {
+    emptyTitle = t("live.emptySportTitle");
+    emptyBody = t("live.emptySportBody");
   }
+
+  const stale = error && payloadReady;
 
   return (
     <div className="page-scores">
       <header className="score-centre-head">
         <div>
           <h1>{t("liveScores")}</h1>
+          <p className="score-centre-sub">{t("live.subtitle")}</p>
         </div>
-        <div className="score-status-tabs" role="tablist" aria-label={t("liveScores")}>
-          {STATUSES.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={item.id === status}
-              className={item.id === status ? `status-tab is-active is-${item.id}` : `status-tab is-${item.id}`}
-              onClick={() => updateParams({ status: item.id })}
-            >
-              {t(item.labelKey)}
-              {counts[item.id] > 0 ? <span className="status-count">{counts[item.id]}</span> : null}
-            </button>
-          ))}
-        </div>
+        {liveCount > 0 ? (
+          <p className="score-live-global" aria-live="polite">
+            <span className="live-dot" aria-hidden="true" />
+            {liveCount} {t("live.live")}
+          </p>
+        ) : null}
       </header>
-      <DateRail date={date} today={today} t={t} onChange={(next) => updateParams({ date: next })} />
       <SportRail
         ariaLabel={t("live.allSports")}
         value={sport}
-        items={sportItems}
+        items={primaryItems}
+        otherItems={otherItems}
         onChange={(id) => updateParams({ sport: id, competition: "" })}
       />
+      <DateRail
+        date={date}
+        today={today}
+        t={t}
+        locale={dateLocale}
+        onChange={(next) => updateParams({ date: next })}
+      />
+      <div className="score-status-tabs" role="tablist" aria-label={t("liveScores")}>
+        {STATUSES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={item.id === status}
+            className={item.id === status ? `status-tab is-active is-${item.id}` : `status-tab is-${item.id}`}
+            onClick={() => updateParams({ status: item.id })}
+          >
+            {t(item.labelKey)}
+            {item.id !== "favorites" && counts[item.id] > 0 ? (
+              <span className="status-count">{counts[item.id]}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+      {stale ? <p className="score-stale">{t("live.staleUpdate")}</p> : null}
       <div className={showSidebar ? "score-centre-layout has-aside" : "score-centre-layout"}>
         <div className="score-centre-main">
-          {error ? (
+          {error && !board.payload ? (
             <EmptyState
               title={t("live.unavailableTitle")}
               body={t("live.unavailableBody")}
@@ -272,7 +321,30 @@ export default function LiveScoresPage() {
           ) : events.length ? (
             <EventList events={events} />
           ) : (
-            <EmptyState title={emptyTitle} body={emptyBody} compact />
+            <EmptyState
+              title={emptyTitle}
+              body={emptyBody}
+              compact
+              action={
+                <div className="score-empty-actions">
+                  {status !== "all" ? (
+                    <button type="button" className="btn" onClick={() => updateParams({ status: "all" })}>
+                      {t("live.showAll")}
+                    </button>
+                  ) : null}
+                  {date !== today ? (
+                    <button type="button" className="btn ghost" onClick={() => updateParams({ date: today })}>
+                      {t("live.today")}
+                    </button>
+                  ) : null}
+                  {sport !== "all" ? (
+                    <button type="button" className="btn ghost" onClick={() => updateParams({ sport: "all" })}>
+                      {t("live.allSports")}
+                    </button>
+                  ) : null}
+                </div>
+              }
+            />
           )}
         </div>
         {showSidebar ? (
@@ -287,7 +359,7 @@ export default function LiveScoresPage() {
                 </ul>
               </section>
             ) : null}
-            {topComps.length ? (
+            {(favorites?.leagues || []).length && topComps.length ? (
               <section>
                 <h2>{t("live.topCompetitions")}</h2>
                 <ul className="score-aside-links">
@@ -308,18 +380,6 @@ export default function LiveScoresPage() {
                 <p>
                   <Link to="/my-sports">{t("seeAll")}</Link>
                 </p>
-              </section>
-            ) : null}
-            {news.length ? (
-              <section>
-                <h2>{t("latest")}</h2>
-                <ul className="score-aside-news">
-                  {news.map((article) => (
-                    <li key={article.id || article.slug}>
-                      <Link to={`/article/${article.slug}`}>{article.title}</Link>
-                    </li>
-                  ))}
-                </ul>
               </section>
             ) : null}
           </aside>

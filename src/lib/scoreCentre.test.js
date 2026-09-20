@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { FALLBACK_SPORTS } from "../config/sportsRegistry.js";
 import { sanitizeParticipantName } from "./participantDisplay.js";
-import { coverageForSport, formatPairScore, rendererForEvent, statusLabel } from "./scorePresentation.js";
+import { coverageForSport, cricketScoreText, formatPairScore, golfBoard, liveClockLabel, periodRows, rendererForEvent, sportScoreText, statusLabel, winningSide } from "./scorePresentation.js";
 import {
   dateKeyInTimeZone,
   eventLocalDateKey,
+  formatEventTime,
   isoDate,
+  isConfirmedLive,
   localDayUtcBounds,
   matchesStatusView,
   normalizeEvent,
@@ -159,7 +161,11 @@ describe("all-sport renderer coverage", () => {
         score: sport.event_model === "racing" || sport.event_model === "tournament" ? { home: null, away: null } : { home: 1, away: 0 },
       };
       expect(statusLabel(scheduled, t, "21:00")).toBe("21:00");
-      expect(statusLabel(live, t, "21:00")).toBe("LIVE");
+      if (sport.event_model === "racing") {
+        expect(statusLabel(live, t, "21:00")).toBe("21:00");
+      } else {
+        expect(statusLabel(live, t, "21:00")).toBe("LIVE");
+      }
       expect(statusLabel(finished, t, "21:00")).toMatch(/FT|Final|Finished/);
     }
   });
@@ -185,9 +191,9 @@ describe("all-sport renderer coverage", () => {
     expect(statusLabel({ sport: "ice-hockey", status: "live", score: { period: 2, clock: "08:13" } }, t, "19:00")).toBe(
       "P2 08:13"
     );
-    expect(
-      statusLabel({ sport: "baseball", status: "live", score: { inning: 5, inning_half: "top" } }, t, "18:10")
-    ).toBe("Top 5");
+    expect(statusLabel({ sport: "baseball", status: "live", score: { inning: 5, inning_half: "top" } }, t, "18:10")).toBe(
+      "▲5"
+    );
     expect(statusLabel({ sport: "football", status: "live", score: {} }, t, "21:00")).toBe("LIVE");
   });
 
@@ -206,3 +212,131 @@ describe("all-sport renderer coverage", () => {
     expect(rendererForEvent({ sport: "mystery-sport", event_family: "totally-new" })).toBe("UNKNOWN");
   });
 });
+
+const t = (key) =>
+  ({
+    "live.live": "LIVE",
+    "live.ft": "FT",
+    "live.final": "Final",
+    "live.ht": "HT",
+    "live.tbd": "TBD",
+    "live.raceFinished": "Finished",
+    "live.scheduled": "Scheduled",
+    "live.postponed": "Postponed",
+    "live.cancelled": "Cancelled",
+  }[key] || key);
+
+describe("sport-specific score centre state", () => {
+  it("renders football live, 0-0, null scores and DATE_ONLY without inventing a time", () => {
+    expect(statusLabel({ sport: "football", status: "live", score: { minute: 67 } }, t, "15:00")).toBe("67’");
+    expect(formatPairScore(0, 0)).toBe("0 – 0");
+    expect(formatPairScore(null, null)).toBe("–");
+    expect(
+      formatEventTime({
+        start_time: "2026-09-20T00:00:00Z",
+        start_precision: "DATE_ONLY",
+      })
+    ).toBe("");
+    expect(
+      statusLabel({ sport: "football", status: "scheduled", start_precision: "DATE_ONLY" }, t, "")
+    ).toBe("TBD");
+    expect(statusLabel({ sport: "football", status: "postponed" }, t, "15:00")).toBe("Postponed");
+    expect(statusLabel({ sport: "football", status: "cancelled" }, t, "15:00")).toBe("Cancelled");
+  });
+
+  it("keeps basketball, hockey, rugby and american football clocks distinct", () => {
+    expect(liveClockLabel({ sport: "basketball", status: "live", score: { period: 3, clock: "04:21" } }, t)).toBe(
+      "Q3 04:21"
+    );
+    expect(liveClockLabel({ sport: "ice-hockey", status: "live", score: { period: 1, clock: "12:44" } }, t)).toBe(
+      "P1 12:44"
+    );
+    expect(liveClockLabel({ sport: "rugby", status: "live", score: { minute: 54 } }, t)).toBe("54’");
+    expect(
+      liveClockLabel({ sport: "american-football", status: "live", score: { period: 3, clock: "08:14" } }, t)
+    ).toBe("3rd 08:14");
+  });
+
+  it("shows baseball innings and outs from canonical fields only", () => {
+    expect(
+      liveClockLabel(
+        { sport: "baseball", status: "live", score: { inning: 7, inning_half: "top", outs: 2 } },
+        t
+      )
+    ).toBe("▲7 · 2 OUT");
+    expect(
+      liveClockLabel({ sport: "baseball", status: "live", score: { inning: 9, inning_half: "bottom" } }, t)
+    ).toBe("▼9");
+  });
+
+  it("keeps tennis and volleyball as set grids rather than a football scoreline", () => {
+    const tennis = {
+      sport: "tennis",
+      event_family: "individual_match",
+      score: { home: 1, away: 2 },
+      periods: [
+        { home: 6, away: 4 },
+        { home: 3, away: 6 },
+        { home: 2, away: 4 },
+      ],
+    };
+    expect(periodRows(tennis)).toHaveLength(3);
+    expect(sportScoreText(tennis)).toBe("6-4  3-6  2-4");
+    const volleyball = {
+      sport: "volleyball",
+      score: { home: 2, away: 1 },
+      periods: [
+        { home: 25, away: 20 },
+        { home: 21, away: 25 },
+        { home: 25, away: 19 },
+      ],
+    };
+    expect(sportScoreText(volleyball)).toContain("25-20");
+  });
+
+  it("uses cricket wickets/overs instead of a fake 2-1", () => {
+    expect(
+      cricketScoreText({
+        sport: "cricket",
+        score: { runs: 187, wickets: 4, overs: 32.1, home: 187, away: null },
+      })
+    ).toBe("187/4 (32.1 ov)");
+  });
+
+  it("renders golf leaderboard rows and motorsport/race metadata without team scores", () => {
+    const golf = golfBoard({
+      sport: "golf",
+      leaderboard: [
+        { position: "T1", name: "Player One", total: -12, thru: 15 },
+        { position: 3, name: "Player Two", total: -10, thru: "F" },
+      ],
+    });
+    expect(golf[0]).toMatchObject({ name: "Player One", total: -12, thru: 15 });
+    expect(rendererForEvent({ sport: "motorsport", event_family: "motorsport_race" })).toBe("RACE");
+    expect(
+      liveClockLabel({ sport: "motorsport", event_family: "motorsport_race", status: "live", score: { lap: 42, laps: 57 } }, t)
+    ).toBe("Lap 42/57");
+  });
+
+  it("never treats racing RAPID_RESULT or a racing live flag as LIVE", () => {
+    expect(isConfirmedLive({ sport: "horse-racing", status: "live", live: true, live_class: "RAPID_RESULT" })).toBe(
+      false
+    );
+    expect(isConfirmedLive({ sport: "horse-racing", event_family: "racing", status: "live" })).toBe(false);
+    expect(
+      statusLabel({ sport: "horse-racing", event_family: "racing", status: "live" }, t, "14:10")
+    ).toBe("14:10");
+    expect(matchesStatusView({ sport: "horse-racing", event_family: "racing", status: "live" }, "live")).toBe(
+      false
+    );
+  });
+
+  it("does not invent a finished winner and supports esports series scores", () => {
+    expect(winningSide({ status: "live", score: { home: 2, away: 1 } })).toBeNull();
+    expect(winningSide({ status: "finished", score: { home: 2, away: 1 } })).toBe("home");
+    expect(sportScoreText({ sport: "dota-2", event_family: "esports_match", score: { home: 1, away: 2 } })).toBe(
+      "1 – 2"
+    );
+  });
+});
+

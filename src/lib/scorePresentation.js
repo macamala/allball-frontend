@@ -1,7 +1,8 @@
 import { getRegistrySport } from "../config/sportsRegistry.js";
 import {
+  isConfirmedLive,
   isFinishedStatus,
-  isLiveStatus,
+  isRacingEvent,
 } from "./sportsData.js";
 import { displayParticipantName } from "./participantDisplay.js";
 
@@ -64,7 +65,7 @@ export function hasPairScore(event) {
   return scoreCell(score.home) != null && scoreCell(score.away) != null;
 }
 
-function setRows(event) {
+export function periodRows(event) {
   const score = event?.score || {};
   const periods = event?.periods || score.sets || score.periods || score.games;
   if (!Array.isArray(periods) || !periods.length) return [];
@@ -132,83 +133,135 @@ export function finishedLabel(event, t) {
   return t("live.final");
 }
 
+const MINUTE_SPORTS = new Set(["football", "futsal", "rugby", "rugby-league"]);
+const QUARTER_SPORTS = new Set(["basketball", "netball", "australian-rules"]);
+const PERIOD_SPORTS = new Set(["ice-hockey", "handball", "water-polo", "field-hockey", "lacrosse"]);
+const SET_SPORTS = new Set(["tennis", "table-tennis", "badminton", "volleyball"]);
+
+function quarterClock(period, clock, prefix) {
+  const label = period != null && period !== "" ? `${prefix}${period}` : "";
+  if (label && clock != null && clock !== "") return `${label} ${clock}`;
+  if (label) return label;
+  if (clock != null && clock !== "") return String(clock);
+  return "";
+}
+
+function americanFootballClock(period, clock) {
+  const map = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th" };
+  const q = period != null && period !== "" ? map[Number(period)] || `Q${period}` : "";
+  if (q && clock != null && clock !== "") return `${q} ${clock}`;
+  return q || (clock != null && clock !== "" ? String(clock) : "");
+}
+
+export function baseballState(event) {
+  const score = event?.score || {};
+  const inn = score.inning || event?.innings || score.period;
+  const halfRaw = String(score.inning_half || score.half || score.inning_state || "").toLowerCase();
+  const outs = score.outs;
+  let innLabel = "";
+  if (inn) {
+    if (halfRaw.startsWith("b") || halfRaw.includes("bot")) innLabel = `▼${inn}`;
+    else if (halfRaw.startsWith("t") || halfRaw.includes("top")) innLabel = `▲${inn}`;
+    else innLabel = `${inn}th`;
+  }
+  const outLabel = outs != null && outs !== "" ? `${outs} OUT` : "";
+  return [innLabel, outLabel].filter(Boolean).join(" · ");
+}
+
 export function liveClockLabel(event, t) {
   const score = event?.score || {};
   const sport = event?.sport || "";
   const family = event?.event_family || "";
   const status = String(event?.status || "").toLowerCase();
+  if (isRacingEvent(event)) {
+    return isFinishedStatus(status) ? t("live.raceFinished") : t("live.scheduled");
+  }
   if (status === "halftime" || status === "ht" || status === "break") {
     if (sport === "football" || sport === "futsal") return t("live.ht");
     return t("live.break");
   }
+  if (status === "et" || status === "aet" || String(score.period || "").toUpperCase() === "ET") {
+    const minute = score.minute || event.minute;
+    if (MINUTE_SPORTS.has(sport) && minute != null && minute !== "") {
+      return `ET ${String(minute).includes("'") ? minute : `${minute}’`}`;
+    }
+    if (MINUTE_SPORTS.has(sport)) return "ET";
+  }
+  if (status === "pen" || status === "penalties" || score.penalties) return "PEN";
+
   const minute = score.minute || event.minute;
   const period = score.period || score.quarter || event.period;
   const setNo = score.set || event.current_set;
   const clock = score.clock_stale ? null : score.clock;
-  const inningHalf = score.inning_half || score.half || score.inning_state;
-  const innings = score.inning || event.innings;
 
-  if (sport === "football" || sport === "futsal") {
+  if (MINUTE_SPORTS.has(sport)) {
     if (minute != null && minute !== "") {
       return String(minute).includes("'") ? String(minute) : `${minute}’`;
     }
     if (clock != null && clock !== "") return String(clock);
     return t("live.live");
   }
-  if (sport === "basketball") {
-    const q = period != null && period !== "" ? `Q${period}` : "";
-    if (q && clock != null && clock !== "") return `${q} ${clock}`;
-    if (q) return q;
-    if (clock != null && clock !== "") return String(clock);
-    return t("live.live");
+  if (sport === "american-football") {
+    return americanFootballClock(period, clock) || t("live.live");
   }
-  if (sport === "ice-hockey") {
-    const p = period != null && period !== "" ? `P${period}` : "";
-    if (p && clock != null && clock !== "") return `${p} ${clock}`;
-    if (p) return p;
-    return t("live.live");
+  if (QUARTER_SPORTS.has(sport)) {
+    return quarterClock(period, clock, "Q") || t("live.live");
+  }
+  if (PERIOD_SPORTS.has(sport)) {
+    const extra = String(period || "").toUpperCase();
+    if (extra === "OT" || extra === "SO") return extra;
+    return quarterClock(period, clock, "P") || t("live.live");
   }
   if (sport === "baseball") {
-    const inn = innings || period;
-    if (inningHalf && inn) {
-      const half = String(inningHalf).toLowerCase().startsWith("b") ? "Bot" : "Top";
-      return `${half} ${inn}`;
-    }
-    if (inn) return `Inn ${inn}`;
-    return t("live.live");
+    return baseballState(event) || t("live.live");
   }
-  if (sport === "tennis" || sport === "table-tennis" || sport === "badminton") {
-    if (setNo != null && setNo !== "") return `Set ${setNo}`;
-    return t("live.live");
-  }
-  if (sport === "volleyball") {
+  if (SET_SPORTS.has(sport)) {
     const setLabel = setNo || period;
     if (setLabel != null && setLabel !== "") return `Set ${setLabel}`;
     return t("live.live");
   }
   if (sport === "cricket") {
+    if (score.overs != null && score.overs !== "") return `${score.overs} ov`;
     if (score.innings || event.innings) return String(score.innings || event.innings);
     return t("live.live");
   }
-  if (sport === "motorsport" || family === "motorsport_race") return t("live.live");
-  if (sport === "horse-racing" || sport === "greyhound-racing" || sport === "harness-racing") {
+  if (sport === "motorsport" || family === "motorsport_race") {
+    const lap = score.lap || event.lap;
+    const total = score.laps || event.laps;
+    if (lap != null && total != null) return `Lap ${lap}/${total}`;
+    if (lap != null) return `Lap ${lap}`;
     return t("live.live");
   }
-  if (family === "esports_match") return t("live.live");
+  if (sport === "golf") {
+    if (score.round || event.round) return `R${score.round || event.round}`;
+    return t("live.live");
+  }
+  if (family === "esports_match") {
+    const mapNo = score.map || event.map || event.current_map;
+    if (mapNo != null && mapNo !== "") return `Map ${mapNo}`;
+    return t("live.live");
+  }
   return t("live.live");
 }
 
 export function statusLabel(event, t, localeTime) {
   if (!event) return "";
   const raw = String(event.status || "").toLowerCase();
-  if (isLiveStatus(raw)) return liveClockLabel(event, t);
   if (raw === "walkover") return t("live.walkover");
   if (raw === "abandoned") return t("live.abandoned");
-  if (isFinishedStatus(raw)) return finishedLabel(event, t);
   if (raw === "postponed") return t("live.postponed");
   if (raw === "delayed") return t("live.delayed");
   if (raw === "suspended") return t("live.suspended");
   if (raw === "cancelled" || raw === "canceled") return t("live.cancelled");
+  if (isRacingEvent(event)) {
+    if (isFinishedStatus(raw)) return finishedLabel(event, t);
+    return localeTime || "";
+  }
+  if (isConfirmedLive(event)) return liveClockLabel(event, t);
+  if (isFinishedStatus(raw)) return finishedLabel(event, t);
+  if (!localeTime && (event.start_precision === "DATE_ONLY" || event.start_precision === "UNKNOWN")) {
+    return t("live.tbd");
+  }
   return localeTime || "";
 }
 
@@ -220,7 +273,7 @@ export function pairScoreText(event) {
 export function sportScoreText(event) {
   const kind = rendererForEvent(event);
   const score = event?.score || {};
-  const sets = setRows(event);
+  const sets = periodRows(event);
   const sport = event?.sport || "";
 
   if (kind === "RACE" || kind === "MEET" || kind === "MULTI_EVENT_MEET" || kind === "TOURNAMENT") {
@@ -296,6 +349,64 @@ export function competitionKind(event) {
   if (family === "tournament" || registry?.event_model === "tournament") return "tournament";
   if (registry?.country_based || family === "team_match") return "league";
   return "league";
+}
+
+export function usesPeriodGrid(event) {
+  const sport = event?.sport || "";
+  return SET_SPORTS.has(sport) && periodRows(event).length > 0;
+}
+
+export function cricketScoreText(event) {
+  const score = event?.score || {};
+  if (score.runs == null && score.wickets == null && !score.overs) return pairScoreText(event);
+  const runs = scoreCell(score.runs ?? score.home);
+  const wickets = scoreCell(score.wickets);
+  const overs = scoreCell(score.overs);
+  const core = runs == null ? pairScoreText(event) : wickets == null ? String(runs) : `${runs}/${wickets}`;
+  return overs == null ? core : `${core} (${overs} ov)`;
+}
+
+export function golfBoard(event, limit = 4) {
+  const rows = event?.leaderboard || event?.classification || event?.athletes || [];
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, limit).map((row, index) => {
+    if (typeof row === "string") {
+      return { position: index + 1, name: displayParticipantName(row), total: "", thru: "" };
+    }
+    return {
+      position: row.position || row.pos || index + 1,
+      name: displayParticipantName(row.name || row.player || row.athlete || ""),
+      total: row.total ?? row.score ?? row.to_par ?? "",
+      thru: row.thru ?? row.holes ?? row.round ?? "",
+    };
+  }).filter((row) => row.name);
+}
+
+export function winningSide(event) {
+  if (!isFinishedStatus(event?.status)) return null;
+  const home = event?.score?.home;
+  const away = event?.score?.away;
+  if (typeof home !== "number" || typeof away !== "number") return null;
+  if (home > away) return "home";
+  if (away > home) return "away";
+  return null;
+}
+
+export function freshnessLabel(updatedAt, now = Date.now()) {
+  if (!updatedAt) return "";
+  const stamp = new Date(updatedAt).getTime();
+  if (Number.isNaN(stamp)) return "";
+  const seconds = Math.max(0, Math.round((now - stamp) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  return `${hours}h`;
+}
+
+export function scoreDisplay(value) {
+  const cell = scoreCell(value);
+  return cell == null ? "–" : String(cell);
 }
 
 export function coverageForSport(slug) {

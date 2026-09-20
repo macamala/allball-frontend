@@ -131,10 +131,29 @@ export function eventShape(raw) {
   return "UNKNOWN";
 }
 
+const RACING_SPORTS = new Set(["horse-racing", "greyhound-racing", "harness-racing"]);
+
+export function isRacingEvent(event) {
+  const sport = event?.sport || "";
+  const family = String(event?.event_family || "").toLowerCase();
+  return family === "racing" || RACING_SPORTS.has(sport);
+}
+
 export function isLiveStatus(status, liveFlag) {
   const value = String(status || "").toLowerCase();
   if (LIVE_STATUSES.has(value)) return true;
   return false;
+}
+
+export function isConfirmedLive(event) {
+  if (!event) return false;
+  if (isRacingEvent(event)) return false;
+  const liveClass = String(event.live_class || "").toUpperCase();
+  if (liveClass === "STALE_LIVE" || liveClass === "RAPID_RESULT" || liveClass === "RESULTS_ONLY") {
+    return false;
+  }
+  if (liveClass === "CONFIRMED_LIVE") return true;
+  return isLiveStatus(event.status);
 }
 
 export function isFinishedStatus(status) {
@@ -148,7 +167,7 @@ export function isUpcomingStatus(status, liveFlag) {
 }
 
 export function eventStatusView(event) {
-  if (isLiveStatus(event?.status, event?.live)) return "live";
+  if (isConfirmedLive(event)) return "live";
   if (isFinishedStatus(event?.status)) return "finished";
   return "upcoming";
 }
@@ -489,10 +508,39 @@ export function groupEventsByCompetition(events) {
       if (leftStart !== rightStart) return leftStart.localeCompare(rightStart);
       return String(left.id).localeCompare(String(right.id));
     });
-    group.hasLive = group.events.some((item) => item.live);
+    group.hasLive = group.events.some((item) => isConfirmedLive(item));
     group.earliest = group.events[0]?.start_time || "";
   }
   return [...groups.values()];
+}
+
+export function sportCounts(events) {
+  const counts = {};
+  for (const event of events || []) {
+    const slug = event?.sport;
+    if (!slug) continue;
+    counts[slug] = (counts[slug] || 0) + 1;
+  }
+  return counts;
+}
+
+export function eventMatchesFavorite(event, favorites) {
+  const sports = favorites?.sports || [];
+  const leagues = favorites?.leagues || [];
+  const teams = favorites?.teams || [];
+  if (sports.includes(event.sport)) return true;
+  const scoped = `${event.sport}:${event.competition_key}`;
+  if (leagues.includes(scoped) || leagues.includes(event.competition_key)) return true;
+  const keys = [
+    event.home?.id,
+    event.home?.slug,
+    event.away?.id,
+    event.away?.slug,
+    event.participant_a?.id,
+    event.participant_b?.id,
+    event.id,
+  ].filter(Boolean);
+  return keys.some((key) => teams.includes(String(key)));
 }
 
 export function eventPath(eventId) {
