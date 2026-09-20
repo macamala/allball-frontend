@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { getMatch, getStandings } from "../api.js";
+import { getArticles, getMatch, getStandings } from "../api.js";
 import { setPageSeo, breadcrumbJsonLd } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { eventPath, publicEventSafe, normalizeEvent, participantName } from "../lib/sportsData.js";
@@ -21,6 +21,7 @@ export default function MatchPage() {
   const preview = location.state?.event?.id === matchId ? location.state.event : null;
   const [data, setData] = useState(null);
   const [standings, setStandings] = useState([]);
+  const [articles, setArticles] = useState([]);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +30,7 @@ export default function MatchPage() {
     const controller = typeof AbortController === "function" ? new AbortController() : null;
     setData((prev) => (payloadEventId(prev) === matchId ? prev : null));
     setStandings([]);
+    setArticles([]);
     setError(false);
     setLoading(true);
     getMatch(matchId, controller ? { signal: controller.signal } : {})
@@ -84,11 +86,11 @@ export default function MatchPage() {
   }, [event?.id, event?.competition, path, t, title]);
 
   useEffect(() => {
-    if (!event?.competition_key) return undefined;
+    if (!event?.standings_available || !event?.competition_key) return undefined;
     let cancelled = false;
     getStandings(event.competition_key)
       .then((payload) => {
-        if (!cancelled && payload?.connected && Array.isArray(payload.rows)) {
+        if (!cancelled && payload?.connected && Array.isArray(payload.rows) && payload.rows.length) {
           setStandings(payload.rows);
         }
       })
@@ -96,7 +98,21 @@ export default function MatchPage() {
     return () => {
       cancelled = true;
     };
-  }, [event?.competition_key]);
+  }, [event?.competition_key, event?.standings_available]);
+
+  useEffect(() => {
+    if (!event?.sport || !event?.competition_key) return undefined;
+    let cancelled = false;
+    getArticles({ sport: event.sport, league: event.competition_key, limit: 6 })
+      .then((payload) => {
+        const rows = Array.isArray(payload) ? payload : payload?.articles || [];
+        if (!cancelled) setArticles(rows.filter((row) => row?.slug && row?.title));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [event?.sport, event?.competition_key]);
 
   if (loading && !event) {
     return (
@@ -118,7 +134,7 @@ export default function MatchPage() {
     <div className="page-match">
       <h1 className="sr-only">{title}</h1>
       {event ? (
-        <MatchCentre event={event} data={payloadEventId(data) === matchId ? data : null} standings={standings} detailPending={loading} />
+        <MatchCentre event={event} data={payloadEventId(data) === matchId ? data : null} standings={standings} articles={articles} detailPending={loading} />
       ) : (
         <ProviderPending title={t("match.readyTitle")} body={t("match.readyBody")} />
       )}

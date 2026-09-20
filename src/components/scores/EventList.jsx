@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { competitionPresentation } from "../../lib/competitionPresentation.js";
 import { competitionLabel } from "../../labels.js";
-import { groupEventsByCompetition } from "../../lib/sportsData.js";
+import { eventPath, groupEventsByCompetition } from "../../lib/sportsData.js";
 import { scopedCompetitionId } from "../../config/sports.js";
 import { flagEmoji } from "../../lib/identityAssets.js";
 import EventRow from "./EventRow.jsx";
@@ -116,6 +117,11 @@ export default function EventList({ events, compact = false }) {
                 label={title}
                 onClick={(ev) => toggleFollow(group, ev)}
               />
+              {group.events.some((item) => item.standings_available) ? (
+                <Link className="score-comp-standings" to={`${eventPath(group.events[0].id)}#mc-standings`}>
+                  Table
+                </Link>
+              ) : null}
             </header>
             {isCollapsed ? null : (
               <ul className="score-comp-list">

@@ -51,6 +51,11 @@ describe("participant display prefixes", () => {
     expect(sanitizeParticipantName("AC Milan")).toBe("AC Milan");
     expect(sanitizeParticipantName("US Sassuolo")).toBe("US Sassuolo");
     expect(sanitizeParticipantName("US Chicago White Sox")).toBe("Chicago White Sox");
+    expect(sanitizeParticipantName("IT Roma")).toBe("Roma");
+    expect(sanitizeParticipantName("US Colorado Springs", { competitionCountry: "US" })).toBe("Colorado Springs");
+    expect(sanitizeParticipantName("AC Milan")).toBe("AC Milan");
+    expect(sanitizeParticipantName("AS Roma")).toBe("AS Roma");
+    expect(sanitizeParticipantName("FC Barcelona")).toBe("FC Barcelona");
   });
 });
 

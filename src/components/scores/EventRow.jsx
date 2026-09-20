@@ -19,18 +19,13 @@ import Crest from "./Crest.jsx";
 import EventStatus from "./EventStatus.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
 import QuickEventDetail from "./QuickEventDetail.jsx";
-import { flagEmoji, sideCountry } from "../../lib/identityAssets.js";
 
 function SideLine({ side, event, score, winner, align }) {
-  const name = participantName(side) || "—";
-  const flag = flagEmoji(sideCountry(side, event.country_id));
+  const name = participantName(side, { sport: event.sport, competitionCountry: event.country_id }) || "—";
   return (
     <div className={`score-line is-${align} ${winner ? "is-winner" : ""}`}>
       <Crest side={side} />
-      <span className="score-name">
-        {flag ? <span className="score-flag">{flag}</span> : null}
-        {name}
-      </span>
+      <span className="score-name">{name}</span>
       <span className="score-mid">{score}</span>
     </div>
   );
@@ -80,12 +75,7 @@ function PairBody({ event, left, right }) {
     <div className="score-pair-grid">
       <div className={`score-team is-home ${winner === "home" ? "is-winner" : ""}`}>
         <Crest side={left} />
-        <span className="score-name">
-          {flagEmoji(sideCountry(left, event.country_id)) ? (
-            <span className="score-flag">{flagEmoji(sideCountry(left, event.country_id))}</span>
-          ) : null}
-          {participantName(left) || "—"}
-        </span>
+        <span className="score-name">{participantName(left, { sport: event.sport, competitionCountry: event.country_id }) || "—"}</span>
       </div>
       <div className="score-pair-score">
         <span className="score-mid">{scoreDisplay(event.score?.home)}</span>
@@ -93,12 +83,7 @@ function PairBody({ event, left, right }) {
         <span className="score-mid">{scoreDisplay(event.score?.away)}</span>
       </div>
       <div className={`score-team is-away ${winner === "away" ? "is-winner" : ""}`}>
-        <span className="score-name">
-          {flagEmoji(sideCountry(right, event.country_id)) ? (
-            <span className="score-flag">{flagEmoji(sideCountry(right, event.country_id))}</span>
-          ) : null}
-          {participantName(right) || "—"}
-        </span>
+        <span className="score-name">{participantName(right, { sport: event.sport, competitionCountry: event.country_id }) || "—"}</span>
         <Crest side={right} />
       </div>
     </div>

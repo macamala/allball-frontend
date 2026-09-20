@@ -13,6 +13,11 @@ const ROUND_LABEL = {
   final: "F",
 };
 
+const CLUB_PARTICLES = new Set(["AS", "AC", "FC", "CF", "SC", "SK", "SS", "RC", "CD", "UD"]);
+const KEEP_PARTICLES = new Set(["AS", "AC", "US", "SK", "SS", "FC", "CF"]);
+const STYLE_LEAD = new Set(["ACF", "SSC"]);
+const US_SPORTS = new Set(["baseball", "basketball", "american-football", "ice-hockey", "nfl", "nba", "mlb", "nhl"]);
+
 function compact(value) {
   return String(value || "").replace(/[\s._-]+/g, "");
 }
@@ -29,7 +34,69 @@ function winnerLoserLabel(kind, round, index) {
   return slot ? `${role} of ${slot}` : TBD;
 }
 
-export function sanitizeParticipantName(name) {
+function isoCountry(value) {
+  const raw = String(value || "").trim();
+  if (/^[a-z]{2}$/i.test(raw)) return raw.toUpperCase();
+  const folded = raw.toLowerCase().replace(/[\s_-]+/g, " ");
+  const map = {
+    italy: "IT",
+    usa: "US",
+    us: "US",
+    "united states": "US",
+    belgium: "BE",
+    england: "GB",
+    spain: "ES",
+    germany: "DE",
+    france: "FR",
+  };
+  return map[folded] || "";
+}
+
+export function stripTransportPrefix(name, options = {}) {
+  const raw = String(name || "").trim();
+  const match = raw.match(/^([A-Z]{2})\s+(.+)$/);
+  if (!match) return raw;
+  const code = match[1];
+  const rest = match[2].trim();
+  if (CLUB_PARTICLES.has(code)) return raw;
+  const sport = String(options.sport || "").toLowerCase();
+  const comp = isoCountry(options.competitionCountry);
+  const part = isoCountry(options.participantCountry);
+  const tokens = rest.split(/\s+/);
+  if (code === "US") {
+    const italianClub = tokens.length === 1 || (tokens.length === 2 && /^(calcio|fc)$/i.test(tokens[1]));
+    const metadata = US_SPORTS.has(sport) || comp === "US" || part === "US" || (!comp && !part && tokens.length >= 3);
+    if (italianClub && comp && comp !== "US" && part !== "US") return raw;
+    if (italianClub && !metadata) return raw;
+    if (metadata || (tokens.length >= 2 && comp === "US")) return rest;
+    if (tokens.length >= 3) return rest;
+    return raw;
+  }
+  if (!KEEP_PARTICLES.has(code) && /^[A-Z]{2}$/.test(code) && rest.length >= 3) return rest;
+  if (comp && code === comp) return rest;
+  return raw;
+}
+
+export function canonicalDisplayName(name, options = {}) {
+  const cleaned = stripTransportPrefix(String(name || "").trim(), options);
+  if (!cleaned) return "";
+  const folded = cleaned
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\binternazionale(?:\s+milano)?\b/g, "inter");
+  if (/\binter(?:nazionale)?\b/.test(folded) && !/\bmiami\b/.test(folded) && /internazionale/.test(cleaned.toLowerCase())) {
+    return "Inter";
+  }
+  const tokens = cleaned.split(/\s+/);
+  while (tokens.length && STYLE_LEAD.has(tokens[0].toUpperCase())) tokens.shift();
+  const particle = cleaned.split(/\s+/)[0] || "";
+  const rest = tokens.join(" ").trim();
+  if (KEEP_PARTICLES.has(particle.toUpperCase())) return cleaned;
+  return rest || cleaned;
+}
+
+export function sanitizeParticipantName(name, options = {}) {
   const raw = String(name || "").trim();
   if (!raw) return "";
   const folded = compact(raw);
@@ -79,24 +146,16 @@ export function sanitizeParticipantName(name) {
   if (/^\d{1,3}\s*[-–:/]\s*\d{1,3}$/.test(raw)) return "";
   if (/<[^>]+>/.test(raw)) return "";
 
-  const prefix = raw.match(/^([A-Z]{2})\s+(.+)$/);
-  if (prefix) {
-    const code = prefix[1];
-    const rest = prefix[2];
-    const particles = new Set(["AS", "AC", "FC", "CF", "SC", "SK", "SS", "RC", "CD", "UD"]);
-    if (!particles.has(code) && code !== "US" && /^[A-Z]{2}$/.test(code) && rest.length >= 3) {
-      return rest;
-    }
-    if (code === "US" && rest.split(/\s+/).length >= 3) return rest;
-  }
-
-  return raw;
+  return canonicalDisplayName(raw, options);
 }
 
-export function displayParticipantName(sideOrName) {
+export function displayParticipantName(sideOrName, options = {}) {
   if (!sideOrName) return "";
-  if (typeof sideOrName === "string") return sanitizeParticipantName(sideOrName);
-  return sanitizeParticipantName(sideOrName.display_name || sideOrName.name || "");
+  if (typeof sideOrName === "string") return sanitizeParticipantName(sideOrName, options);
+  return sanitizeParticipantName(sideOrName.display_name || sideOrName.name || "", {
+    ...options,
+    participantCountry: sideOrName.country_id || sideOrName.country || options.participantCountry,
+  });
 }
 
 export function isPlaceholderName(name) {

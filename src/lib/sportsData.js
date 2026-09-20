@@ -70,10 +70,13 @@ const FAMILY_TO_TYPE = {
 
 const MEET_SPORTS = new Set(["athletics", "swimming", "winter-sports"]);
 
-export function participantName(side) {
+export function participantName(side, options = {}) {
   if (!side) return "";
-  if (typeof side === "string") return sanitizeParticipantName(side);
-  return sanitizeParticipantName(side.display_name || side.name || "");
+  if (typeof side === "string") return sanitizeParticipantName(side, options);
+  return sanitizeParticipantName(side.display_name || side.name || "", {
+    ...options,
+    participantCountry: side.country_id || side.country,
+  });
 }
 
 export function participantLogo(side) {
@@ -81,25 +84,30 @@ export function participantLogo(side) {
   return side.logo || side.crest || side.image || "";
 }
 
-function normalizeSide(raw, fallbackName, fallbackSlug, side) {
+function normalizeSide(raw, fallbackName, fallbackSlug, side, options = {}) {
   if (raw && typeof raw === "object") {
     const name = raw.name || fallbackName || "";
+    const shown = sanitizeParticipantName(name, {
+      ...options,
+      participantCountry: raw.country_id || raw.country || raw.nationality,
+    });
     return {
       id: raw.id || "",
       slug: raw.slug || fallbackSlug || "",
-      name,
-      display_name: sanitizeParticipantName(name),
+      name: shown || name,
+      display_name: shown,
       side,
       logo: participantLogo(raw),
       country_id: raw.country_id || raw.country || raw.nationality || "",
     };
   }
   const name = raw || fallbackName || "";
+  const shown = sanitizeParticipantName(name, options);
   return {
     id: "",
     slug: fallbackSlug || "",
-    name,
-    display_name: sanitizeParticipantName(name),
+    name: shown || name,
+    display_name: shown,
     side,
     logo: "",
     country_id: "",
@@ -215,8 +223,14 @@ export function publicEventSafe(value) {
 
 export function normalizeEvent(raw) {
   if (!raw) return null;
-  const home = normalizeSide(raw.home, raw.home_team, raw.home_slug, "home");
-  const away = normalizeSide(raw.away, raw.away_team, raw.away_slug, "away");
+  const home = normalizeSide(raw.home, raw.home_team, raw.home_slug, "home", {
+    sport: raw.sport,
+    competitionCountry: raw.country_id,
+  });
+  const away = normalizeSide(raw.away, raw.away_team, raw.away_slug, "away", {
+    sport: raw.sport,
+    competitionCountry: raw.country_id,
+  });
   const participantA =
     raw.participant_a && typeof raw.participant_a === "object"
       ? normalizeSide(raw.participant_a, "", "", "a")
@@ -329,6 +343,11 @@ export function normalizeEvent(raw) {
     innings: raw.innings ?? null,
     player_statistics: raw.player_statistics ?? null,
     officials: raw.officials ?? null,
+    standings_available: Boolean(raw.standings_available),
+    timeline: raw.timeline ?? raw.incidents ?? null,
+    sport_detail: raw.sport_detail ?? null,
+    serving: raw.serving ?? raw.sport_detail?.serving ?? null,
+    current_set: raw.current_set ?? raw.sport_detail?.current_set ?? null,
   };
 }
 

@@ -3622,9 +3622,101 @@ select {
 
 .mc-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mc-tab {
+  flex: 0 0 auto;
+  color: var(--ns-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 6px 0;
+}
+
+.mc-timeline,
+.mc-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-timeline li,
+.mc-stats li {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ns-text) 8%, transparent);
+}
+
+.mc-minute,
+.mc-tl-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.mc-timeline-label {
+  margin: 12px 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ns-text-muted);
+}
+
+.mc-stat-nums {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) 3rem;
+  gap: 8px;
+  width: 100%;
+}
+
+.mc-stat-label {
+  text-align: center;
+  color: var(--ns-text-muted);
+  font-size: 0.8rem;
+}
+
+.mc-stat-bar {
+  height: 4px;
+  background: color-mix(in srgb, var(--ns-text) 12%, transparent);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.mc-stat-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ns-teal);
+}
+
+.mc-lineups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.mc-fav {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.score-comp-standings {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ns-teal);
+  text-decoration: none;
+  padding: 0 8px;
 }
 
 .mc-card {
@@ -3711,6 +3803,17 @@ select {
 
   .mc-player strong {
     font-size: 0.92rem;
+  }
+
+  .mc-lineups,
+  .mc-dl div,
+  .mc-stat-nums,
+  .mc-timeline li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mc-body {
+    padding-bottom: 88px;
   }
 
   .score-centre-layout.has-aside {

@@ -13,8 +13,67 @@ describe("score identity", () => {
     expect(namesEquivalent("Internacional", "Internacional -")).toBe(true);
     expect(namesEquivalent("Lens", "Racing Club de Lens")).toBe(true);
     expect(namesEquivalent("Espanyol", "RCD Espanyol de Barcelona")).toBe(true);
+    expect(namesEquivalent("Inter", "FC Internazionale Milano")).toBe(true);
+    expect(namesEquivalent("Fiorentina", "ACF Fiorentina")).toBe(true);
+    expect(namesEquivalent("Roma", "AS Roma")).toBe(true);
     expect(namesEquivalent("Inter", "Inter Miami")).toBe(false);
     expect(namesEquivalent("Real Madrid", "Real Sociedad")).toBe(false);
+  });
+
+  it("collapses Roma/Inter and Fiorentina/Napoli aliases without merging cup ties", () => {
+    const rows = collapseDisplayEvents([
+      {
+        id: "ri-a",
+        sport: "football",
+        competition_key: "serie-a",
+        start_time: "2026-09-20T18:45:00Z",
+        home: { name: "Roma" },
+        away: { name: "Inter" },
+        status: "finished",
+        score: { home: 2, away: 2 },
+      },
+      {
+        id: "ri-b",
+        sport: "football",
+        competition_key: "serie-a",
+        start_time: "2026-09-20T19:00:00Z",
+        home: { name: "AS Roma" },
+        away: { name: "FC Internazionale Milano" },
+        status: "scheduled",
+        score: { home: null, away: null },
+      },
+      {
+        id: "fn-a",
+        sport: "football",
+        competition_key: "serie-a",
+        start_time: "2026-09-20T18:45:00Z",
+        home: { name: "Fiorentina" },
+        away: { name: "Napoli" },
+        status: "halftime",
+        score: { home: 0, away: 1 },
+      },
+      {
+        id: "fn-b",
+        sport: "football",
+        competition_key: "serie-a",
+        start_time: "2026-09-20T19:05:00Z",
+        home: { name: "ACF Fiorentina" },
+        away: { name: "SSC Napoli" },
+        status: "scheduled",
+        score: { home: null, away: null },
+      },
+      {
+        id: "ri-cup",
+        sport: "football",
+        competition_key: "coppa",
+        start_time: "2026-09-20T18:45:00Z",
+        home: { name: "Roma" },
+        away: { name: "Inter" },
+        status: "scheduled",
+        score: { home: null, away: null },
+      },
+    ]);
+    expect(rows).toHaveLength(3);
   });
 
   it("collapses one fixture and keeps finished scores", () => {

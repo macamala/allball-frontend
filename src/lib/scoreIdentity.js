@@ -14,6 +14,7 @@ const LEGAL = new Set([
   "as",
   "us",
   "ssc",
+  "acf",
   "ud",
   "cd",
   "rcd",
@@ -52,8 +53,9 @@ function foldName(name) {
     .toLowerCase();
   raw = raw.replace(/\([a-z]{2,3}\)/g, " ");
   raw = raw.replace(/^[a-z]{2}\s+/, "");
+  raw = raw.replace(/\binternazionale(?:\s+milano)?\b/g, "inter");
   raw = raw.replace(
-    /\b(fc|cf|sc|afc|cfc|fk|nk|bk|if|il|sk|ac|as|us|ssc|ud|cd|rcd|sv|rc|vfl|calcio|club|clube|football|soccer)\b/g,
+    /\b(fc|cf|sc|afc|cfc|fk|nk|bk|if|il|sk|ac|as|us|ssc|acf|ud|cd|rcd|sv|rc|vfl|calcio|club|clube|football|soccer)\b/g,
     " "
   );
   raw = raw.replace(/\b(de|da|do|del|della|di|of|the|and|la|le|el|los|las)\b/g, " ");
@@ -72,7 +74,8 @@ function identityCore(name) {
 function expand(folded) {
   let text = String(folded || "")
     .replace(/\butd\b/g, "united")
-    .replace(/\bath\b/g, "athletic");
+    .replace(/\bath\b/g, "athletic")
+    .replace(/\binternazionale(?:\s+milano)?\b/g, "inter");
   let tokens = text.split(" ").filter(Boolean);
   while (tokens.length > 1 && LEADING.has(tokens[0]) && tokens.slice(1).join(" ").length >= 4) {
     tokens = tokens.slice(1);
@@ -147,6 +150,21 @@ function sameDay(left, right) {
   return String(left.start_time || "").slice(0, 10) === String(right.start_time || "").slice(0, 10);
 }
 
+function kickoffCompatible(left, right) {
+  const t0 = Date.parse(left.start_time);
+  const t1 = Date.parse(right.start_time);
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return sameDay(left, right);
+  const max = ["baseball", "basketball"].includes(left.sport) ? 4 * 3600 * 1000 : 12 * 3600 * 1000;
+  return Math.abs(t0 - t1) <= max;
+}
+
+function roundsCompatible(left, right) {
+  const a = String(left.round || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const b = String(right.round || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (!a || !b) return true;
+  return a === b;
+}
+
 function sameCompetition(left, right) {
   const a = left.competition_key || left.competition || "";
   const b = right.competition_key || right.competition || "";
@@ -172,7 +190,8 @@ export function collapseDisplayEvents(events) {
       const other = list[j];
       if (hidden.has(other.id)) continue;
       if ((list[i].sport || "") !== (other.sport || "")) continue;
-      if (!sameCompetition(list[i], other) || !sameDay(list[i], other)) continue;
+      if (!sameCompetition(list[i], other) || !kickoffCompatible(list[i], other)) continue;
+      if (!roundsCompatible(list[i], other)) continue;
       if (!participantsMatch(list[i], other)) continue;
       const keeper = preferEvent(list[i], other);
       const loser = keeper === list[i] ? other : list[i];
