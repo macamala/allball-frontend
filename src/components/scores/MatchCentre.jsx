@@ -85,13 +85,10 @@ function PairScoreboard({ event, t, locale }) {
         <ParticipantBlock side={event.home} event={event} align="home" />
         <div className="mc-score">
           <div className="mc-score-value">{score}</div>
-          <div className={`mc-score-status ${live ? "is-live" : ""}`}>
-            {live ? t("live.live") : finished ? statusLabel(event, t, time) : time || t("live.scheduled")}
-          </div>
+          <div className={`mc-score-status ${live ? "is-live" : ""}`}>{statusLabel(event, t, time)}</div>
         </div>
         <ParticipantBlock side={event.away} event={event} align="away" />
       </div>
-      {live ? <p className="mc-state">{statusLabel(event, t, time)}</p> : null}
       {!live && stamp ? <p className="mc-when">{stamp}</p> : null}
     </header>
   );

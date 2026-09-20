@@ -131,6 +131,10 @@ select {
   overflow-x: hidden;
 }
 
+.page-main:has(.page-match) {
+  flex-grow: 0;
+}
+
 .site-header {
   position: sticky;
   top: 0;
