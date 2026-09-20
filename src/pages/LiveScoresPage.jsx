@@ -13,6 +13,7 @@ import {
   matchesStatusView,
   mergeEventPayload,
   normalizeEvent,
+  publicEventSafe,
   sportCounts,
   statusCounts,
 } from "../lib/sportsData.js";
@@ -54,7 +55,7 @@ const PRIMARY_SPORTS = [
 
 function payloadEvents(data) {
   const raw = data?.events?.length ? data.events : data?.matches || [];
-  return raw.map(normalizeEvent).filter((item) => item?.id);
+  return raw.map((row) => normalizeEvent(publicEventSafe(row))).filter((item) => item?.id);
 }
 
 function eventMatchesSport(event, sport) {

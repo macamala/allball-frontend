@@ -3,7 +3,7 @@ import { useLocation, useParams } from "react-router-dom";
 import { getMatch, getStandings } from "../api.js";
 import { setPageSeo, breadcrumbJsonLd } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
-import { eventPath, normalizeEvent, participantName } from "../lib/sportsData.js";
+import { eventPath, publicEventSafe, normalizeEvent, participantName } from "../lib/sportsData.js";
 import { competitionLabel } from "../labels.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -56,9 +56,9 @@ export default function MatchPage() {
   const event = useMemo(() => {
     const payloadEvent = data?.event || data?.header;
     if (payloadEvent && (payloadEvent.id === matchId || data?.id === matchId)) {
-      return normalizeEvent(payloadEvent);
+      return normalizeEvent(publicEventSafe(payloadEvent));
     }
-    if (preview) return normalizeEvent(preview);
+    if (preview) return normalizeEvent(publicEventSafe(preview));
     return null;
   }, [data, preview, matchId]);
   const home = participantName(event?.home);

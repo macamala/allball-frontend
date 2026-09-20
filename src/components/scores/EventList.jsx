@@ -1,36 +1,25 @@
 import React, { useMemo, useState } from "react";
-import { useI18n } from "../../context/I18nContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { competitionLabel, countryLabel } from "../../labels.js";
-import { sportI18nKey } from "../../i18n/index.js";
+import { competitionPresentation } from "../../lib/competitionPresentation.js";
+import { competitionLabel } from "../../labels.js";
 import { groupEventsByCompetition } from "../../lib/sportsData.js";
 import { scopedCompetitionId } from "../../config/sports.js";
-import { competitionKind } from "../../lib/scorePresentation.js";
 import { flagEmoji } from "../../lib/identityAssets.js";
-import { getRegistrySport } from "../../config/sportsRegistry.js";
 import EventRow from "./EventRow.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
 
-function headerMeta(group, t) {
+function headerMeta(group) {
   const sample = group.events[0] || {};
-  const kind = competitionKind(sample);
-  const sportLabelText = t(sportI18nKey(group.sport) || "sport.label");
-  const country = group.country_id ? countryLabel(group.country_id) : "";
-  const registry = getRegistrySport(group.sport);
-  if (kind === "esports") {
-    return { kicker: registry?.name || sportLabelText, showFlag: false };
-  }
-  if (kind === "race") {
-    return { kicker: sample.series_id || sportLabelText, showFlag: Boolean(country && sample.country_based) };
-  }
-  if (kind === "meet" || kind === "tournament") {
-    return { kicker: sportLabelText, showFlag: false };
-  }
-  return { kicker: country || sportLabelText, showFlag: Boolean(group.country_id && country) };
+  const presented = competitionPresentation({ ...group, ...sample, events: group.events });
+  return {
+    kicker: presented.kicker,
+    showFlag: presented.showFlag,
+    countryId: presented.countryId,
+    title: presented.displayName || competitionLabel(group.competition),
+  };
 }
 
 export default function EventList({ events, compact = false }) {
-  const { t } = useI18n();
   const { favorites, syncFavorites } = useAuth();
   const followedLeagues = favorites?.leagues || [];
   const followedSports = favorites?.sports || [];
@@ -76,13 +65,13 @@ export default function EventList({ events, compact = false }) {
   return (
     <div className="score-groups">
       {groups.map((group) => {
-        const title = competitionLabel(group.competition);
+        const meta = headerMeta(group);
+        const title = meta.title;
         const followed =
           followedLeagues.includes(scopedCompetitionId(group.sport, group.key)) ||
           followedLeagues.includes(group.key);
-        const meta = headerMeta(group, t);
         const logo = group.events.find((item) => item.competition_logo)?.competition_logo;
-        const flag = meta.showFlag ? flagEmoji(group.country_id) : "";
+        const flag = meta.showFlag ? flagEmoji(meta.countryId) : "";
         const isCollapsed = collapsed.has(group.key);
         return (
           <section
@@ -93,7 +82,17 @@ export default function EventList({ events, compact = false }) {
             <header className="score-comp-head">
               <span className="score-comp-mark" aria-hidden="true">
                 {logo ? (
-                  <img src={logo} alt="" width={22} height={22} loading="lazy" decoding="async" />
+                  <img
+                    src={logo}
+                    alt=""
+                    width={22}
+                    height={22}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.replaceWith(document.createElement("span"));
+                    }}
+                  />
                 ) : (
                   flag || ""
                 )}

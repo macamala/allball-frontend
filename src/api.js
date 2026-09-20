@@ -213,10 +213,6 @@ export function getSportsDataStatus() {
   return getJSON("/sports-data/status");
 }
 
-export function getDataSources() {
-  return getJSON("/sports-data/attribution");
-}
-
 export function getAuthProviders() {
   return getJSON("/auth/providers");
 }

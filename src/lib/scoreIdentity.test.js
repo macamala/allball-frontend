@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { collapseDisplayEvents, namesEquivalent } from "./scoreIdentity.js";
 
 describe("score identity", () => {
+  it("does not merge youth, women, or same names in different clubs", () => {
+    expect(namesEquivalent("Chelsea", "Chelsea U21")).toBe(false);
+    expect(namesEquivalent("Arsenal", "Arsenal Women")).toBe(false);
+    expect(namesEquivalent("Manchester United", "West Ham United")).toBe(false);
+  });
+
   it("equates official and short club names", () => {
     expect(namesEquivalent("São Paulo", "Sao Paulo - SP")).toBe(true);
     expect(namesEquivalent("Internacional", "Internacional -")).toBe(true);

@@ -79,6 +79,17 @@ export function sanitizeParticipantName(name) {
   if (/^\d{1,3}\s*[-–:/]\s*\d{1,3}$/.test(raw)) return "";
   if (/<[^>]+>/.test(raw)) return "";
 
+  const prefix = raw.match(/^([A-Z]{2})\s+(.+)$/);
+  if (prefix) {
+    const code = prefix[1];
+    const rest = prefix[2];
+    const particles = new Set(["AS", "AC", "FC", "CF", "SC", "SK", "SS", "RC", "CD", "UD"]);
+    if (!particles.has(code) && code !== "US" && /^[A-Z]{2}$/.test(code) && rest.length >= 3) {
+      return rest;
+    }
+    if (code === "US" && rest.split(/\s+/).length >= 3) return rest;
+  }
+
   return raw;
 }
 

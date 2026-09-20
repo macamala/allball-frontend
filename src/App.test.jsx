@@ -1696,8 +1696,8 @@ describe("Production quality surfaces", () => {
     expect(screen.getAllByText("Ilia Simakin").length).toBeGreaterThan(0);
     expect(screen.getByText("Chelsea")).toBeInTheDocument();
     const arsenalRow = screen.getByText("Arsenal").closest(".score-row");
-    expect(arsenalRow.querySelector(".score-line.is-home .score-mid")?.textContent).toBe("2");
-    expect(arsenalRow.querySelector(".score-line.is-away .score-mid")?.textContent).toBe("1");
+    expect(arsenalRow.querySelector(".score-pair-score")?.textContent).toMatch(/2/);
+    expect(arsenalRow.querySelector(".score-pair-score")?.textContent).toMatch(/1/);
     const scoreCells = [...document.querySelectorAll(".score-mid")].map((node) => node.textContent);
     expect(scoreCells).toContain("–");
     expect(scoreCells).toContain("0");

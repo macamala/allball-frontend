@@ -404,15 +404,6 @@ select {
   color: var(--muted);
 }
 
-.footer-data-sources {
-  margin: 0 0 10px;
-}
-
-.footer-data-sources a {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
 .footer-nav {
   display: flex;
   flex-wrap: wrap;
@@ -421,43 +412,6 @@ select {
 
 .footer-nav a {
   color: var(--muted);
-}
-
-.page-data-sources {
-  max-width: 720px;
-}
-
-.page-data-sources .data-source-list {
-  list-style: none;
-  padding: 0;
-  margin: 20px 0 0;
-  display: grid;
-  gap: 12px;
-}
-
-.page-data-sources .data-source-card {
-  margin: 0;
-  padding: 14px 16px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: var(--radius);
-  overflow-wrap: anywhere;
-}
-
-.data-source-card-body a,
-.data-source-name {
-  font-weight: 650;
-  color: inherit;
-}
-
-.data-source-copy {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.45;
-}
-
-.data-source-license {
-  display: none;
 }
 
 .breaking-bar {
@@ -3279,10 +3233,36 @@ select {
 
 .score-status-col { min-width: 0; }
 .score-pair,
+.score-pair-grid,
 .score-period-grid,
 .score-meta-main,
 .score-golf {
   min-width: 0;
+}
+
+.score-pair-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.score-pair-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 3.4rem;
+}
+
+.score-mid-sep {
+  color: var(--ns-text-muted);
+  font-weight: 700;
+}
+
+.score-team.is-winner .score-name,
+.score-pair-grid .is-winner .score-mid {
+  font-weight: 800;
 }
 
 .score-row.is-race .score-row-link,
@@ -3562,6 +3542,16 @@ select {
 
 .mc-hero.is-live {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ns-teal) 35%, transparent);
+}
+
+.mc-geo {
+  margin: 0 0 4px;
+  text-align: center;
+  color: var(--ns-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .mc-kicker {

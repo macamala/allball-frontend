@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
 import { useI18n } from "../../context/I18nContext.jsx";
+import { competitionPresentation } from "../../lib/competitionPresentation.js";
 import { competitionLabel } from "../../labels.js";
-import { sportI18nKey } from "../../i18n/index.js";
 import {
   formatEventDateTime,
   formatEventTime,
@@ -20,6 +20,12 @@ import {
   statusLabel,
 } from "../../lib/scorePresentation.js";
 import { flagEmoji, sideCountry } from "../../lib/identityAssets.js";
+
+function competitionHead(event) {
+  const presented = competitionPresentation(event);
+  const name = presented.displayName || competitionLabel(event.competition);
+  return { kicker: presented.kicker, name };
+}
 
 function asList(value) {
   if (!value) return [];
@@ -70,6 +76,7 @@ function ParticipantBlock({ side, event, align }) {
 }
 
 function PairScoreboard({ event, t, locale }) {
+  const presented = competitionHead(event);
   const live = isConfirmedLive(event);
   const finished = isFinishedStatus(event.status);
   const time = formatEventTime(event, locale);
@@ -77,8 +84,9 @@ function PairScoreboard({ event, t, locale }) {
   const stamp = formatEventDateTime(event, locale);
   return (
     <header className={`mc-hero ${live ? "is-live" : ""} ${finished ? "is-finished" : ""}`}>
+      {presented.kicker ? <p className="mc-geo">{presented.kicker}</p> : null}
       <p className="mc-kicker">
-        {competitionLabel(event.competition)}
+        {presented.name}
         {event.round ? ` · ${event.round}` : ""}
       </p>
       <div className="mc-board">
@@ -95,12 +103,14 @@ function PairScoreboard({ event, t, locale }) {
 }
 
 function MetaScoreboard({ event, t, locale }) {
+  const presented = competitionHead(event);
   const live = isConfirmedLive(event);
   const stamp = formatEventDateTime(event, locale);
   const names = namedField(event.classification || event.leaderboard || event.runners || event.athletes, 8);
   return (
     <header className={`mc-hero is-meta ${live ? "is-live" : ""}`}>
-      <p className="mc-kicker">{competitionLabel(event.competition)}</p>
+      {presented.kicker ? <p className="mc-geo">{presented.kicker}</p> : null}
+      <p className="mc-kicker">{presented.name}</p>
       <h2 className="mc-event-title">{eventTitle(event)}</h2>
       <div className={`mc-score-status ${live ? "is-live" : ""}`}>
         {statusLabel(event, t, formatEventTime(event, locale))}
@@ -198,7 +208,6 @@ export default function MatchCentre({ event, data, standings, detailPending = fa
     <div className="match-centre">
       <p className="kicker">
         <Link to="/live-scores">{t("liveScores")}</Link>
-        {event.sport ? ` · ${t(sportI18nKey(event.sport) || "sport.label")}` : ""}
       </p>
       {pair ? (
         <PairScoreboard event={event} t={t} locale={dateLocale} />

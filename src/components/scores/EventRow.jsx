@@ -77,21 +77,30 @@ function PairBody({ event, left, right }) {
     );
   }
   return (
-    <div className="score-pair">
-      <SideLine
-        side={left}
-        event={event}
-        score={scoreDisplay(event.score?.home)}
-        winner={winner === "home"}
-        align="home"
-      />
-      <SideLine
-        side={right}
-        event={event}
-        score={scoreDisplay(event.score?.away)}
-        winner={winner === "away"}
-        align="away"
-      />
+    <div className="score-pair-grid">
+      <div className={`score-team is-home ${winner === "home" ? "is-winner" : ""}`}>
+        <Crest side={left} />
+        <span className="score-name">
+          {flagEmoji(sideCountry(left, event.country_id)) ? (
+            <span className="score-flag">{flagEmoji(sideCountry(left, event.country_id))}</span>
+          ) : null}
+          {participantName(left) || "—"}
+        </span>
+      </div>
+      <div className="score-pair-score">
+        <span className="score-mid">{scoreDisplay(event.score?.home)}</span>
+        <span className="score-mid-sep">–</span>
+        <span className="score-mid">{scoreDisplay(event.score?.away)}</span>
+      </div>
+      <div className={`score-team is-away ${winner === "away" ? "is-winner" : ""}`}>
+        <span className="score-name">
+          {flagEmoji(sideCountry(right, event.country_id)) ? (
+            <span className="score-flag">{flagEmoji(sideCountry(right, event.country_id))}</span>
+          ) : null}
+          {participantName(right) || "—"}
+        </span>
+        <Crest side={right} />
+      </div>
     </div>
   );
 }

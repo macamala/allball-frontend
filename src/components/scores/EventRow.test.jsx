@@ -32,7 +32,10 @@ const footballLive = normalizeEvent({
   id: "fb-live",
   sport: "football",
   competition: "Premier League",
-  competition_key: "premier-league",
+  competition_key: "england-premier-league",
+  geography_label: "England",
+  scope_type: "DOMESTIC",
+  country_id: "england",
   event_family: "team_match",
   home: { name: "Arsenal", id: "ars" },
   away: { name: "Chelsea", id: "che" },
@@ -158,6 +161,7 @@ describe("Score Centre rows", () => {
       ],
     });
     wrap(<EventList events={[footballLive, tennis]} />);
+    expect(screen.getByText("England")).toBeInTheDocument();
     expect(screen.getByText("Set 3")).toBeInTheDocument();
     expect(document.querySelector(".score-period-grid")).toBeTruthy();
     fireEvent.click(screen.getByText("Premier League").closest("button"));
