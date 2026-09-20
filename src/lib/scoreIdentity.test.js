@@ -3,7 +3,8 @@ import { collapseDisplayEvents, namesEquivalent } from "./scoreIdentity.js";
 
 describe("score identity", () => {
   it("equates official and short club names", () => {
-    expect(namesEquivalent("Monaco", "AS Monaco FC")).toBe(true);
+    expect(namesEquivalent("São Paulo", "Sao Paulo - SP")).toBe(true);
+    expect(namesEquivalent("Internacional", "Internacional -")).toBe(true);
     expect(namesEquivalent("Lens", "Racing Club de Lens")).toBe(true);
     expect(namesEquivalent("Espanyol", "RCD Espanyol de Barcelona")).toBe(true);
     expect(namesEquivalent("Inter", "Inter Miami")).toBe(false);

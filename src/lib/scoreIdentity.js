@@ -110,7 +110,8 @@ function coresCompatible(left, right) {
   if (!extra.length) return false;
   if (extra.some((tok) => GENERIC.has(tok))) return false;
   if (GENERIC.has(shortS) || shortS.length < 6) return false;
-  return extra.length <= 3 && extra.every((tok) => CLUB_STYLE.has(tok) || tok.length >= 6);
+  if (extra.length <= 3 && extra.every((tok) => CLUB_STYLE.has(tok) || tok.length >= 6)) return true;
+  return shortS.length >= 8 && extra.every((tok) => tok.length > 1 && tok.length <= 3);
 }
 
 function sideName(side) {
