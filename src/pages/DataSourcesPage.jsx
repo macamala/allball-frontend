@@ -26,20 +26,24 @@ export default function DataSourcesPage() {
       <p className="lede">{t("dataSources.lede")}</p>
       {items.length ? (
         <ul className="data-source-list">
-          {items.map((item) => (
-            <li key={item.source_id || item.text}>
-              {item.url ? (
-                <a href={item.url} rel="noreferrer">
-                  {item.text}
-                </a>
-              ) : (
-                <span>{item.text}</span>
-              )}
-              {item.license_name ? (
-                <span className="data-source-license">{item.license_name}</span>
-              ) : null}
-            </li>
-          ))}
+          {items.map((item) => {
+            const name = item.name || item.provider || item.text;
+            const key = item.provider || item.name || item.source_id || name;
+            return (
+              <li key={key} className="data-source-card">
+                <div className="data-source-card-body">
+                  {item.url ? (
+                    <a href={item.url} rel="noreferrer">
+                      {name}
+                    </a>
+                  ) : (
+                    <span className="data-source-name">{name}</span>
+                  )}
+                  {item.description ? <p className="data-source-copy">{item.description}</p> : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="info-text">{payload?.message || t("dataSources.empty")}</p>
