@@ -140,7 +140,7 @@ function InfoRows({ event, t, locale }) {
     event.best_of ? [t("match.series"), `BO${event.best_of}`] : null,
     event.winner ? [t("match.winner"), event.winner] : null,
     event.game_id ? [t("match.game"), event.game_id] : null,
-    event.surface ? [t("match.surface") || "Surface", event.surface] : null,
+    event.surface ? ["Surface", event.surface] : null,
   ].filter(Boolean);
   if (!rows.length) return null;
   return (
