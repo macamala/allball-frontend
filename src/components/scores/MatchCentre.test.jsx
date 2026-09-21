@@ -251,5 +251,22 @@ describe("Match Centre layouts", () => {
       />
     );
     expect(screen.getAllByText(/Game 1/).length).toBeGreaterThan(0);
+
+    wrap(
+      <MatchCentre
+        event={{
+          id: "fb-stats",
+          sport: "football",
+          home: { name: "Roma" },
+          away: { name: "Lazio" },
+          player_statistics: [{ name: "De Bruyne", rating: 8.1, goals: 1, assists: 1 }],
+          statistics: [{ label: "Expected goals (xG)", home: 1.5, away: 1.4 }],
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getByText(/De Bruyne/)).toBeTruthy();
+    expect(screen.getByText(/Expected goals/)).toBeTruthy();
   });
 });

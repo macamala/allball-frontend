@@ -464,9 +464,15 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                 <ul>
                   {playerStats.slice(0, 40).map((row, index) => (
                     <li key={row.id || row.name || index}>
+                      {row.number ? `${row.number} ` : ""}
                       {row.name}
+                      {row.rating != null ? ` · ${row.rating}` : ""}
+                      {row.goals != null ? ` · ${row.goals} G` : ""}
+                      {row.assists != null ? ` · ${row.assists} A` : ""}
+                      {row.points != null ? ` · ${row.points} P` : ""}
                       {row.hits != null ? ` · ${row.hits} H` : ""}
-                      {row.points != null ? ` · ${row.points}` : ""}
+                      {row.rebounds != null ? ` · ${row.rebounds} REB` : ""}
+                      {row.kills != null ? ` · ${row.kills}/${row.deaths}/${row.assists}` : ""}
                     </li>
                   ))}
                 </ul>
