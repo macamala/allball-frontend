@@ -18,6 +18,10 @@ describe("score identity", () => {
     expect(namesEquivalent("Roma", "AS Roma")).toBe(true);
     expect(namesEquivalent("Inter", "Inter Miami")).toBe(false);
     expect(namesEquivalent("Real Madrid", "Real Sociedad")).toBe(false);
+    expect(namesEquivalent("Lokomotiv Tashkent", "Lok. Tashkent")).toBe(true);
+    expect(namesEquivalent("Bologna", "Bologna FC")).toBe(true);
+    expect(namesEquivalent("Torino", "Torino FC")).toBe(true);
+    expect(namesEquivalent("Arsenal", "Arsenal U21")).toBe(false);
   });
 
   it("collapses Roma/Inter and Fiorentina/Napoli aliases without merging cup ties", () => {

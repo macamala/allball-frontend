@@ -83,12 +83,31 @@ function expand(folded) {
   return tokens.join(" ").trim();
 }
 
+function tokenAbbreviationEquivalent(leftFolded, rightFolded) {
+  const ta = expand(leftFolded).split(" ").filter(Boolean);
+  const tb = expand(rightFolded).split(" ").filter(Boolean);
+  if (ta.length < 2 || ta.length !== tb.length) return false;
+  let matched = false;
+  for (let i = 0; i < ta.length; i += 1) {
+    const a = ta[i];
+    const b = tb[i];
+    if (a === b) continue;
+    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+    if (GENERIC.has(shorter) || shorter.length < 3 || !longer.startsWith(shorter) || longer.length - shorter.length < 3) {
+      return false;
+    }
+    matched = true;
+  }
+  return matched;
+}
+
 export function namesEquivalent(left, right) {
   const a = foldName(left);
   const b = foldName(right);
   if (!a || !b) return false;
   if (a === b) return true;
   if (expand(a) === expand(b)) return true;
+  if (tokenAbbreviationEquivalent(a, b)) return true;
   return coresCompatible(left, right);
 }
 

@@ -69,6 +69,8 @@ describe("daily scoreboard date and status", () => {
     expect(new Date(iso).toISOString().slice(0, 10)).toBe("2026-09-18");
     expect(dateKeyInTimeZone(iso, "UTC")).toBe("2026-09-18");
     expect(dateKeyInTimeZone(iso, "Australia/Sydney")).toBe("2026-09-19");
+    expect(dateKeyInTimeZone("2026-09-19T23:30:00Z", "UTC")).toBe("2026-09-19");
+    expect(dateKeyInTimeZone("2026-09-19T23:30:00Z", "Australia/Sydney")).toBe("2026-09-20");
     const bounds = localDayUtcBounds("2026-09-19");
     const from = new Date(bounds.date_from);
     const to = new Date(bounds.date_to);
