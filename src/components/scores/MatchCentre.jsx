@@ -355,7 +355,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
       const label =
         sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
           ? t("match.sets")
-          : sport === "baseball"
+          : sport === "baseball" || sport === "cricket"
             ? t("match.innings")
             : t("match.periods");
       list.push({ id: "periods", label });
@@ -365,8 +365,14 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     if (lineups) list.push({ id: "lineups", label: t("match.lineups") });
     if (playerStats.length) list.push({ id: "players", label: t("match.players") });
     if (maps.length) list.push({ id: "maps", label: t("match.maps") });
-    if (classification.length && (kind === "RACE" || kind === "MEET" || kind === "TOURNAMENT" || kind === "MULTI_EVENT_MEET")) {
-      list.push({ id: "classification", label: kind === "RACE" || kind === "MEET" ? t("match.runners") : t("match.classification") });
+    if (classification.length) {
+      const clsLabel =
+        kind === "RACE" || kind === "MEET"
+          ? t("match.runners")
+          : event.sport === "golf"
+            ? "Leaderboard"
+            : t("match.classification");
+      list.push({ id: "classification", label: clsLabel });
     }
     if (standings.length) list.push({ id: "standings", label: t("match.standings") });
     if (news.length) list.push({ id: "news", label: t("section.topStories") });
@@ -420,9 +426,9 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             {sets ? (
               <section className="mc-card" id="mc-periods">
                 <h2>
-                  {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis"
+                  {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
                     ? t("match.sets")
-                    : event.sport === "baseball"
+                    : event.sport === "baseball" || event.sport === "cricket"
                       ? t("match.innings")
                       : t("match.periods")}
                 </h2>
@@ -472,6 +478,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                       {row.points != null ? ` · ${row.points} P` : ""}
                       {row.hits != null ? ` · ${row.hits} H` : ""}
                       {row.rebounds != null ? ` · ${row.rebounds} REB` : ""}
+                      {row.tries != null ? ` · ${row.tries} T` : ""}
                       {row.kills != null ? ` · ${row.kills}/${row.deaths}/${row.assists}` : ""}
                     </li>
                   ))}
@@ -508,15 +515,22 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                 </ul>
               </section>
             ) : null}
-            {classification.length && (kind === "RACE" || kind === "MEET" || kind === "TOURNAMENT" || kind === "MULTI_EVENT_MEET") ? (
+            {classification.length ? (
               <section className="mc-card" id="mc-classification">
-                <h2>{t("match.classification")}</h2>
+                <h2>{event.sport === "golf" ? "Leaderboard" : t("match.classification")}</h2>
                 <ol className="mc-leader">
                   {classification.map((row, index) => {
                     const name =
                       typeof row === "string"
                         ? row
-                        : [row.position, row.trap != null ? `T${row.trap}` : "", row.name || row.player || row.driver || row.label]
+                        : [
+                            row.position,
+                            row.trap != null ? `T${row.trap}` : "",
+                            row.name || row.player || row.driver || row.label,
+                            row.total != null ? row.total : "",
+                            row.gap || row.interval || "",
+                            row.status || "",
+                          ]
                             .filter((part) => part !== "" && part != null)
                             .join(" ");
                     return <li key={row.id || name || index}>{name || String(row.value ?? "")}</li>;
