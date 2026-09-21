@@ -1,10 +1,12 @@
 import React from "react";
 
 const PREFERRED = {
-  football: ["position", "team", "played", "wins", "draws", "losses", "goal_difference", "points"],
+  football: ["position", "team", "played", "wins", "draws", "losses", "goals_for", "goals_against", "goal_difference", "points", "form"],
   basketball: ["position", "team", "wins", "losses", "pct", "conference", "division"],
-  "ice-hockey": ["position", "team", "played", "wins", "losses", "goal_difference", "points"],
-  baseball: ["position", "team", "wins", "losses", "pct", "gb"],
+  "ice-hockey": ["position", "team", "played", "wins", "losses", "ot_losses", "goal_difference", "points"],
+  baseball: ["position", "team", "wins", "losses", "pct", "group"],
+  rugby: ["position", "team", "played", "wins", "draws", "losses", "points"],
+  volleyball: ["position", "team", "played", "wins", "losses", "points"],
 };
 
 const LABELS = {
@@ -14,6 +16,9 @@ const LABELS = {
   wins: "W",
   draws: "D",
   losses: "L",
+  goals_for: "GF",
+  goals_against: "GA",
+  form: "Form",
   goal_difference: "GD",
   point_difference: "PD",
   points: "Pts",
