@@ -44,7 +44,7 @@ const LEGAL = new Set([
 
 const CLUB_STYLE = new Set(["racing", "olympique", "olympic", "deportivo"]);
 const GENERIC = new Set(["real", "sporting", "athletic", "united", "city", "inter", "racing"]);
-const LEADING = new Set(["fc", "cf", "sc", "afc", "vfl", "sv", "as", "ac", "us", "rc", "rcd", "the", "1"]);
+const LEADING = new Set(["fc", "cf", "sc", "afc", "vfl", "sv", "as", "ac", "us", "rc", "rcd", "the", "1", "ogc", "osc", "ssc", "acf"]);
 
 function foldName(name) {
   let raw = String(name || "")
@@ -108,7 +108,26 @@ export function namesEquivalent(left, right) {
   if (a === b) return true;
   if (expand(a) === expand(b)) return true;
   if (tokenAbbreviationEquivalent(a, b)) return true;
+  if (placeNameTransliterationEquivalent(a, b)) return true;
   return coresCompatible(left, right);
+}
+
+function consonantSkeleton(token) {
+  return String(token || "").replace(/[aeiouy]+/g, "");
+}
+
+function placeNameTransliterationEquivalent(leftFolded, rightFolded) {
+  const ta = expand(leftFolded).split(" ").filter(Boolean);
+  const tb = expand(rightFolded).split(" ").filter(Boolean);
+  if (ta.length < 2 || ta.length !== tb.length) return false;
+  if (ta.slice(0, -1).join(" ") !== tb.slice(0, -1).join(" ")) return false;
+  const la = ta[ta.length - 1];
+  const lb = tb[tb.length - 1];
+  if (la === lb || GENERIC.has(la) || GENERIC.has(lb)) return false;
+  if (Math.min(la.length, lb.length) < 6 || Math.abs(la.length - lb.length) > 1) return false;
+  const sa = consonantSkeleton(la);
+  const sb = consonantSkeleton(lb);
+  return sa === sb && sa.length >= 4;
 }
 
 function coresCompatible(left, right) {
