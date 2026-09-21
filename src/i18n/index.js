@@ -193,6 +193,8 @@ const en = {
   "match.box": "Box",
   "match.hits": "Hits",
   "match.errors": "Errors",
+  "match.players": "Players",
+  "match.runners": "Runners",
   "predictions": "Predictions",
   "predictions.title": "NinkoSports Predictions",
   "predictions.lede": "Choose a sport, a competition and a period. NinkoSports predictions appear when live fixture data is connected.",

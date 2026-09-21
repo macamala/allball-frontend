@@ -84,6 +84,8 @@ describe("Match Centre layouts", () => {
     expect(screen.getByText(/Saka/)).toBeTruthy();
     expect(screen.getByText(/Possession/)).toBeTruthy();
     expect(screen.getByText("Raya")).toBeTruthy();
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    expect(screen.getAllByText("Timeline").length).toBeGreaterThan(0);
     expect(screen.queryByText("Odds")).toBeNull();
   });
 
@@ -109,6 +111,7 @@ describe("Match Centre layouts", () => {
       />
     );
     expect(screen.getByText("Set 1")).toBeTruthy();
+    expect(screen.getAllByText("Sets").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Swiatek").length).toBeGreaterThan(0);
   });
 

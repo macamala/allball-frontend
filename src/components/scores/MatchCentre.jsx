@@ -347,15 +347,31 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const related = Array.isArray(data?.related) ? data.related : [];
   const news = Array.isArray(articles) ? articles.filter((row) => row?.slug && row?.title) : [];
 
+  const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
   const sections = useMemo(() => {
     const list = [{ id: "overview", label: t("match.overview") }];
+    if (sets) {
+      const sport = event.sport;
+      const label =
+        sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
+          ? t("match.sets")
+          : sport === "baseball"
+            ? t("match.innings")
+            : t("match.periods");
+      list.push({ id: "periods", label });
+    }
     if (incidents.length) list.push({ id: "timeline", label: t("match.timeline") });
     if (statistics.length) list.push({ id: "stats", label: t("predictions.statistics") });
     if (lineups) list.push({ id: "lineups", label: t("match.lineups") });
+    if (playerStats.length) list.push({ id: "players", label: t("match.players") });
+    if (maps.length) list.push({ id: "maps", label: t("match.maps") });
+    if (classification.length && (kind === "RACE" || kind === "MEET" || kind === "TOURNAMENT" || kind === "MULTI_EVENT_MEET")) {
+      list.push({ id: "classification", label: kind === "RACE" || kind === "MEET" ? t("match.runners") : t("match.classification") });
+    }
     if (standings.length) list.push({ id: "standings", label: t("match.standings") });
     if (news.length) list.push({ id: "news", label: t("section.topStories") });
     return list;
-  }, [incidents.length, lineups, news.length, standings.length, statistics.length, t]);
+  }, [classification.length, incidents.length, kind, lineups, maps.length, news.length, playerStats.length, sets, standings.length, statistics.length, t, event.sport]);
 
   const followedTeams = favorites?.teams || [];
   const homeKey = String(event.home?.id || event.home?.slug || "");
@@ -402,7 +418,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
       <div className="mc-body">
         <div id="mc-overview">
             {sets ? (
-              <section className="mc-card">
+              <section className="mc-card" id="mc-periods">
                 <h2>
                   {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis"
                     ? t("match.sets")
@@ -442,6 +458,20 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             {incidents.length ? <div id="mc-timeline"><Timeline items={incidents} t={t} /></div> : null}
             {statistics.length ? <div id="mc-stats"><StatCompare rows={statistics} t={t} /></div> : null}
             {lineups ? <div id="mc-lineups"><Lineups shape={lineups} event={event} t={t} /></div> : null}
+            {playerStats.length ? (
+              <section className="mc-card" id="mc-players">
+                <h2>{t("match.players")}</h2>
+                <ul>
+                  {playerStats.slice(0, 40).map((row, index) => (
+                    <li key={row.id || row.name || index}>
+                      {row.name}
+                      {row.hits != null ? ` · ${row.hits} H` : ""}
+                      {row.points != null ? ` · ${row.points}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             {hits || errors ? (
               <section className="mc-card">
                 <h2>{t("match.box")}</h2>
@@ -473,7 +503,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
               </section>
             ) : null}
             {classification.length && (kind === "RACE" || kind === "MEET" || kind === "TOURNAMENT" || kind === "MULTI_EVENT_MEET") ? (
-              <section className="mc-card">
+              <section className="mc-card" id="mc-classification">
                 <h2>{t("match.classification")}</h2>
                 <ol className="mc-leader">
                   {classification.map((row, index) => {
@@ -489,7 +519,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
               </section>
             ) : null}
             {maps.length ? (
-              <section className="mc-card">
+              <section className="mc-card" id="mc-maps">
                 <h2>{t("match.maps")}</h2>
                 <ul>
                   {maps.map((row, index) => (
