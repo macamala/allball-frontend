@@ -120,6 +120,7 @@ const en = {
   "live.suspended": "Suspended",
   "live.abandoned": "Abandoned",
   "live.walkover": "Walkover",
+  "live.retired": "Retired",
   "live.ht": "HT",
   "live.break": "Break",
   "live.raceFinished": "Finished",

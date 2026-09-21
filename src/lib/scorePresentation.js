@@ -251,8 +251,9 @@ export function liveClockLabel(event, t) {
 export function statusLabel(event, t, localeTime) {
   if (!event) return "";
   const raw = String(event.status || "").toLowerCase();
-  if (raw === "walkover") return t("live.walkover");
-  if (raw === "abandoned") return t("live.abandoned");
+  if (raw === "walkover" || event.walkover || event.result_type === "walkover") return t("live.walkover");
+  if (raw === "abandoned" || event.result_type === "abandoned") return t("live.abandoned");
+  if (event.result_type === "retirement") return t("live.retired");
   if (raw === "postponed") return t("live.postponed");
   if (raw === "delayed") return t("live.delayed");
   if (raw === "suspended") return t("live.suspended");
@@ -297,6 +298,8 @@ export function sportScoreText(event) {
   if (event.maps && Array.isArray(event.maps) && hasPairScore(event)) {
     return pairScoreText(event);
   }
+  if (event.walkover || event.result_type === "walkover") return "W/O";
+  if (event.result_type === "retirement") return "Retired";
   if (kind === "HEAD_TO_HEAD" && event.result_type) {
     const pair = pairScoreText(event);
     return pair === "–" ? String(event.result_type) : pair;
@@ -305,6 +308,7 @@ export function sportScoreText(event) {
 }
 
 export function namedLeader(event) {
+  if (event?.winner) return displayParticipantName(event.winner);
   const rows =
     event.classification ||
     event.leaderboard ||

@@ -271,7 +271,20 @@ describe("sport-specific score centre state", () => {
     ).toBe("▼9");
   });
 
-  it("keeps tennis and volleyball as set grids rather than a football scoreline", () => {
+  it("shows W/O for tennis walkovers instead of a blank finished score", () => {
+    const event = {
+      sport: "tennis",
+      event_family: "individual_match",
+      status: "finished",
+      result_type: "walkover",
+      walkover: true,
+      score: { home: null, away: null },
+    };
+    expect(sportScoreText(event)).toBe("W/O");
+    expect(statusLabel(event, (key) => key, "")).toBe("live.walkover");
+  });
+
+  it("uses tennis and volleyball period scores instead of a fake pair total", () => {
     const tennis = {
       sport: "tennis",
       event_family: "individual_match",
