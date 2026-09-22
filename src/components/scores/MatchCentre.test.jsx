@@ -519,4 +519,25 @@ describe("Match Centre layouts", () => {
     expect(screen.getByText(/red T1 25/)).toBeTruthy();
     expect(screen.getByText(/52:00/)).toBeTruthy();
   });
+
+  it("shows shot detail only when shots exist", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "liiga-1",
+          sport: "ice-hockey",
+          competition: "finland-liiga",
+          status: "finished",
+          home: { name: "HPK" },
+          away: { name: "TPS" },
+          score: { home: 2, away: 3 },
+          sport_detail: { shots: [{ period: 1, player: "Vili Alitalo", type: "shot", x: 10, y: 4 }] },
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getAllByText("Shots").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Vili Alitalo/)).toBeTruthy();
+  });
 });

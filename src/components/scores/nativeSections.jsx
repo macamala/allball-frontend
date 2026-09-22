@@ -72,6 +72,14 @@ const CLASS_COLUMNS = [
   ["fastest_lap", "Fastest lap"],
   ["points", "Pts"],
   ["total", "Total"],
+  ["nation", "Nation"],
+  ["shootings", "Shooting"],
+  ["car", "No"],
+  ["category", "Class"],
+  ["mark", "Mark"],
+  ["race", "Race"],
+  ["weight", "Wt"],
+  ["lane", "Lane"],
 ];
 
 function own(row, key) {
@@ -314,12 +322,36 @@ const PLAYER_FIELDS = [
   ["goals", "G"],
   ["rating", "Rating"],
   ["tries", "Tries"],
+  ["tackles", "Tackles"],
+  ["metres", "Metres"],
+  ["line_breaks", "Breaks"],
+  ["shots", "SOG"],
   ["at_bats", "AB"],
   ["hits", "H"],
   ["rbi", "RBI"],
   ["innings_pitched", "IP"],
   ["strikeouts", "K"],
 ];
+
+export function ShotList({ shots }) {
+  if (!Array.isArray(shots) || !shots.length) return null;
+  return (
+    <section className="mc-card" id="mc-shots">
+      <h2>Shots</h2>
+      <ul className="mc-innings">
+        {shots.slice(0, 24).map((row, index) => (
+          <li key={`${row.period || ""}-${row.player || ""}-${index}`}>
+            <strong>{row.period != null ? `P${row.period}` : "Shot"}</strong>
+            <span>
+              {[row.player, row.type].filter(Boolean).join(" · ")}
+              {row.x != null && row.y != null ? ` (${row.x}, ${row.y})` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export function PlayerTable({ rows, event }) {
   if (!rows.length) return null;

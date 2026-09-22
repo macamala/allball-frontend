@@ -31,6 +31,7 @@ import {
   Rubbers,
   RugbyScore,
   Scorecard,
+  ShotList,
   classificationColumns,
   cricketInnings,
   formatDuration,
@@ -385,6 +386,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const news = Array.isArray(articles) ? articles.filter((row) => row?.slug && row?.title) : [];
 
   const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
+  const shots = Array.isArray(event.sport_detail?.shots) ? event.sport_detail.shots : [];
   const sections = useMemo(() => {
     const list = [{ id: "overview", label: t("match.overview") }];
     if (rubbers.length) list.push({ id: "rubbers", label: "Rubbers" });
@@ -409,6 +411,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     if (shownStatistics.length) list.push({ id: "stats", label: t("predictions.statistics") });
     if (lineups) list.push({ id: "lineups", label: t("match.lineups") });
     if (playerStats.length) list.push({ id: "players", label: t("match.players") });
+    if (shots.length) list.push({ id: "shots", label: "Shots" });
     if (classification.length) {
       const clsLabel =
         kind === "RACE" || kind === "MEET"
@@ -421,7 +424,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     if (standings.length) list.push({ id: "standings", label: t("match.standings") });
     if (news.length) list.push({ id: "news", label: t("section.topStories") });
     return list;
-  }, [afl, classification.length, event.sport, games.length, incidents.length, innings.length, kind, lineups, news.length, playerStats.length, rubbers.length, rugby.length, scorecard.length, sets, shownStatistics.length, standings.length, t]);
+  }, [afl, classification.length, event.sport, games.length, incidents.length, innings.length, kind, lineups, news.length, playerStats.length, rubbers.length, rugby.length, scorecard.length, sets, shots.length, shownStatistics.length, standings.length, t]);
 
   const followedTeams = favorites?.teams || [];
   const homeKey = String(event.home?.id || event.home?.slug || "");
@@ -517,6 +520,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             {shownStatistics.length ? <div id="mc-stats"><StatCompare rows={shownStatistics} t={t} /></div> : null}
             {lineups ? <div id="mc-lineups"><Lineups shape={lineups} event={event} t={t} /></div> : null}
             <PlayerTable rows={playerStats} event={event} />
+            <ShotList shots={shots} />
             {hits || errors ? (
               <section className="mc-card">
                 <h2>{t("match.box")}</h2>
