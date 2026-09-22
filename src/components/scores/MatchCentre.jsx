@@ -16,11 +16,29 @@ import {
 } from "../../lib/sportsData.js";
 import {
   eventTitle,
+  formatPairScore,
   namedField,
   rendererForEvent,
   sportScoreText,
   statusLabel,
 } from "../../lib/scorePresentation.js";
+import {
+  AflScore,
+  ClassificationTable,
+  Games,
+  Innings,
+  PlayerTable,
+  Rubbers,
+  RugbyScore,
+  Scorecard,
+  classificationColumns,
+  cricketInnings,
+  formatDuration,
+  meetingRubbers,
+  rugbyScoring,
+  scorecardTables,
+  seriesGames,
+} from "./nativeSections.jsx";
 import { scopedCompetitionId } from "../../config/sports.js";
 
 function competitionHead(event) {
@@ -98,7 +116,13 @@ function PairScoreboard({ event, t, locale, favorite }) {
   const live = isConfirmedLive(event);
   const finished = isFinishedStatus(event.status);
   const time = formatEventTime(event, locale);
-  const score = live || finished ? sportScoreText(event) : t("predictions.vs");
+  const meeting = event.sport === "table-tennis" && event.sport_detail?.meeting;
+  const score =
+    live || finished
+      ? event.sport === "volleyball" || meeting
+        ? formatPairScore(event.score?.home, event.score?.away)
+        : sportScoreText(event)
+      : t("predictions.vs");
   const stamp = formatEventDateTime(event, locale);
   const detail = event.sport_detail || {};
   const clock = event.score?.clock || event.score?.minute || detail.clock || detail.minute;
@@ -165,15 +189,6 @@ function MetaScoreboard({ event, t, locale, favorite }) {
 function InfoRows({ event, t }) {
   const detail = event.sport_detail || {};
   const rows = [
-    event.sport === "australian-rules" && detail.goals
-      ? ["Goals", `${detail.goals.home ?? "–"} – ${detail.goals.away ?? "–"}`]
-      : null,
-    event.sport === "australian-rules" && detail.behinds
-      ? ["Behinds", `${detail.behinds.home ?? "–"} – ${detail.behinds.away ?? "–"}`]
-      : null,
-    event.sport === "australian-rules" && detail.score
-      ? ["Score", `${detail.score.home ?? "–"} – ${detail.score.away ?? "–"}`]
-      : null,
     event.venue ? [t("match.venue"), event.venue] : null,
     event.season ? [t("match.season"), event.season] : null,
     event.round ? [t("live.round"), event.round] : null,
@@ -187,6 +202,9 @@ function InfoRows({ event, t }) {
     event.game_id ? [t("match.game"), event.game_id] : null,
     usefulNumber(detail.inning) ? [t("match.innings"), `${detail.inning_half || ""} ${detail.inning}`.trim()] : null,
     usefulNumber(detail.outs) ? ["Outs", detail.outs] : null,
+    detail.batter ? ["Batter", detail.batter] : null,
+    detail.pitcher ? ["Pitcher", detail.pitcher] : null,
+    usefulNumber(detail.duration) ? ["Duration", formatDuration(detail.duration)] : null,
     event.serving ? ["Serve", event.serving] : null,
   ].filter(Boolean);
   if (!rows.length) return null;
@@ -347,11 +365,21 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const formUseful = Boolean(form?.home?.summary || form?.away?.summary);
   const hits = event.score?.hits;
   const errors = event.score?.errors;
-  const sets = setTable(event);
+  const rubbers = meetingRubbers(event);
+  const innings = cricketInnings(event);
+  const scorecard = scorecardTables(event);
+  const afl = event.sport === "australian-rules" && event.sport_detail?.goals;
+  const rugby = rugbyScoring(event);
+  const games = seriesGames(event);
+  const sets = rubbers.length || innings.length || afl ? null : setTable(event);
   const classification = Array.isArray(event.classification || event.leaderboard || event.runners || event.athletes)
     ? event.classification || event.leaderboard || event.runners || event.athletes
     : [];
-  const maps = Array.isArray(event.maps) ? event.maps : [];
+  const classColumns = classificationColumns(classification);
+  const shownStatistics =
+    event.sport === "australian-rules"
+      ? statistics.filter((row) => !["goals", "behinds", "score"].includes(String(row.label || "").toLowerCase()))
+      : statistics;
   const pair = kind === "TEAM_MATCH" || kind === "HEAD_TO_HEAD" || kind === "BRACKET";
   const related = Array.isArray(data?.related) ? data.related : [];
   const news = Array.isArray(articles) ? articles.filter((row) => row?.slug && row?.title) : [];
@@ -359,23 +387,28 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
   const sections = useMemo(() => {
     const list = [{ id: "overview", label: t("match.overview") }];
+    if (rubbers.length) list.push({ id: "rubbers", label: "Rubbers" });
+    if (afl) list.push({ id: "score", label: "Score" });
+    if (innings.length) list.push({ id: "innings", label: t("match.innings") });
+    if (scorecard.length) list.push({ id: "scorecard", label: "Scorecard" });
     if (sets) {
       const sport = event.sport;
       const label =
-        sport === "australian-rules"
-          ? "Goals / behinds"
-          : sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
+        sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
           ? t("match.sets")
-          : sport === "baseball" || sport === "cricket"
-            ? t("match.innings")
-            : t("match.periods");
+          : sport === "basketball"
+            ? "Quarters"
+            : sport === "baseball" || sport === "cricket"
+              ? t("match.innings")
+              : t("match.periods");
       list.push({ id: "periods", label });
     }
+    if (games.length) list.push({ id: "maps", label: "Games" });
     if (incidents.length) list.push({ id: "timeline", label: t("match.timeline") });
-    if (statistics.length) list.push({ id: "stats", label: t("predictions.statistics") });
+    if (rugby.length) list.push({ id: "rugby", label: "Scoring" });
+    if (shownStatistics.length) list.push({ id: "stats", label: t("predictions.statistics") });
     if (lineups) list.push({ id: "lineups", label: t("match.lineups") });
     if (playerStats.length) list.push({ id: "players", label: t("match.players") });
-    if (maps.length) list.push({ id: "maps", label: t("match.maps") });
     if (classification.length) {
       const clsLabel =
         kind === "RACE" || kind === "MEET"
@@ -388,7 +421,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     if (standings.length) list.push({ id: "standings", label: t("match.standings") });
     if (news.length) list.push({ id: "news", label: t("section.topStories") });
     return list;
-  }, [classification.length, incidents.length, kind, lineups, maps.length, news.length, playerStats.length, sets, standings.length, statistics.length, t, event.sport]);
+  }, [afl, classification.length, event.sport, games.length, incidents.length, innings.length, kind, lineups, news.length, playerStats.length, rubbers.length, rugby.length, scorecard.length, sets, shownStatistics.length, standings.length, t]);
 
   const followedTeams = favorites?.teams || [];
   const homeKey = String(event.home?.id || event.home?.slug || "");
@@ -434,16 +467,22 @@ export default function MatchCentre({ event, data, standings, articles = [], det
       ) : null}
       <div className="mc-body">
         <div id="mc-overview">
+            <Rubbers rubbers={rubbers} />
+            {afl ? <AflScore event={event} /> : null}
+            <Innings rows={innings} detail={event.sport_detail} />
+            <Scorecard blocks={scorecard} />
+            {rugby.length ? <RugbyScore rows={rugby} home={participantName(event.home)} away={participantName(event.away)} /> : null}
+            <Games games={games} event={event} />
             {sets ? (
               <section className="mc-card" id="mc-periods">
                 <h2>
-                  {event.sport === "australian-rules"
-                    ? "Goals / behinds"
-                    : event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
+                  {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
                     ? t("match.sets")
-                    : event.sport === "baseball" || event.sport === "cricket"
-                      ? t("match.innings")
-                      : t("match.periods")}
+                    : event.sport === "basketball"
+                      ? "Quarters"
+                      : event.sport === "baseball" || event.sport === "cricket"
+                        ? t("match.innings")
+                        : t("match.periods")}
                 </h2>
                 <table className="mc-sets">
                   <thead>
@@ -475,29 +514,9 @@ export default function MatchCentre({ event, data, standings, articles = [], det
               </section>
             ) : null}
             {incidents.length ? <div id="mc-timeline"><Timeline items={incidents} t={t} /></div> : null}
-            {statistics.length ? <div id="mc-stats"><StatCompare rows={statistics} t={t} /></div> : null}
+            {shownStatistics.length ? <div id="mc-stats"><StatCompare rows={shownStatistics} t={t} /></div> : null}
             {lineups ? <div id="mc-lineups"><Lineups shape={lineups} event={event} t={t} /></div> : null}
-            {playerStats.length ? (
-              <section className="mc-card" id="mc-players">
-                <h2>{t("match.players")}</h2>
-                <ul>
-                  {playerStats.slice(0, 40).map((row, index) => (
-                    <li key={row.id || row.name || index}>
-                      {row.number ? `${row.number} ` : ""}
-                      {row.name}
-                      {row.rating != null ? ` · ${row.rating}` : ""}
-                      {row.goals != null ? ` · ${row.goals} G` : ""}
-                      {row.assists != null ? ` · ${row.assists} A` : ""}
-                      {row.points != null ? ` · ${row.points} P` : ""}
-                      {row.hits != null ? ` · ${row.hits} H` : ""}
-                      {row.rebounds != null ? ` · ${row.rebounds} REB` : ""}
-                      {row.tries != null ? ` · ${row.tries} T` : ""}
-                      {row.kills != null ? ` · ${row.kills}/${row.deaths}/${row.assists}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            <PlayerTable rows={playerStats} event={event} />
             {hits || errors ? (
               <section className="mc-card">
                 <h2>{t("match.box")}</h2>
@@ -531,6 +550,8 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             {classification.length ? (
               <section className="mc-card" id="mc-classification">
                 <h2>{event.sport === "golf" ? "Leaderboard" : t("match.classification")}</h2>
+                {classColumns.length ? <ClassificationTable rows={classification} /> : null}
+                {classColumns.length ? null : (
                 <ol className="mc-leader">
                   {classification.map((row, index) => {
                     const name =
@@ -549,19 +570,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                     return <li key={row.id || name || index}>{name || String(row.value ?? "")}</li>;
                   })}
                 </ol>
-              </section>
-            ) : null}
-            {maps.length ? (
-              <section className="mc-card" id="mc-maps">
-                <h2>{t("match.maps")}</h2>
-                <ul>
-                  {maps.map((row, index) => (
-                    <li key={row.id || row.name || index}>
-                      {row.name || row.map || row.label || String(row.value ?? "")}
-                      {row.home != null || row.away != null ? ` ${row.home ?? ""}–${row.away ?? ""}` : ""}
-                    </li>
-                  ))}
-                </ul>
+                )}
               </section>
             ) : null}
             <InfoRows event={event} t={t} />

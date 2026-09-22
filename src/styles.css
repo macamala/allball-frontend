@@ -3758,6 +3758,82 @@ select {
   text-align: center;
 }
 
+.mc-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mc-rubbers,
+.mc-innings,
+.mc-rubber-games {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mc-rubber {
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ns-text) 8%, transparent);
+}
+
+.mc-rubber-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.mc-rubber-vs {
+  font-weight: 500;
+  color: var(--ns-text-muted);
+}
+
+.mc-rubber-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mc-rubber-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mc-rubber-games li,
+.mc-innings li {
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-rubber-games li {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ns-text) 8%, transparent);
+}
+
+.mc-innings li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ns-text) 8%, transparent);
+}
+
+.mc-class th,
+.mc-class td {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.mc-class td:first-child,
+.mc-class th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--ns-bg-elevated);
+}
+
 .empty-state.is-compact {
   padding: 18px 12px;
 }

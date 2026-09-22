@@ -298,8 +298,190 @@ describe("Match Centre layouts", () => {
     );
     expect(screen.getByText("10 – 12")).toBeTruthy();
     expect(screen.getByText("11 – 11")).toBeTruthy();
-    expect(screen.getAllByText("Goals / behinds").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Goals")).toHaveLength(1);
+    expect(screen.getAllByText("Behinds")).toHaveLength(1);
+    expect(screen.queryByText("Goals / behinds")).toBeNull();
     expect(screen.getAllByText("Fremantle").length).toBeGreaterThan(0);
     expect(screen.getByText("%")).toBeTruthy();
+  });
+
+  it("renders a table-tennis meeting as rubbers, including doubles", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "tt",
+          sport: "table-tennis",
+          home: { name: "Saarbrücken" },
+          away: { name: "Mühlhausen" },
+          status: "finished",
+          score: { home: 3, away: 1 },
+          periods: [{ label: "Rubber 1", home: 3, away: 1 }],
+          sport_detail: {
+            meeting: true,
+            rubbers: [
+              {
+                home: 3,
+                away: 1,
+                home_player: "Bastian Steger",
+                away_player: "Tom Jarvis",
+                games: [
+                  { home: 2, away: 11 },
+                  { home: 11, away: 2 },
+                  { home: 12, away: 10 },
+                  { home: 11, away: 9 },
+                ],
+              },
+              {
+                home: 3,
+                away: 2,
+                home_players: ["Anna One", "Bea Two"],
+                away_players: ["Cara Three", "Dora Four"],
+                games: [{ home: 11, away: 8 }],
+              },
+            ],
+          },
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getAllByText("3 – 1").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Bastian Steger/)).toBeTruthy();
+    expect(screen.getByText(/Tom Jarvis/)).toBeTruthy();
+    expect(screen.getByText("2 – 11")).toBeTruthy();
+    expect(screen.getByText("11 – 9")).toBeTruthy();
+    expect(screen.getByText(/Anna One \/ Bea Two/)).toBeTruthy();
+    expect(screen.getByText(/Cara Three \/ Dora Four/)).toBeTruthy();
+    expect(screen.getAllByText("Rubbers").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Rubber 1")).toBeNull();
+  });
+
+  it("renders volleyball sets beside the match score", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "vb",
+          sport: "volleyball",
+          home: { name: "Zawiercie" },
+          away: { name: "Lublin" },
+          status: "finished",
+          score: { home: 3, away: 0 },
+          periods: [
+            { label: "Set 1", home: 25, away: 19 },
+            { label: "Set 2", home: 25, away: 21 },
+            { label: "Set 3", home: 25, away: 14 },
+          ],
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getByText("3 – 0")).toBeTruthy();
+    expect(screen.getByText("Set 1")).toBeTruthy();
+    expect(screen.getAllByText("25").length).toBeGreaterThan(0);
+    expect(screen.getByText("14")).toBeTruthy();
+    expect(screen.getAllByText("Sets").length).toBeGreaterThan(0);
+  });
+
+  it("renders cricket innings and the match result", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "t20",
+          sport: "cricket",
+          home: { name: "St Lucia Kings" },
+          away: { name: "Guyana Amazon Warriors" },
+          status: "finished",
+          score: { home: 119, away: 122 },
+          innings: [
+            { label: "St Lucia Kings", runs: 119, wickets: 10, overs: 19 },
+            { label: "Guyana Amazon Warriors", runs: 122, wickets: 6, overs: 19, target: 120 },
+          ],
+          sport_detail: { result: "Guyana Amazon Warriors won", win_by: { wickets: 4 } },
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getByText("119/10 (19 overs)")).toBeTruthy();
+    expect(screen.getByText("122/6 (19 overs)")).toBeTruthy();
+    expect(screen.getByText("Target 120")).toBeTruthy();
+    expect(screen.getByText("Guyana Amazon Warriors won by 4 wickets")).toBeTruthy();
+    expect(screen.queryByText("Scorecard")).toBeNull();
+  });
+
+  it("renders a motorsport classification with the fields the payload actually has", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "gp",
+          sport: "motorsport",
+          event_family: "motorsport_race",
+          home: { name: "Australian Grand Prix" },
+          status: "finished",
+          classification: [
+            { position: "1", name: "George Russell", grid: "1", gap: "1:23:06.801", status: "Finished", fastest_lap: "1:22.670", points: "25" },
+          ],
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getAllByText("George Russell").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual([
+      "Pos",
+      "Name",
+      "Grid",
+      "Time / gap",
+      "Status",
+      "Fastest lap",
+      "Pts",
+    ]);
+    expect(screen.getByText("1:22.670")).toBeTruthy();
+  });
+
+  it("renders Euroleague quarters and rugby scoring only when those fields exist", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "el",
+          sport: "basketball",
+          home: { name: "Olympiacos" },
+          away: { name: "Madrid" },
+          status: "finished",
+          score: { home: 92, away: 85 },
+          periods: [{ label: "1", home: 31, away: 19 }],
+          player_statistics: [{ name: "WALKUP, THOMAS", points: 3, rebounds: 3, assists: 3, side: "home" }],
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getAllByText("Quarters").length).toBeGreaterThan(0);
+    expect(screen.getByText("WALKUP, THOMAS")).toBeTruthy();
+    expect(screen.getByText("PTS")).toBeTruthy();
+
+    wrap(
+      <MatchCentre
+        event={{
+          id: "rugby",
+          sport: "rugby",
+          home: { name: "Northampton Saints" },
+          away: { name: "Exeter Chiefs" },
+          status: "finished",
+          score: { home: 26, away: 17 },
+          sport_detail: { tries: { home: 4, away: 3 }, conversions: { home: 3, away: 1 }, penalties: { home: null, away: null } },
+          statistics: [{ label: "Possession", home: 58, away: 42 }],
+          lineups: { home: { start: [{ name: "Danilo Fischetti" }] }, away: { start: [{ name: "Joe Simmonds" }] } },
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getAllByText("tries").length).toBeGreaterThan(0);
+    expect(screen.queryByText("penalties")).toBeNull();
+    expect(screen.getByText("Danilo Fischetti")).toBeTruthy();
+    expect(screen.getByText(/Possession/)).toBeTruthy();
+    expect(screen.queryByText("Games")).toBeNull();
   });
 });
