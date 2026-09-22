@@ -273,23 +273,35 @@ export function ClassificationTable({ rows }) {
   );
 }
 
+function sideLine(row, side) {
+  const team = row?.[side];
+  if (!team || typeof team !== "object") return "";
+  const name = team.name || side;
+  const kills = team.kills == null ? "" : ` ${team.kills}`;
+  return `${side} ${name}${kills}`.trim();
+}
+
 export function Games({ games, event }) {
   if (!games.length) return null;
+  const bestOf = event?.best_of || event?.sport_detail?.best_of;
   return (
     <section className="mc-card" id="mc-maps">
       <h2>Games</h2>
-      {event.best_of ? <p className="mc-when">Best of {event.best_of}</p> : null}
+      {bestOf ? <p className="mc-when">Best of {bestOf}</p> : null}
       <ol className="mc-innings">
-        {games.map((row, index) => (
-          <li key={row.id || row.name || index}>
-            <strong>{row.name || row.map || row.label || `Game ${index + 1}`}</strong>
-            <span>
-              {row.home != null || row.away != null ? dash(row.home, row.away) : ""}
-              {row.winner ? ` · ${row.winner}` : ""}
-              {row.duration != null ? ` · ${formatDuration(row.duration)}` : ""}
-            </span>
-          </li>
-        ))}
+        {games.map((row, index) => {
+          const sides = [sideLine(row, "blue"), sideLine(row, "red")].filter(Boolean).join(" · ");
+          return (
+            <li key={row.id || row.name || index}>
+              <strong>{row.name || row.map || row.label || `Game ${index + 1}`}</strong>
+              <span>
+                {sides || (row.home != null || row.away != null ? dash(row.home, row.away) : "")}
+                {row.winner ? ` · ${row.winner}` : ""}
+                {row.duration != null ? ` · ${formatDuration(row.duration)}` : ""}
+              </span>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

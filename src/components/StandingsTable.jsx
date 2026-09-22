@@ -7,6 +7,7 @@ const PREFERRED = {
   baseball: ["position", "team", "wins", "losses", "pct", "group"],
   rugby: ["position", "team", "played", "wins", "draws", "losses", "points"],
   volleyball: ["position", "team", "played", "wins", "losses", "sets_for", "sets_against", "points"],
+  "table-tennis": ["position", "team", "played", "wins", "losses", "sets_for", "sets_against", "points"],
   "australian-rules": ["position", "team", "played", "wins", "losses", "draws", "percentage", "points"],
 };
 

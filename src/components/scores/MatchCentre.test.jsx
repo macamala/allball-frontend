@@ -484,4 +484,39 @@ describe("Match Centre layouts", () => {
     expect(screen.getByText(/Possession/)).toBeTruthy();
     expect(screen.queryByText("Games")).toBeNull();
   });
+
+  it("shows a LoL series as individual games", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "lol",
+          sport: "esports-lol",
+          home: { name: "T1" },
+          away: { name: "KT Rolster" },
+          status: "finished",
+          score: { home: 3, away: 2 },
+          sport_detail: {
+            best_of: 5,
+            series_id: "113475871524050783",
+            games: [
+              {
+                id: "113475871524050784",
+                name: 1,
+                blue: { name: "KT Rolster", side: "blue", kills: 11 },
+                red: { name: "T1", side: "red", kills: 25 },
+                duration: 3120,
+              },
+            ],
+          },
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+    expect(screen.getAllByText("Games").length).toBeGreaterThan(0);
+    expect(screen.getByText((_, node) => node?.tagName === "P" && /Best of\s*5/.test(node.textContent || ""))).toBeTruthy();
+    expect(screen.getByText(/blue KT Rolster 11/)).toBeTruthy();
+    expect(screen.getByText(/red T1 25/)).toBeTruthy();
+    expect(screen.getByText(/52:00/)).toBeTruthy();
+  });
 });
