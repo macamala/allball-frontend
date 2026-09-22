@@ -165,6 +165,15 @@ function MetaScoreboard({ event, t, locale, favorite }) {
 function InfoRows({ event, t }) {
   const detail = event.sport_detail || {};
   const rows = [
+    event.sport === "australian-rules" && detail.goals
+      ? ["Goals", `${detail.goals.home ?? "–"} – ${detail.goals.away ?? "–"}`]
+      : null,
+    event.sport === "australian-rules" && detail.behinds
+      ? ["Behinds", `${detail.behinds.home ?? "–"} – ${detail.behinds.away ?? "–"}`]
+      : null,
+    event.sport === "australian-rules" && detail.score
+      ? ["Score", `${detail.score.home ?? "–"} – ${detail.score.away ?? "–"}`]
+      : null,
     event.venue ? [t("match.venue"), event.venue] : null,
     event.season ? [t("match.season"), event.season] : null,
     event.round ? [t("live.round"), event.round] : null,
@@ -353,7 +362,9 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     if (sets) {
       const sport = event.sport;
       const label =
-        sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
+        sport === "australian-rules"
+          ? "Goals / behinds"
+          : sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
           ? t("match.sets")
           : sport === "baseball" || sport === "cricket"
             ? t("match.innings")
@@ -426,7 +437,9 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             {sets ? (
               <section className="mc-card" id="mc-periods">
                 <h2>
-                  {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
+                  {event.sport === "australian-rules"
+                    ? "Goals / behinds"
+                    : event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
                     ? t("match.sets")
                     : event.sport === "baseball" || event.sport === "cricket"
                       ? t("match.innings")

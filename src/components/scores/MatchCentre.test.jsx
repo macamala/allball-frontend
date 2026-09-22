@@ -269,4 +269,37 @@ describe("Match Centre layouts", () => {
     expect(screen.getByText(/De Bruyne/)).toBeTruthy();
     expect(screen.getByText(/Expected goals/)).toBeTruthy();
   });
+
+  it("renders AFL goals and behinds from sport detail", () => {
+    wrap(
+      <MatchCentre
+        event={{
+          id: "afl-1",
+          sport: "australian-rules",
+          home: { name: "Sydney Swans" },
+          away: { name: "Fremantle" },
+          score: { home: 71, away: 83 },
+          venue: "Sydney Cricket Ground",
+          sport_detail: {
+            goals: { home: 10, away: 12 },
+            behinds: { home: 11, away: 11 },
+            score: { home: 71, away: 83 },
+          },
+          periods: [
+            { label: "G", home: 10, away: 12 },
+            { label: "B", home: 11, away: 11 },
+          ],
+        }}
+        data={{}}
+        standings={[
+          { position: 1, team: "Fremantle", played: 23, wins: 19, losses: 4, percentage: 137.2, points: 76 },
+        ]}
+      />
+    );
+    expect(screen.getByText("10 – 12")).toBeTruthy();
+    expect(screen.getByText("11 – 11")).toBeTruthy();
+    expect(screen.getAllByText("Goals / behinds").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Fremantle").length).toBeGreaterThan(0);
+    expect(screen.getByText("%")).toBeTruthy();
+  });
 });
