@@ -4691,3 +4691,13 @@ select {
 .mc-stat-group+.mc-stat-group{margin-top:18px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--ns-text) 8%,transparent)}
 .mc-stat-group h3{margin:0 0 6px;font-size:.78rem;font-weight:900;letter-spacing:.045em;text-transform:uppercase;color:var(--ns-text-muted)}
 .mc-lineup-status{display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--ns-teal) 14%,transparent);color:var(--ns-teal);font-size:.68rem;font-weight:900;white-space:nowrap}
+
+
+/* Match Centre — player stat portraits */
+.mc-table-player{display:inline-flex;align-items:center;gap:8px;min-width:150px;text-align:left}
+.mc-table-player>span:last-child{display:inline-flex;align-items:baseline;gap:2px;min-width:0}
+.mc-table-player small{color:var(--ns-text-muted);font-size:.7rem}
+.mc-table-player strong{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mc-table-avatar{position:relative;width:30px;height:30px;flex:0 0 30px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:50%;background:color-mix(in srgb,var(--ns-text) 8%,transparent);font-size:.64rem;font-weight:900}
+.mc-table-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--ns-bg-elevated)}
+.mc-captain-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:4px;border-radius:50%;background:rgba(255,255,255,.9);color:#172019;font-size:.58rem;font-weight:900;text-shadow:none;vertical-align:middle}
