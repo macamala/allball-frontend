@@ -4307,3 +4307,13 @@ select {
     border-radius: 6px;
   }
 }
+
+
+/* Keep period columns and final scores aligned across every sport. */
+.page-scores .score-line > .score-sets {
+  grid-column: 3;
+}
+
+.page-scores .score-line > .score-mid {
+  grid-column: 4;
+}
