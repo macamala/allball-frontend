@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { isConfirmedLive, participantName } from "../../lib/sportsData.js";
+import { eventPath, isConfirmedLive, participantName } from "../../lib/sportsData.js";
 import {
   cricketScoreText,
   eventTitle,
@@ -18,74 +19,59 @@ import {
 import Crest from "./Crest.jsx";
 import EventStatus from "./EventStatus.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
-import QuickEventDetail from "./QuickEventDetail.jsx";
 
-function SideLine({ side, event, score, winner, align }) {
+function SideLine({ side, event, score, winner, align, periods = [] }) {
   const name = participantName(side, { sport: event.sport, competitionCountry: event.country_id }) || "—";
   return (
     <div className={`score-line is-${align} ${winner ? "is-winner" : ""}`}>
       <Crest side={side} />
       <span className="score-name">{name}</span>
+      {periods.length ? (
+        <span className="score-sets" aria-label="Period scores">
+          {periods.map((value, index) => (
+            <span key={index} className="score-set">{scoreDisplay(value)}</span>
+          ))}
+        </span>
+      ) : null}
       <span className="score-mid">{score}</span>
-    </div>
-  );
-}
-
-function PeriodGrid({ event, left, right }) {
-  const sets = periodRows(event);
-  const winner = winningSide(event);
-  return (
-    <div className="score-period-grid">
-      {[
-        { side: left, key: "home", align: "home" },
-        { side: right, key: "away", align: "away" },
-      ].map((row) => (
-        <div key={row.key} className={`score-line is-${row.align} ${winner === row.key ? "is-winner" : ""}`}>
-          <Crest side={row.side} />
-          <span className="score-name">{participantName(row.side) || "—"}</span>
-          <span className="score-sets">
-            <span className="score-mid">{scoreDisplay(event.score?.[row.key])}</span>
-            {sets.map((item, index) => (
-              <span key={index} className="score-set">
-                {scoreDisplay(item[row.key])}
-              </span>
-            ))}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
 
 function PairBody({ event, left, right }) {
   const winner = winningSide(event);
-  if (usesPeriodGrid(event)) {
-    return <PeriodGrid event={event} left={left} right={right} />;
-  }
+  const periods = usesPeriodGrid(event) ? periodRows(event) : [];
+  const homePeriods = periods.map((item) => item.home);
+  const awayPeriods = periods.map((item) => item.away);
   const cricket = event.sport === "cricket";
+
   if (cricket && (event.score?.runs != null || event.score?.wickets != null)) {
     return (
-      <div className="score-meta-main">
+      <div className="score-pair-stack">
         <SideLine side={left} event={event} score={cricketScoreText(event)} winner={winner === "home"} align="home" />
         <SideLine side={right} event={event} score="" winner={winner === "away"} align="away" />
       </div>
     );
   }
+
   return (
-    <div className="score-pair-grid">
-      <div className={`score-team is-home ${winner === "home" ? "is-winner" : ""}`}>
-        <Crest side={left} />
-        <span className="score-name">{participantName(left, { sport: event.sport, competitionCountry: event.country_id }) || "—"}</span>
-      </div>
-      <div className="score-pair-score">
-        <span className="score-mid">{scoreDisplay(event.score?.home)}</span>
-        <span className="score-mid-sep">–</span>
-        <span className="score-mid">{scoreDisplay(event.score?.away)}</span>
-      </div>
-      <div className={`score-team is-away ${winner === "away" ? "is-winner" : ""}`}>
-        <span className="score-name">{participantName(right, { sport: event.sport, competitionCountry: event.country_id }) || "—"}</span>
-        <Crest side={right} />
-      </div>
+    <div className="score-pair-stack">
+      <SideLine
+        side={left}
+        event={event}
+        score={scoreDisplay(event.score?.home)}
+        winner={winner === "home"}
+        align="home"
+        periods={homePeriods}
+      />
+      <SideLine
+        side={right}
+        event={event}
+        score={scoreDisplay(event.score?.away)}
+        winner={winner === "away"}
+        align="away"
+        periods={awayPeriods}
+      />
     </div>
   );
 }
@@ -157,7 +143,6 @@ function eventFavoriteKey(event) {
 function EventRowInner({ event, compact = false }) {
   const { t, dateLocale } = useI18n();
   const { favorites, syncFavorites } = useAuth();
-  const [open, setOpen] = useState(false);
   if (!event?.id) return null;
   const kind = rendererForEvent(event);
   const live = isConfirmedLive(event);
@@ -167,7 +152,6 @@ function EventRowInner({ event, compact = false }) {
     "score-row",
     compact ? "is-compact" : "",
     live ? "is-live" : "",
-    open ? "is-open" : "",
     `is-${kind.toLowerCase()}`,
   ]
     .filter(Boolean)
@@ -194,19 +178,11 @@ function EventRowInner({ event, compact = false }) {
           label={pressed ? t("live.unfollowEvent") : t("live.followEvent")}
           onClick={toggleFav}
         />
-        <button
-          type="button"
-          className="score-row-link"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
+        <Link className="score-row-link" to={eventPath(event.id)} state={{ event }}>
           <EventBody event={event} t={t} locale={dateLocale} />
-          <span className="score-chevron" aria-hidden="true">
-            {open ? "▾" : "›"}
-          </span>
-        </button>
+          <span className="score-chevron" aria-hidden="true">›</span>
+        </Link>
       </div>
-      {open ? <QuickEventDetail event={event} onClose={() => setOpen(false)} /> : null}
     </li>
   );
 }

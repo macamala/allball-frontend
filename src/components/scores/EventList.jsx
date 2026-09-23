@@ -117,11 +117,14 @@ export default function EventList({ events, compact = false }) {
                 label={title}
                 onClick={(ev) => toggleFollow(group, ev)}
               />
-              {group.events.some((item) => item.standings_available) ? (
-                <Link className="score-comp-standings" to={`${eventPath(group.events[0].id)}#mc-standings`}>
-                  Table
-                </Link>
-              ) : null}
+              <div className="score-comp-actions">
+                {group.events.some((item) => item.standings_available) ? (
+                  <Link className="score-comp-standings" to={`${eventPath(group.events[0].id)}#mc-standings`}>
+                    Table
+                  </Link>
+                ) : null}
+                <span className="score-comp-count">{group.events.length}</span>
+              </div>
             </header>
             {isCollapsed ? null : (
               <ul className="score-comp-list">

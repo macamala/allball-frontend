@@ -3928,3 +3928,464 @@ select {
 }
 
 
+
+
+/* Live Scores rebuild — dense scoreboard presentation */
+.page-scores {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.page-scores .score-centre-head {
+  align-items: center;
+  margin: 2px 0 12px;
+}
+
+.page-scores .score-centre-sub {
+  max-width: 720px;
+}
+
+.page-scores .sport-rail {
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--ns-border);
+}
+
+.page-scores .sport-rail-scroll {
+  gap: 2px;
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+
+.page-scores .sport-chip {
+  min-height: 36px;
+  padding: 0 11px;
+  border-radius: 6px;
+  background: transparent;
+  font-weight: 700;
+}
+
+.page-scores .sport-chip:hover {
+  background: var(--ns-surface-hover);
+  color: var(--ns-text);
+}
+
+.page-scores .sport-chip.is-active {
+  background: var(--ns-blue);
+  color: #fff;
+}
+
+.page-scores .date-rail {
+  min-height: 44px;
+  margin: 0;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--ns-border);
+}
+
+.page-scores .date-chip,
+.page-scores .date-rail-step,
+.page-scores .date-cal {
+  border-radius: 6px;
+  background: transparent;
+}
+
+.page-scores .date-chip:hover,
+.page-scores .date-rail-step:hover,
+.page-scores .date-cal:hover {
+  background: var(--ns-surface-hover);
+}
+
+.page-scores .date-chip.is-active {
+  background: var(--ns-surface-2);
+  color: var(--ns-text);
+  box-shadow: inset 0 -2px 0 var(--ns-blue);
+}
+
+.page-scores .date-chip.is-today {
+  color: var(--ns-text);
+}
+
+.page-scores .score-status-tabs {
+  margin: 0 0 10px;
+  padding: 8px 0;
+  gap: 0;
+  border-bottom: 1px solid var(--ns-border);
+}
+
+.page-scores .status-tab {
+  min-height: 34px;
+  border-radius: 6px;
+  padding: 0 11px;
+}
+
+.page-scores .status-tab:hover {
+  background: var(--ns-surface-hover);
+  color: var(--ns-text);
+}
+
+.page-scores .status-tab.is-active {
+  background: var(--ns-surface-2);
+}
+
+.page-scores .score-centre-main {
+  max-width: none;
+  min-width: 0;
+}
+
+.page-scores .score-centre-layout.has-aside {
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 18px;
+}
+
+.page-scores .score-groups {
+  gap: 8px;
+}
+
+.page-scores .score-comp {
+  border: 1px solid var(--ns-border);
+  border-radius: 6px;
+  background: var(--ns-bg-elevated);
+}
+
+.page-scores .score-comp-head {
+  grid-template-columns: 24px minmax(0, 1fr) auto auto;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 8px;
+  background: var(--ns-surface);
+  border-bottom: 1px solid var(--ns-border);
+}
+
+.page-scores .score-comp-mark,
+.page-scores .score-comp-mark img {
+  width: 20px;
+  height: 20px;
+}
+
+.page-scores .score-comp-kicker {
+  font-size: 0.64rem;
+}
+
+.page-scores .score-comp-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.page-scores .score-comp-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-scores .score-comp-count {
+  min-width: 24px;
+  text-align: right;
+  color: var(--ns-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-scores .score-comp-standings {
+  padding: 0;
+  color: var(--ns-blue);
+}
+
+.page-scores .score-row-frame {
+  grid-template-columns: 32px minmax(0, 1fr);
+}
+
+.page-scores .score-row-link {
+  grid-template-columns: 62px minmax(0, 1fr) 12px;
+  gap: 10px;
+  min-height: 58px;
+  padding: 5px 8px 5px 0;
+  border-top: 1px solid color-mix(in srgb, var(--ns-border) 70%, transparent);
+}
+
+.page-scores .score-row:first-child .score-row-link {
+  border-top: 0;
+}
+
+.page-scores .score-row-link:hover {
+  background: color-mix(in srgb, var(--ns-surface-hover) 72%, transparent);
+}
+
+.page-scores .score-row.is-live .score-row-link {
+  box-shadow: inset 3px 0 0 var(--ns-teal);
+}
+
+.page-scores .score-status-col {
+  justify-content: flex-start;
+  font-size: 0.72rem;
+}
+
+.page-scores .score-pair-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.page-scores .score-line {
+  grid-template-columns: 22px minmax(0, 1fr) auto 28px;
+  gap: 7px;
+  min-height: 23px;
+}
+
+.page-scores .score-line .score-sets:empty {
+  display: none;
+}
+
+.page-scores .score-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.page-scores .score-line.is-winner .score-name,
+.page-scores .score-line.is-winner .score-mid {
+  font-weight: 800;
+}
+
+.page-scores .score-mid {
+  min-width: 24px;
+  text-align: right;
+  font-size: 0.92rem;
+}
+
+.page-scores .score-set {
+  min-width: 17px;
+  font-size: 0.71rem;
+}
+
+.page-scores .score-chevron {
+  opacity: 0.55;
+}
+
+.page-scores .score-row:hover .score-chevron {
+  opacity: 1;
+}
+
+.page-scores .score-star {
+  width: 32px;
+  min-width: 32px;
+  font-size: 0.95rem;
+}
+
+.page-scores .score-golf {
+  display: grid;
+  gap: 1px;
+}
+
+.page-scores .score-golf-row {
+  min-height: 20px;
+}
+
+.page-scores .score-meta-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.page-scores .score-race-title {
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+.page-scores .score-row-note {
+  grid-column: 1 / -1;
+}
+
+.page-scores .score-centre-aside {
+  padding: 10px 12px;
+  border: 1px solid var(--ns-border);
+  border-radius: 6px;
+  background: var(--ns-bg-elevated);
+}
+
+.match-centre {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.match-centre .mc-hero {
+  border: 1px solid var(--ns-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.match-centre .mc-tabs {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 3;
+  gap: 0;
+  margin: 0 0 10px;
+  padding: 0 8px;
+  background: var(--ns-bg);
+  border-bottom: 1px solid var(--ns-border);
+}
+
+.match-centre .mc-tab {
+  padding: 10px 12px 8px;
+  border-bottom: 2px solid transparent;
+}
+
+.match-centre .mc-tab:hover {
+  color: var(--ns-text);
+  border-bottom-color: var(--ns-border);
+}
+
+.match-centre .mc-card {
+  border: 1px solid var(--ns-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.match-centre .mc-score-value {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+@media (max-width: 720px) {
+  .page-scores {
+    width: 100%;
+  }
+
+  .page-scores .score-centre-sub {
+    display: none;
+  }
+
+  .page-scores .score-comp {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
+
+  .page-scores .score-row-link {
+    grid-template-columns: 50px minmax(0, 1fr) 10px;
+    min-height: 56px;
+    gap: 6px;
+    padding-right: 4px;
+  }
+
+  .page-scores .score-line {
+    grid-template-columns: 20px minmax(0, 1fr) auto 24px;
+    gap: 5px;
+  }
+
+  .page-scores .score-name {
+    font-size: 0.8rem;
+  }
+
+  .page-scores .score-sets {
+    gap: 4px;
+  }
+
+  .page-scores .score-set {
+    font-size: 0.68rem;
+    min-width: 14px;
+  }
+
+  .page-scores .score-comp-head {
+    grid-template-columns: 22px minmax(0, 1fr) auto auto;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .page-scores .score-comp-count {
+    display: none;
+  }
+
+  .match-centre {
+    width: 100%;
+  }
+
+  .match-centre .mc-tabs {
+    top: var(--header-h);
+    padding: 0;
+  }
+
+  .match-centre .mc-card,
+  .match-centre .mc-hero {
+    border-radius: 6px;
+  }
+}
+
+
+/* Keep period columns and final scores aligned across every sport. */
+.page-scores .score-line > .score-sets {
+  grid-column: 3;
+}
+
+.page-scores .score-line > .score-mid {
+  grid-column: 4;
+}
+
+
+.page-scores .score-active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 8px 0 0;
+  padding: 0 10px;
+  border: 1px solid var(--ns-border);
+  border-radius: 6px;
+  background: var(--ns-surface);
+  color: var(--ns-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.page-scores .score-active-filter button {
+  border: 0;
+  background: transparent;
+  color: var(--ns-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.match-centre .mc-tabs {
+  scrollbar-width: none;
+}
+
+.match-centre .mc-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.match-centre .mc-tab {
+  color: var(--ns-text-secondary);
+  white-space: nowrap;
+}
+
+.match-centre .mc-tab:first-child {
+  color: var(--ns-text);
+  border-bottom-color: var(--ns-blue);
+}
+
+.match-centre .mc-card > h2 {
+  letter-spacing: -0.01em;
+}
+
+.match-centre .mc-sets {
+  font-variant-numeric: tabular-nums;
+}
+
+.match-centre .mc-sets thead th {
+  color: var(--ns-text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.match-centre .mc-sets tbody th {
+  text-align: left;
+}
+
+@media (max-width: 720px) {
+  .page-scores .score-active-filter {
+    margin-left: 6px;
+  }
+
+  .match-centre .mc-tab {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}

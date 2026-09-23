@@ -288,6 +288,18 @@ export default function LiveScoresPage() {
         locale={dateLocale}
         onChange={(next) => updateParams({ date: next })}
       />
+      {competition ? (
+        <div className="score-active-filter" role="status">
+          <span>{competitionLabel(competition)}</span>
+          <button
+            type="button"
+            aria-label={t("nav.close")}
+            onClick={() => updateParams({ competition: "" })}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <div className="score-status-tabs" role="tablist" aria-label={t("liveScores")}>
         {STATUSES.map((item) => (
           <button
@@ -353,7 +365,7 @@ export default function LiveScoresPage() {
         </div>
         {showSidebar ? (
           <aside className="score-centre-aside">
-            {sidebarLive.length && (status === "upcoming" || status === "finished") ? (
+            {sidebarLive.length && status !== "live" ? (
               <section>
                 <h2>{t("live.liveNow")}</h2>
                 <ul className="score-aside-list">
@@ -363,7 +375,7 @@ export default function LiveScoresPage() {
                 </ul>
               </section>
             ) : null}
-            {(favorites?.leagues || []).length && topComps.length ? (
+            {topComps.length ? (
               <section>
                 <h2>{t("live.topCompetitions")}</h2>
                 <ul className="score-aside-links">

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../../context/I18nContext.jsx";
@@ -63,7 +63,7 @@ beforeEach(() => {
 });
 
 describe("Score Centre rows", () => {
-  it("renders a compact football live row and expands quick detail without dumping provider ids", async () => {
+  it("renders a compact football live row and links directly to the canonical Match Centre route", () => {
     wrap(
       <ul>
         <EventRow event={footballLive} />
@@ -75,13 +75,8 @@ describe("Score Centre rows", () => {
     expect(document.querySelector(".score-row.is-live")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Follow event/i }));
     expect(JSON.parse(window.localStorage.getItem("ninkosports.favorites.v1")).teams).toContain("ars");
-    fireEvent.click(screen.getByRole("button", { expanded: false }));
-    await waitFor(() => {
-      expect(screen.getByText(/Match Centre/)).toBeInTheDocument();
-    });
-    expect(screen.getByRole("link", { name: /Match Centre/ }).getAttribute("href")).toBe(
-      "/scores/event/fb-live"
-    );
+    const link = screen.getByRole("link", { name: /67’ Arsenal 2 Chelsea 1/i });
+    expect(link.getAttribute("href")).toBe("/scores/event/fb-live");
     expect(document.body.textContent).not.toMatch(/source_family/i);
   });
 
@@ -163,7 +158,7 @@ describe("Score Centre rows", () => {
     wrap(<EventList events={[footballLive, tennis]} />);
     expect(screen.getByText("England")).toBeInTheDocument();
     expect(screen.getByText("Set 3")).toBeInTheDocument();
-    expect(document.querySelector(".score-period-grid")).toBeTruthy();
+    expect(document.querySelector(".score-pair-stack .score-sets")).toBeTruthy();
     fireEvent.click(screen.getByText("Premier League").closest("button"));
     expect(screen.queryByText("Arsenal")).toBeNull();
   });
