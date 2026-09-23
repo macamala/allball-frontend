@@ -4532,7 +4532,11 @@ select {
 .mc-tabs{position:sticky;top:0;z-index:15;align-items:center;gap:0;padding:0 6px;margin:0 0 12px;background:color-mix(in srgb,var(--ns-bg) 94%,transparent);border-bottom:1px solid var(--ns-border);backdrop-filter:blur(12px);scrollbar-width:none}
 .mc-tabs::-webkit-scrollbar{display:none}
 .mc-tab{position:relative;min-height:44px;display:inline-flex;align-items:center;padding:0 12px;white-space:nowrap}
+.mc-tab{appearance:none;border:0;background:transparent;font:inherit;cursor:pointer}
 .mc-tab:hover,.mc-tab:focus-visible{color:var(--ns-text)}
+.mc-tab.is-active{color:var(--ns-text)}
+.mc-tab.is-active:after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;border-radius:999px;background:var(--ns-teal)}
+.mc-panel[hidden]{display:none!important}
 .mc-card{overflow:hidden}
 .mc-card>h2{padding-bottom:10px;border-bottom:1px solid color-mix(in srgb,var(--ns-text) 8%,transparent)}
 
