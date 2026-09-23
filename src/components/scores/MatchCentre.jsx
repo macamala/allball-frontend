@@ -431,6 +431,14 @@ function formationRows(side) {
   return rows;
 }
 
+function teamAverageRating(side) {
+  const values = (side?.start || [])
+    .map((player) => Number(player?.rating))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  if (!values.length) return "";
+  return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+}
+
 function PitchPlayer({ player }) {
   return (
     <div className="mc-pitch-player" title={[player?.name, player?.position].filter(Boolean).join(" · ")}>
@@ -438,7 +446,7 @@ function PitchPlayer({ player }) {
         <PlayerAvatar player={player} />
         {player?.number != null && player?.number !== "" ? <span className="mc-shirt-number">{player.number}</span> : null}
       </div>
-      <strong>{player?.name || "—"}</strong>
+      <strong>{player?.name || "—"}{player?.captain ? <span className="mc-captain-mark">C</span> : null}</strong>
       {player?.rating != null && player?.rating !== "" ? <span className="mc-player-rating">{player.rating}</span> : null}
     </div>
   );
@@ -479,17 +487,19 @@ function FootballLineups({ home, away, event, t, confirmed = false }) {
   const awayRows = formationRows(away).slice().reverse();
   const homeName = participantName(event.home);
   const awayName = participantName(event.away);
+  const homeRating = teamAverageRating(home);
+  const awayRating = teamAverageRating(away);
   return (
     <>
       <div className="mc-lineup-summary">
         <div>
           <strong>{homeName}</strong>
-          {home.formation ? <span>{home.formation}</span> : null}
+          {home.formation || homeRating ? <span>{[home.formation, homeRating ? `Rating ${homeRating}` : ""].filter(Boolean).join(" · ")}</span> : null}
         </div>
         {confirmed ? <span className="mc-lineup-status">Confirmed XI</span> : <span />}
         <div>
           <strong>{awayName}</strong>
-          {away.formation ? <span>{away.formation}</span> : null}
+          {away.formation || awayRating ? <span>{[away.formation, awayRating ? `Rating ${awayRating}` : ""].filter(Boolean).join(" · ")}</span> : null}
         </div>
       </div>
       <div className="mc-pitch" aria-label={t("match.lineups")}>
