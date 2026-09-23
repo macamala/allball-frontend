@@ -484,6 +484,33 @@ function PitchPlayer({ player }) {
   );
 }
 
+function StartingList({ side, label }) {
+  const starters = Array.isArray(side?.start) ? side.start.filter((row) => row?.name) : [];
+  if (!starters.length) return null;
+  return (
+    <div className="mc-squad-block">
+      <div className="mc-squad-title">
+        <strong>{label}</strong>
+        <span>Starting XI</span>
+      </div>
+      <ul className="mc-roster-list">
+        {starters.map((player, index) => (
+          <li key={player.id || player.name || index}>
+            <PlayerAvatar player={player} compact />
+            <span className="mc-bench-number">{player.number ?? ""}</span>
+            <span className="mc-bench-name">
+              {player.name}
+              {player.captain ? <span className="mc-list-captain">C</span> : null}
+            </span>
+            {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
+            {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function BenchList({ side, label, t }) {
   const bench = Array.isArray(side?.bench) ? side.bench.filter((row) => row?.name) : [];
   if (!bench.length && !side?.coach) return null;
@@ -553,6 +580,10 @@ function FootballLineups({ home, away, event, t, confirmed = false }) {
             </div>
           ))}
         </div>
+      </div>
+      <div className="mc-starting-lists">
+        <StartingList side={home} label={homeName} />
+        <StartingList side={away} label={awayName} />
       </div>
       <div className="mc-lineup-benches">
         <BenchList side={home} label={homeName} t={t} />
