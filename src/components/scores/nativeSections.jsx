@@ -366,8 +366,11 @@ const PLAYER_FIELDS = [
   ["points", "PTS"],
   ["rebounds", "REB"],
   ["assists", "AST"],
-  ["goals", "G"],
   ["rating", "Rating"],
+  ["minutes", "MIN"],
+  ["goals", "G"],
+  ["xg", "xG"],
+  ["xa", "xA"],
   ["tries", "Tries"],
   ["tackles", "Tackles"],
   ["metres", "Metres"],
@@ -400,6 +403,41 @@ export function ShotList({ shots }) {
   );
 }
 
+function tablePlayerInitials(name) {
+  return String(name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function TablePlayer({ row }) {
+  const image = row?.image || row?.photo || row?.avatar || "";
+  return (
+    <span className="mc-table-player">
+      <span className="mc-table-avatar">
+        <span>{tablePlayerInitials(row?.name)}</span>
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(event) => event.currentTarget.remove()}
+          />
+        ) : null}
+      </span>
+      <span>
+        {row.number ? <small>{row.number} </small> : null}
+        <strong>{row.name}</strong>
+        {row.hero ? <small> · {row.hero}</small> : null}
+      </span>
+    </span>
+  );
+}
+
 export function PlayerTable({ rows, event }) {
   if (!rows.length) return null;
   const combat = rows.some((row) => row.kills != null);
@@ -425,11 +463,7 @@ export function PlayerTable({ rows, event }) {
             <tbody>
               {group.map((row, index) => (
                 <tr key={row.id || row.name || index}>
-                  <td>
-                    {row.number ? `${row.number} ` : ""}
-                    {row.name}
-                    {row.hero ? ` · ${row.hero}` : ""}
-                  </td>
+                  <td><TablePlayer row={row} /></td>
                   {combat ? <td>{`${row.kills ?? 0}/${row.deaths ?? 0}/${row.assists ?? 0}`}</td> : null}
                   {fields.map(([key]) => (
                     <td key={key}>{row[key] ?? "–"}</td>
