@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
@@ -301,15 +301,196 @@ function StatCompare({ rows, t }) {
   );
 }
 
+function playerImage(player) {
+  return player?.image || player?.photo || player?.avatar || player?.image_url || player?.imageUrl || "";
+}
+
+function playerInitials(name) {
+  return String(name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function PlayerAvatar({ player, compact = false }) {
+  const [failed, setFailed] = useState(false);
+  const src = playerImage(player);
+  const number = player?.number != null && player?.number !== "" ? String(player.number) : "";
+  return (
+    <span className={`mc-player-avatar ${compact ? "is-compact" : ""}`}>
+      {src && !failed ? (
+        <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+      ) : (
+        <span className="mc-player-avatar-fallback">{number || playerInitials(player?.name)}</span>
+      )}
+    </span>
+  );
+}
+
+function formationRows(side) {
+  const starters = Array.isArray(side?.start) ? side.start.filter((row) => row?.name) : [];
+  if (!starters.length) return [];
+  const counts = String(side?.formation || "")
+    .match(/\d+/g)
+    ?.map(Number)
+    .filter((value) => value > 0);
+  let bands = counts && counts.reduce((sum, value) => sum + value, 0) === starters.length - 1 ? [1, ...counts] : null;
+  if (!bands) {
+    if (starters.length >= 11) bands = [1, 4, 4, starters.length - 9];
+    else if (starters.length >= 8) bands = [1, 3, 3, starters.length - 7];
+    else if (starters.length >= 5) bands = [1, 2, starters.length - 3];
+    else bands = [1, Math.max(1, starters.length - 1)];
+  }
+  const rows = [];
+  let cursor = 0;
+  bands.forEach((count) => {
+    const row = starters.slice(cursor, cursor + count);
+    if (row.length) rows.push(row);
+    cursor += count;
+  });
+  if (cursor < starters.length) rows.push(starters.slice(cursor));
+  return rows;
+}
+
+function PitchPlayer({ player }) {
+  return (
+    <div className="mc-pitch-player" title={[player?.name, player?.position].filter(Boolean).join(" · ")}>
+      <div className="mc-pitch-avatar-wrap">
+        <PlayerAvatar player={player} />
+        {player?.number != null && player?.number !== "" ? <span className="mc-shirt-number">{player.number}</span> : null}
+      </div>
+      <strong>{player?.name || "—"}</strong>
+      {player?.rating != null && player?.rating !== "" ? <span className="mc-player-rating">{player.rating}</span> : null}
+    </div>
+  );
+}
+
+function BenchList({ side, label, t }) {
+  const bench = Array.isArray(side?.bench) ? side.bench.filter((row) => row?.name) : [];
+  if (!bench.length && !side?.coach) return null;
+  return (
+    <div className="mc-squad-block">
+      <div className="mc-squad-title">
+        <strong>{label}</strong>
+        {side?.formation ? <span>{side.formation}</span> : null}
+      </div>
+      {side?.coach ? <p className="mc-coach">{t("match.coach")}: {side.coach}</p> : null}
+      {bench.length ? (
+        <>
+          <h4>{t("match.bench")}</h4>
+          <ul className="mc-bench-list">
+            {bench.map((player, index) => (
+              <li key={player.id || player.name || index}>
+                <PlayerAvatar player={player} compact />
+                <span className="mc-bench-number">{player.number ?? ""}</span>
+                <span className="mc-bench-name">{player.name}</span>
+                {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
+                {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function FootballLineups({ home, away, event, t }) {
+  const homeRows = formationRows(home);
+  const awayRows = formationRows(away).slice().reverse();
+  const homeName = participantName(event.home);
+  const awayName = participantName(event.away);
+  return (
+    <>
+      <div className="mc-lineup-summary">
+        <div>
+          <strong>{homeName}</strong>
+          {home.formation ? <span>{home.formation}</span> : null}
+        </div>
+        <span>{shapeConfirmedLabel(home, away)}</span>
+        <div>
+          <strong>{awayName}</strong>
+          {away.formation ? <span>{away.formation}</span> : null}
+        </div>
+      </div>
+      <div className="mc-pitch" aria-label={t("match.lineups")}>
+        <div className="mc-pitch-mark mc-pitch-center-line" />
+        <div className="mc-pitch-mark mc-pitch-center-circle" />
+        <div className="mc-pitch-box is-top" />
+        <div className="mc-pitch-box is-bottom" />
+        <div className="mc-pitch-team is-home">
+          {homeRows.map((row, rowIndex) => (
+            <div className="mc-pitch-row" key={`home-${rowIndex}`}>
+              {row.map((player, index) => <PitchPlayer player={player} key={player.id || player.name || index} />)}
+            </div>
+          ))}
+        </div>
+        <div className="mc-pitch-team is-away">
+          {awayRows.map((row, rowIndex) => (
+            <div className="mc-pitch-row" key={`away-${rowIndex}`}>
+              {row.map((player, index) => <PitchPlayer player={player} key={player.id || player.name || index} />)}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mc-lineup-benches">
+        <BenchList side={home} label={homeName} t={t} />
+        <BenchList side={away} label={awayName} t={t} />
+      </div>
+    </>
+  );
+}
+
+function shapeConfirmedLabel() {
+  return "";
+}
+
+function RosterLineups({ home, away, event, t }) {
+  return (
+    <div className="mc-rosters">
+      {[
+        [participantName(event.home), home],
+        [participantName(event.away), away],
+      ].map(([label, side]) => (
+        <div className="mc-squad-block" key={label}>
+          <div className="mc-squad-title">
+            <strong>{label}</strong>
+            {side.formation ? <span>{side.formation}</span> : null}
+          </div>
+          {side.coach ? <p className="mc-coach">{t("match.coach")}: {side.coach}</p> : null}
+          <ul className="mc-roster-list">
+            {(side.start || []).map((player, index) => (
+              <li key={player.id || player.name || index}>
+                <PlayerAvatar player={player} compact />
+                <span className="mc-bench-number">{player.number ?? ""}</span>
+                <span className="mc-bench-name">{player.name}</span>
+                {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
+                {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+              </li>
+            ))}
+          </ul>
+          {(side.bench || []).length ? <BenchList side={{ ...side, coach: null }} label={t("match.bench")} t={t} /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Lineups({ shape, event, t }) {
   if (!shape) return null;
   if (Array.isArray(shape)) {
     return (
-      <section className="mc-card">
+      <section className="mc-card mc-lineup-card">
         <h2>{t("match.lineups")}</h2>
-        <ul>
+        <ul className="mc-roster-list">
           {shape.map((row, index) => (
-            <li key={row.id || row.name || index}>{row.name || row.label}</li>
+            <li key={row.id || row.name || index}>
+              <PlayerAvatar player={row} compact />
+              <span className="mc-bench-name">{row.name || row.label}</span>
+            </li>
           ))}
         </ul>
       </section>
@@ -318,38 +499,13 @@ function Lineups({ shape, event, t }) {
   const home = shape.home || {};
   const away = shape.away || {};
   return (
-    <section className="mc-card">
+    <section className="mc-card mc-lineup-card">
       <h2>{t("match.lineups")}</h2>
-      <div className="mc-lineups">
-        {[
-          [participantName(event.home), home],
-          [participantName(event.away), away],
-        ].map(([label, side]) => (
-          <div key={label}>
-            <h3>{label}</h3>
-            {side.formation ? <p className="mc-when">{side.formation}</p> : null}
-            {side.coach ? <p className="mc-when">{t("match.coach")}: {side.coach}</p> : null}
-            <ul>
-              {(side.start || []).map((row, index) => (
-                <li key={row.name || index}>
-                  {row.number ? `${row.number} ` : ""}
-                  {row.name}
-                </li>
-              ))}
-            </ul>
-            {(side.bench || []).length ? (
-              <>
-                <h4>{t("match.bench")}</h4>
-                <ul>
-                  {side.bench.map((row, index) => (
-                    <li key={row.name || index}>{row.name}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-          </div>
-        ))}
-      </div>
+      {event.sport === "football" && (home.start || []).length >= 7 && (away.start || []).length >= 7 ? (
+        <FootballLineups home={home} away={away} event={event} t={t} />
+      ) : (
+        <RosterLineups home={home} away={away} event={event} t={t} />
+      )}
     </section>
   );
 }
