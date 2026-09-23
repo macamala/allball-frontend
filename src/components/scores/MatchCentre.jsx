@@ -359,12 +359,44 @@ function StatRow({ row }) {
   );
 }
 
-function StatCompare({ rows, t, sport }) {
+function StatCompare({ rows, t, sport, periods = {}, eventId }) {
+  const [activePeriod, setActivePeriod] = useState("all");
+
+  useEffect(() => {
+    setActivePeriod("all");
+  }, [eventId]);
+
   if (!rows.length) return null;
-  const groups = statisticGroups(rows, sport);
+  const options = [
+    ["all", "Match", Array.isArray(periods?.all) && periods.all.length ? periods.all : rows],
+    ["first_half", t("match.firstHalf"), Array.isArray(periods?.first_half) ? periods.first_half : []],
+    ["second_half", t("match.secondHalf"), Array.isArray(periods?.second_half) ? periods.second_half : []],
+  ].filter(([, , values]) => values.length);
+  const selected = options.find(([key]) => key === activePeriod) || options[0];
+  const activeRows = selected?.[2] || rows;
+  const groups = statisticGroups(activeRows, sport);
+
   return (
     <section className="mc-card mc-stats-card">
-      <h2>{t("predictions.statistics")}</h2>
+      <div className="mc-card-title-row">
+        <h2>{t("predictions.statistics")}</h2>
+        {options.length > 1 ? (
+          <div className="mc-stat-periods" role="tablist" aria-label="Statistics period">
+            {options.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={selected?.[0] === key}
+                className={selected?.[0] === key ? "is-active" : ""}
+                onClick={() => setActivePeriod(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       {groups.map(([label, group]) => (
         <div className="mc-stat-group" key={label}>
           {groups.length > 1 ? <h3>{label}</h3> : null}
@@ -620,6 +652,12 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     event.sport === "australian-rules"
       ? statistics.filter((row) => !["goals", "behinds", "score"].includes(String(row.label || "").toLowerCase()))
       : statistics;
+  const statisticsPeriods =
+    (event.sport_detail && typeof event.sport_detail.statistics_periods === "object"
+      ? event.sport_detail.statistics_periods
+      : null) ||
+    (data?.statistics_periods && typeof data.statistics_periods === "object" ? data.statistics_periods : {}) ||
+    {};
   const pair = kind === "TEAM_MATCH" || kind === "HEAD_TO_HEAD" || kind === "BRACKET";
   const related = Array.isArray(data?.related) ? data.related : [];
   const news = Array.isArray(articles) ? articles.filter((row) => row?.slug && row?.title) : [];
@@ -801,7 +839,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-stats"
             hidden={currentSection !== "stats"}
           >
-            <StatCompare rows={shownStatistics} t={t} sport={event.sport} />
+            <StatCompare rows={shownStatistics} t={t} sport={event.sport} periods={statisticsPeriods} eventId={event.id} />
           </div>
         ) : null}
 
