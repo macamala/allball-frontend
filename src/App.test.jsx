@@ -323,8 +323,8 @@ describe("NinkoSports Phase 3 routes", () => {
     });
     expect(screen.queryByRole("link", { name: /Data sources/i })).toBeNull();
     expect(document.body.textContent).not.toMatch(/Data Sources/i);
-    expect(document.body.textContent).not.toMatch(/Powered by/i);
-    expect(document.body.textContent).not.toMatch(/sportscore/i);
+    const attribution = screen.getByRole("link", { name: "Powered by SportScore" });
+    expect(attribution.getAttribute("href")).toBe("https://sportscore.com/");
     expect(document.body.textContent).not.toMatch(/TheSportsDB/i);
     cleanup();
     renderAt("/data-sources");
@@ -1631,7 +1631,8 @@ describe("Production quality surfaces", () => {
     });
     expect(screen.getAllByText("Hunter Heck").length).toBeGreaterThan(0);
     expect(screen.getAllByText("ATP Tour").length).toBeGreaterThan(0);
-    expect(document.body.textContent).not.toMatch(/sportscore/i);
+    expect(screen.getByRole("link", { name: "Powered by SportScore" })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sportscore:widget/i);
     fireEvent.click(screen.getByRole("tab", { name: /Upcoming/i }));
     fireEvent.click(screen.getByRole("button", { name: "Tennis" }));
     expect(screen.getByRole("button", { name: "Tennis" }).className).toMatch(/is-active/);
@@ -1784,7 +1785,7 @@ describe("Production quality surfaces", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Ilia Simakin vs Hunter Heck/ })).toBeInTheDocument();
     });
-    expect(document.body.textContent).not.toMatch(/sportscore/i);
+    expect(screen.getByRole("link", { name: "Powered by SportScore" })).toBeInTheDocument();
   });
 
 
