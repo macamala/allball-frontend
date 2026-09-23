@@ -288,6 +288,18 @@ export default function LiveScoresPage() {
         locale={dateLocale}
         onChange={(next) => updateParams({ date: next })}
       />
+      {competition ? (
+        <div className="score-active-filter" role="status">
+          <span>{competitionLabel(competition)}</span>
+          <button
+            type="button"
+            aria-label={t("nav.close")}
+            onClick={() => updateParams({ competition: "" })}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <div className="score-status-tabs" role="tablist" aria-label={t("liveScores")}>
         {STATUSES.map((item) => (
           <button
