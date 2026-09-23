@@ -309,37 +309,70 @@ function statNumeric(value) {
   return match ? Number(match[0]) : Number.NaN;
 }
 
-function StatCompare({ rows, t }) {
+function footballStatGroup(row) {
+  const label = String(row?.label || row?.name || "").toLowerCase();
+  const exactKey = [
+    "expected goals", "xg", "possession", "ball possession", "total shots", "shots on target",
+    "shots on goal", "big chances", "corners", "corner kicks", "yellow cards", "red cards",
+  ];
+  if (exactKey.some((needle) => label === needle || label.startsWith(`${needle} (`) || label.includes(`${needle} (xg)`))) {
+    return "Key stats";
+  }
+  if (/shot|xgot|woodwork|inside.*box|outside.*box|headed goal|goal attempt/.test(label)) return "Shots";
+  if (/pass|cross|through ball|final third|long ball|throw-in|throw in|expected assist|\bxa\b/.test(label)) return "Passing";
+  if (/save|goalkeeper|keeper|goals prevented|goal kick/.test(label)) return "Goalkeepers";
+  if (/tackle|duel|clearance|interception|foul|error|blocked/.test(label)) return "Defense";
+  if (/chance|corner|touch.*box|offside|free kick|attack|dangerous/.test(label)) return "Attack";
+  return "Other";
+}
+
+function statisticGroups(rows, sport) {
+  if (sport !== "football" || rows.length < 8) return [["Statistics", rows]];
+  const order = ["Key stats", "Shots", "Attack", "Passing", "Defense", "Goalkeepers", "Other"];
+  const buckets = new Map(order.map((name) => [name, []]));
+  rows.forEach((row) => buckets.get(footballStatGroup(row))?.push(row));
+  return order.map((name) => [name, buckets.get(name)]).filter(([, group]) => group?.length);
+}
+
+function StatRow({ row }) {
+  const home = row.home;
+  const away = row.away;
+  const hNum = statNumeric(home);
+  const aNum = statNumeric(away);
+  const total = (Number.isFinite(hNum) ? Math.max(0, hNum) : 0) + (Number.isFinite(aNum) ? Math.max(0, aNum) : 0);
+  const hShare = total > 0 && Number.isFinite(hNum) ? (Math.max(0, hNum) / total) * 100 : 0;
+  const aShare = total > 0 && Number.isFinite(aNum) ? (Math.max(0, aNum) / total) * 100 : 0;
+  return (
+    <li>
+      <div className="mc-stat-nums">
+        <span className={hNum > aNum ? "is-leading" : ""}>{home ?? "–"}</span>
+        <span className="mc-stat-label">{row.label || row.name}</span>
+        <span className={aNum > hNum ? "is-leading" : ""}>{away ?? row.value ?? "–"}</span>
+      </div>
+      {Number.isFinite(hNum) && Number.isFinite(aNum) && total > 0 ? (
+        <div className="mc-stat-bars" aria-hidden="true">
+          <span className="mc-stat-track is-home"><span style={{ width: `${hShare}%` }} /></span>
+          <span className="mc-stat-track is-away"><span style={{ width: `${aShare}%` }} /></span>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function StatCompare({ rows, t, sport }) {
   if (!rows.length) return null;
+  const groups = statisticGroups(rows, sport);
   return (
     <section className="mc-card mc-stats-card">
       <h2>{t("predictions.statistics")}</h2>
-      <ul className="mc-stats">
-        {rows.map((row, index) => {
-          const home = row.home;
-          const away = row.away;
-          const hNum = statNumeric(home);
-          const aNum = statNumeric(away);
-          const total = (Number.isFinite(hNum) ? Math.max(0, hNum) : 0) + (Number.isFinite(aNum) ? Math.max(0, aNum) : 0);
-          const hShare = total > 0 && Number.isFinite(hNum) ? (Math.max(0, hNum) / total) * 100 : 0;
-          const aShare = total > 0 && Number.isFinite(aNum) ? (Math.max(0, aNum) / total) * 100 : 0;
-          return (
-            <li key={row.label || index}>
-              <div className="mc-stat-nums">
-                <span className={hNum > aNum ? "is-leading" : ""}>{home ?? "–"}</span>
-                <span className="mc-stat-label">{row.label || row.name}</span>
-                <span className={aNum > hNum ? "is-leading" : ""}>{away ?? row.value ?? "–"}</span>
-              </div>
-              {Number.isFinite(hNum) && Number.isFinite(aNum) && total > 0 ? (
-                <div className="mc-stat-bars" aria-hidden="true">
-                  <span className="mc-stat-track is-home"><span style={{ width: `${hShare}%` }} /></span>
-                  <span className="mc-stat-track is-away"><span style={{ width: `${aShare}%` }} /></span>
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+      {groups.map(([label, group]) => (
+        <div className="mc-stat-group" key={label}>
+          {groups.length > 1 ? <h3>{label}</h3> : null}
+          <ul className="mc-stats">
+            {group.map((row, index) => <StatRow row={row} key={row.label || row.name || index} />)}
+          </ul>
+        </div>
+      ))}
     </section>
   );
 }
@@ -758,7 +791,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-stats"
             hidden={currentSection !== "stats"}
           >
-            <StatCompare rows={shownStatistics} t={t} />
+            <StatCompare rows={shownStatistics} t={t} sport={event.sport} />
           </div>
         ) : null}
 
