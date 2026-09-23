@@ -4714,3 +4714,12 @@ select {
   .mc-stat-periods{width:100%;overflow-x:auto}
   .mc-stat-periods button{flex:1 0 auto}
 }
+
+
+/* Match Centre — full starting XI lists */
+.mc-starting-lists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:color-mix(in srgb,var(--ns-text) 8%,transparent);border-top:1px solid color-mix(in srgb,var(--ns-text) 8%,transparent)}
+.mc-starting-lists .mc-squad-block{background:var(--ns-bg-elevated)}
+.mc-list-captain{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:5px;border-radius:50%;background:color-mix(in srgb,var(--ns-text) 10%,transparent);font-size:.58rem;font-weight:900;vertical-align:middle}
+@media(max-width:720px){
+  .mc-starting-lists{grid-template-columns:1fr}
+}
