@@ -29,6 +29,7 @@ import DateRail from "../components/scores/DateRail.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
 import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
 import { collapseDisplayEvents } from "../lib/scoreIdentity.js";
+import SportScoreAttribution from "../components/scores/SportScoreAttribution.jsx";
 
 const STATUSES = [
   { id: "all", labelKey: "live.all" },
@@ -401,6 +402,7 @@ export default function LiveScoresPage() {
           </aside>
         ) : null}
       </div>
+      <SportScoreAttribution />
     </div>
   );
 }
