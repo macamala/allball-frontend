@@ -4317,3 +4317,75 @@ select {
 .page-scores .score-line > .score-mid {
   grid-column: 4;
 }
+
+
+.page-scores .score-active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 8px 0 0;
+  padding: 0 10px;
+  border: 1px solid var(--ns-border);
+  border-radius: 6px;
+  background: var(--ns-surface);
+  color: var(--ns-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.page-scores .score-active-filter button {
+  border: 0;
+  background: transparent;
+  color: var(--ns-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.match-centre .mc-tabs {
+  scrollbar-width: none;
+}
+
+.match-centre .mc-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.match-centre .mc-tab {
+  color: var(--ns-text-secondary);
+  white-space: nowrap;
+}
+
+.match-centre .mc-tab:first-child {
+  color: var(--ns-text);
+  border-bottom-color: var(--ns-blue);
+}
+
+.match-centre .mc-card > h2 {
+  letter-spacing: -0.01em;
+}
+
+.match-centre .mc-sets {
+  font-variant-numeric: tabular-nums;
+}
+
+.match-centre .mc-sets thead th {
+  color: var(--ns-text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.match-centre .mc-sets tbody th {
+  text-align: left;
+}
+
+@media (max-width: 720px) {
+  .page-scores .score-active-filter {
+    margin-left: 6px;
+  }
+
+  .match-centre .mc-tab {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
