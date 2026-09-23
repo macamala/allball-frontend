@@ -172,26 +172,73 @@ export function Innings({ rows, detail }) {
   );
 }
 
+const SCORECARD_FIELDS = {
+  batting: [
+    [["name", "player"], "Batter"],
+    [["dismissal", "how_out", "howOut"], "Dismissal"],
+    [["runs"], "R"],
+    [["balls", "balls_faced", "ballsFaced"], "B"],
+    [["fours", "4s"], "4s"],
+    [["sixes", "6s"], "6s"],
+    [["strike_rate", "strikeRate", "sr"], "SR"],
+  ],
+  bowling: [
+    [["name", "player"], "Bowler"],
+    [["overs"], "O"],
+    [["maidens"], "M"],
+    [["runs", "runs_conceded", "runsConceded"], "R"],
+    [["wickets"], "W"],
+    [["economy", "econ"], "Econ"],
+  ],
+};
+
+function firstField(row, keys) {
+  for (const key of keys) {
+    if (row?.[key] != null && row[key] !== "") return row[key];
+  }
+  return null;
+}
+
+function scorecardColumns(block) {
+  const preset = SCORECARD_FIELDS[block.key] || SCORECARD_FIELDS.batting;
+  return preset.filter(([keys]) => block.rows.some((row) => firstField(row, keys) != null));
+}
+
 export function Scorecard({ blocks }) {
   if (!blocks.length) return null;
   return (
-    <section className="mc-card" id="mc-scorecard">
+    <section className="mc-card mc-scorecard" id="mc-scorecard">
       <h2>Scorecard</h2>
-      {blocks.map((block) => (
-        <div key={block.key}>
-          <h3>{block.key === "bowling" ? "Bowling" : "Batting"}</h3>
-          <ul>
-            {block.rows.map((row, index) => (
-              <li key={row.name || index}>
-                {row.name || row.player}
-                {row.runs != null ? ` ${row.runs}` : ""}
-                {row.wickets != null ? ` / ${row.wickets}` : ""}
-                {row.overs != null ? ` (${row.overs})` : ""}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {blocks.map((block) => {
+        const columns = scorecardColumns(block);
+        return (
+          <div key={block.key} className="mc-scorecard-block">
+            <h3>{block.key === "bowling" ? "Bowling" : "Batting"}</h3>
+            {columns.length ? (
+              <div className="mc-scroll">
+                <table className="mc-sets mc-class mc-scorecard-table">
+                  <thead>
+                    <tr>
+                      {columns.map(([keys, label]) => (
+                        <th key={keys.join("|")}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, index) => (
+                      <tr key={row.id || row.name || row.player || index}>
+                        {columns.map(([keys]) => (
+                          <td key={keys.join("|")}>{firstField(row, keys) ?? "–"}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </section>
   );
 }
