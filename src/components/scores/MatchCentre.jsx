@@ -441,7 +441,7 @@ function BenchList({ side, label, t }) {
   );
 }
 
-function FootballLineups({ home, away, event, t }) {
+function FootballLineups({ home, away, event, t, confirmed = false }) {
   const homeRows = formationRows(home);
   const awayRows = formationRows(away).slice().reverse();
   const homeName = participantName(event.home);
@@ -453,7 +453,7 @@ function FootballLineups({ home, away, event, t }) {
           <strong>{homeName}</strong>
           {home.formation ? <span>{home.formation}</span> : null}
         </div>
-        <span>{shapeConfirmedLabel(home, away)}</span>
+        {confirmed ? <span className="mc-lineup-status">Confirmed XI</span> : <span />}
         <div>
           <strong>{awayName}</strong>
           {away.formation ? <span>{away.formation}</span> : null}
@@ -487,9 +487,6 @@ function FootballLineups({ home, away, event, t }) {
   );
 }
 
-function shapeConfirmedLabel() {
-  return "";
-}
 
 function RosterLineups({ home, away, event, t }) {
   return (
@@ -545,7 +542,7 @@ function Lineups({ shape, event, t }) {
     <section className="mc-card mc-lineup-card">
       <h2>{t("match.lineups")}</h2>
       {event.sport === "football" && (home.start || []).length >= 7 && (away.start || []).length >= 7 ? (
-        <FootballLineups home={home} away={away} event={event} t={t} />
+        <FootballLineups home={home} away={away} event={event} t={t} confirmed={Boolean(shape.confirmed)} />
       ) : (
         <RosterLineups home={home} away={away} event={event} t={t} />
       )}
