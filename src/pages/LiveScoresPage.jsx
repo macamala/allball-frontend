@@ -365,7 +365,7 @@ export default function LiveScoresPage() {
         </div>
         {showSidebar ? (
           <aside className="score-centre-aside">
-            {sidebarLive.length && (status === "upcoming" || status === "finished") ? (
+            {sidebarLive.length && status !== "live" ? (
               <section>
                 <h2>{t("live.liveNow")}</h2>
                 <ul className="score-aside-list">
@@ -375,7 +375,7 @@ export default function LiveScoresPage() {
                 </ul>
               </section>
             ) : null}
-            {(favorites?.leagues || []).length && topComps.length ? (
+            {topComps.length ? (
               <section>
                 <h2>{t("live.topCompetitions")}</h2>
                 <ul className="score-aside-links">
