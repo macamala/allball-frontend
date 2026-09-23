@@ -9,7 +9,6 @@ import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import MatchCentre from "../components/scores/MatchCentre.jsx";
-import SportScoreAttribution from "../components/scores/SportScoreAttribution.jsx";
 
 function payloadEventId(payload) {
   return payload?.event?.id || payload?.header?.id || payload?.id || "";
@@ -139,7 +138,6 @@ export default function MatchPage() {
       ) : (
         <ProviderPending title={t("match.readyTitle")} body={t("match.readyBody")} />
       )}
-      <SportScoreAttribution />
     </div>
   );
 }
