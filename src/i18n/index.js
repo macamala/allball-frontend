@@ -132,7 +132,7 @@ const en = {
   "live.upcoming": "Upcoming",
   "live.date": "Date",
   "live.readyTitle": "Scores center is ready",
-  "live.readyBody": "Match lists, kickoff times and live scores will appear here after a sports-data provider is connected. No placeholder games are shown.",
+  "live.readyBody": "Match lists, kickoff times and live scores will appear here when live data is available. No placeholder games are shown.",
   "live.finished": "Finished",
   "live.emptyTitle": "No matches in this view",
   "live.emptyBody": "There are no fixtures for this filter yet.",
