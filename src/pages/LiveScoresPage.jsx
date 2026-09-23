@@ -20,6 +20,7 @@ import {
 import { allRegistrySports, getRegistrySport } from "../config/sportsRegistry.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { competitionLabel } from "../labels.js";
+import { competitionPresentation } from "../lib/competitionPresentation.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import EventList from "../components/scores/EventList.jsx";
@@ -208,12 +209,23 @@ export default function LiveScoresPage() {
     dayEvents.forEach((event) => {
       const key = event.competition_key || event.competition;
       if (!key) return;
-      countsMap.set(key, (countsMap.get(key) || 0) + 1);
+      const current = countsMap.get(key) || { count: 0, event };
+      current.count += 1;
+      current.event = current.event || event;
+      countsMap.set(key, current);
     });
     return [...countsMap.entries()]
-      .sort((a, b) => b[1] - a[1])
+      .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 6)
-      .map(([key, count]) => ({ key, count, label: competitionLabel(key) }));
+      .map(([key, value]) => {
+        const presented = competitionPresentation(value.event || {});
+        const name = presented.displayName || competitionLabel(key);
+        return {
+          key,
+          count: value.count,
+          label: presented.kicker ? `${presented.kicker} · ${name}` : name,
+        };
+      });
   }, [dayEvents]);
 
   const primaryItems = [
