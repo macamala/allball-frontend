@@ -15,12 +15,17 @@ describe("public Data Sources surface", () => {
       sourceOf("./components/SiteFooter.jsx"),
       sourceOf("./components/SiteHeader.jsx"),
       sourceOf("./components/MobileNavDrawer.jsx"),
+      sourceOf("./pages/LiveScoresPage.jsx"),
+      sourceOf("./pages/MatchPage.jsx"),
+      sourceOf("./components/ProviderPending.jsx"),
       sourceOf("./App.jsx"),
     ];
     for (const src of files) {
       expect(src).not.toMatch(/DataSourcesPage/);
       expect(src).not.toMatch(/footer\.dataSources/);
       expect(src).not.toMatch(/to="\/data-sources"/);
+      expect(src).not.toMatch(/Powered\s+by/i);
+      expect(src).not.toMatch(/SportScoreAttribution|sportscore\.com/i);
     }
     expect(sourceOf("./App.jsx")).toMatch(/path="\/data-sources"/);
     expect(sourceOf("./App.jsx")).toMatch(/Navigate to="\/"/);
