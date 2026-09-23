@@ -4389,3 +4389,120 @@ select {
     padding-right: 10px;
   }
 }
+
+
+/* Mobile Live Scores hotfix — keep the desktop scoreboard rules from squeezing phone layouts. */
+@media (max-width: 720px) {
+  .page-scores .score-centre-layout.has-aside {
+    display: block;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    width: 100%;
+  }
+
+  .page-scores .score-centre-main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .page-scores .score-centre-aside {
+    display: none;
+  }
+
+  .page-scores .score-row-frame {
+    grid-template-columns: 28px minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .page-scores .score-row-link {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 46px minmax(0, 1fr) 8px;
+    gap: 4px;
+    padding-right: 2px;
+    overflow: hidden;
+  }
+
+  .page-scores .score-pair-stack,
+  .page-scores .score-line,
+  .page-scores .score-name,
+  .page-scores .score-meta-main,
+  .page-scores .score-race-title {
+    min-width: 0;
+  }
+
+  .page-scores .score-line {
+    grid-template-columns: 18px minmax(0, 1fr) auto 22px;
+    gap: 4px;
+  }
+
+  .page-scores .score-name,
+  .page-scores .score-race-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .page-scores .score-sets {
+    min-width: 0;
+    max-width: 104px;
+    overflow: hidden;
+    gap: 3px;
+  }
+
+  .page-scores .score-set {
+    min-width: 12px;
+    font-size: 0.64rem;
+  }
+
+  .page-scores .score-mid {
+    min-width: 20px;
+  }
+
+  .page-scores .score-comp-head {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+
+  .page-scores .score-comp-actions {
+    gap: 5px;
+  }
+
+  .page-scores .score-comp-count {
+    display: none;
+  }
+
+  .page-scores .score-comp-standings {
+    font-size: 0.72rem;
+  }
+
+  .page-scores .sport-rail-scroll {
+    padding-left: 4px;
+    padding-right: 4px;
+    mask-image: none;
+  }
+
+  .page-scores .sport-rail-arrow {
+    display: none;
+  }
+
+  .match-centre .mc-tabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
+
+@media (max-width: 390px) {
+  .page-scores .score-row-link {
+    grid-template-columns: 42px minmax(0, 1fr) 6px;
+  }
+
+  .page-scores .score-line {
+    grid-template-columns: 16px minmax(0, 1fr) auto 20px;
+  }
+
+  .page-scores .score-sets {
+    max-width: 88px;
+  }
+}
