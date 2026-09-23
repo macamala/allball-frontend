@@ -146,7 +146,7 @@ describe("Match Centre layouts", () => {
     expect(document.querySelector(".mc-pitch-team.is-away")).toBeTruthy();
     expect(document.querySelector(".mc-player-avatar img")).toBeTruthy();
     expect(screen.getByText("4-3-3")).toBeTruthy();
-    expect(screen.getByText("4-2-3-1")).toBeTruthy();
+    expect(screen.getByText("4-2-3-1")).toBeTruthy();\n    expect(screen.getAllByText("Starting XI").length).toBe(2);
 
     const statsTab = screen.getByRole("tab", { name: /statistics/i });
     fireEvent.click(statsTab);
