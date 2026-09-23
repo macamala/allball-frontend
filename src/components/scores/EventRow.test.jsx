@@ -163,6 +163,53 @@ describe("Score Centre rows", () => {
     expect(screen.queryByText("Arsenal")).toBeNull();
   });
 
+  it("shows quarter and period splits for team sports when the backend provides them", () => {
+    const basketball = normalizeEvent({
+      id: "nba-q",
+      sport: "basketball",
+      competition: "NBA",
+      competition_key: "nba",
+      event_family: "team_match",
+      home: { name: "Boston" },
+      away: { name: "New York" },
+      status: "finished",
+      score: { home: 101, away: 98 },
+      periods: [
+        { label: "Q1", home: 25, away: 20 },
+        { label: "Q2", home: 24, away: 25 },
+        { label: "Q3", home: 26, away: 28 },
+        { label: "Q4", home: 26, away: 25 },
+      ],
+    });
+    const hockey = normalizeEvent({
+      id: "nhl-p",
+      sport: "ice-hockey",
+      competition: "NHL",
+      competition_key: "nhl",
+      event_family: "team_match",
+      home: { name: "Rangers" },
+      away: { name: "Bruins" },
+      status: "finished",
+      score: { home: 3, away: 2 },
+      periods: [
+        { label: "P1", home: 1, away: 0 },
+        { label: "P2", home: 1, away: 1 },
+        { label: "P3", home: 1, away: 1 },
+      ],
+    });
+    wrap(
+      <ul>
+        <EventRow event={basketball} />
+        <EventRow event={hockey} />
+      </ul>
+    );
+    const rows = document.querySelectorAll(".score-row");
+    expect(rows[0].querySelectorAll(".score-set").length).toBe(8);
+    expect(rows[1].querySelectorAll(".score-set").length).toBe(6);
+    expect(rows[0].textContent).toContain("101");
+    expect(rows[1].textContent).toContain("3");
+  });
+
   it("does not style a racing RAPID_RESULT row as live", () => {
     const race = normalizeEvent({
       id: "race-1",
