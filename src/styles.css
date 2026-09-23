@@ -4701,3 +4701,16 @@ select {
 .mc-table-avatar{position:relative;width:30px;height:30px;flex:0 0 30px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:50%;background:color-mix(in srgb,var(--ns-text) 8%,transparent);font-size:.64rem;font-weight:900}
 .mc-table-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--ns-bg-elevated)}
 .mc-captain-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:4px;border-radius:50%;background:rgba(255,255,255,.9);color:#172019;font-size:.58rem;font-weight:900;text-shadow:none;vertical-align:middle}
+
+
+/* Match Centre — statistics period tabs */
+.mc-card-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid color-mix(in srgb,var(--ns-text) 8%,transparent)}
+.mc-card-title-row>h2{margin:0;padding:0;border:0}
+.mc-stat-periods{display:inline-flex;align-items:center;gap:3px;padding:3px;border-radius:8px;background:color-mix(in srgb,var(--ns-text) 6%,transparent)}
+.mc-stat-periods button{appearance:none;border:0;border-radius:6px;padding:6px 9px;background:transparent;color:var(--ns-text-muted);font:inherit;font-size:.7rem;font-weight:800;cursor:pointer;white-space:nowrap}
+.mc-stat-periods button.is-active{background:var(--ns-bg-elevated);color:var(--ns-text);box-shadow:0 1px 4px color-mix(in srgb,#000 10%,transparent)}
+@media(max-width:560px){
+  .mc-card-title-row{align-items:flex-start;flex-direction:column}
+  .mc-stat-periods{width:100%;overflow-x:auto}
+  .mc-stat-periods button{flex:1 0 auto}
+}
