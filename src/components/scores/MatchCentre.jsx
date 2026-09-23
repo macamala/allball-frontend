@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
@@ -543,31 +543,20 @@ export default function MatchCentre({ event, data, standings, articles = [], det
 
   const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
   const shots = Array.isArray(event.sport_detail?.shots) ? event.sport_detail.shots : [];
+  const [activeSection, setActiveSection] = useState("overview");
+
+  useEffect(() => {
+    setActiveSection("overview");
+  }, [event.id]);
+
   const sections = useMemo(() => {
     const list = [{ id: "overview", label: t("match.overview") }];
-    if (rubbers.length) list.push({ id: "rubbers", label: "Rubbers" });
-    if (afl) list.push({ id: "score", label: "Score" });
-    if (innings.length) list.push({ id: "innings", label: t("match.innings") });
-    if (scorecard.length) list.push({ id: "scorecard", label: "Scorecard" });
-    if (sets) {
-      const sport = event.sport;
-      const label =
-        sport === "tennis" || sport === "volleyball" || sport === "table-tennis" || sport === "badminton"
-          ? t("match.sets")
-          : sport === "basketball"
-            ? "Quarters"
-            : sport === "baseball" || sport === "cricket"
-              ? t("match.innings")
-              : t("match.periods");
-      list.push({ id: "periods", label });
-    }
-    if (games.length) list.push({ id: "maps", label: "Games" });
-    if (incidents.length) list.push({ id: "timeline", label: t("match.timeline") });
-    if (rugby.length) list.push({ id: "rugby", label: "Scoring" });
     if (shownStatistics.length) list.push({ id: "stats", label: t("predictions.statistics") });
     if (lineups) list.push({ id: "lineups", label: t("match.lineups") });
     if (playerStats.length) list.push({ id: "players", label: t("match.players") });
+    if (scorecard.length) list.push({ id: "scorecard", label: "Scorecard" });
     if (shots.length) list.push({ id: "shots", label: "Shots" });
+    if (formUseful || h2h.length) list.push({ id: "h2h", label: t("predictions.h2h") });
     if (classification.length) {
       const clsLabel =
         kind === "RACE" || kind === "MEET"
@@ -580,7 +569,9 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     if (standings.length) list.push({ id: "standings", label: t("match.standings") });
     if (news.length) list.push({ id: "news", label: t("section.topStories") });
     return list;
-  }, [afl, classification.length, event.sport, games.length, incidents.length, innings.length, kind, lineups, news.length, playerStats.length, rubbers.length, rugby.length, scorecard.length, sets, shots.length, shownStatistics.length, standings.length, t]);
+  }, [classification.length, event.sport, formUseful, h2h.length, kind, lineups, news.length, playerStats.length, scorecard.length, shots.length, shownStatistics.length, standings.length, t]);
+
+  const currentSection = sections.some((item) => item.id === activeSection) ? activeSection : "overview";
 
   const followedTeams = favorites?.teams || [];
   const homeKey = String(event.home?.id || event.home?.slug || "");
@@ -616,33 +607,52 @@ export default function MatchCentre({ event, data, standings, articles = [], det
       )}
       {detailPending ? <p className="mc-when">{t("match.loadingDetails")}</p> : null}
       {sections.length > 1 ? (
-        <div className="mc-tabs" role="tablist">
-          {sections.map((item) => (
-            <a key={item.id} className="mc-tab" href={`#mc-${item.id}`}>
-              {item.label}
-            </a>
-          ))}
+        <div className="mc-tabs" role="tablist" aria-label={t("match.center")}>
+          {sections.map((item) => {
+            const selected = currentSection === item.id;
+            return (
+              <button
+                key={item.id}
+                id={`mc-tab-${item.id}`}
+                className={`mc-tab ${selected ? "is-active" : ""}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`mc-panel-${item.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveSection(item.id)}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       ) : null}
       <div className="mc-body">
-        <div id="mc-overview">
-            <Rubbers rubbers={rubbers} />
-            {afl ? <AflScore event={event} /> : null}
-            <Innings rows={innings} detail={event.sport_detail} />
-            <Scorecard blocks={scorecard} />
-            {rugby.length ? <RugbyScore rows={rugby} home={participantName(event.home)} away={participantName(event.away)} /> : null}
-            <Games games={games} event={event} />
-            {sets ? (
-              <section className="mc-card" id="mc-periods">
-                <h2>
-                  {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
-                    ? t("match.sets")
-                    : event.sport === "basketball"
-                      ? "Quarters"
-                      : event.sport === "baseball" || event.sport === "cricket"
-                        ? t("match.innings")
-                        : t("match.periods")}
-                </h2>
+        <div
+          className="mc-panel"
+          id="mc-panel-overview"
+          role="tabpanel"
+          aria-labelledby={sections.length > 1 ? "mc-tab-overview" : undefined}
+          hidden={currentSection !== "overview"}
+        >
+          <Rubbers rubbers={rubbers} />
+          {afl ? <AflScore event={event} /> : null}
+          <Innings rows={innings} detail={event.sport_detail} />
+          {rugby.length ? <RugbyScore rows={rugby} home={participantName(event.home)} away={participantName(event.away)} /> : null}
+          <Games games={games} event={event} />
+          {sets ? (
+            <section className="mc-card">
+              <h2>
+                {event.sport === "tennis" || event.sport === "volleyball" || event.sport === "table-tennis" || event.sport === "badminton"
+                  ? t("match.sets")
+                  : event.sport === "basketball"
+                    ? "Quarters"
+                    : event.sport === "baseball" || event.sport === "cricket"
+                      ? t("match.innings")
+                      : t("match.periods")}
+              </h2>
+              <div className="mc-scroll">
                 <table className="mc-sets">
                   <thead>
                     <tr>
@@ -670,26 +680,104 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                     </tr>
                   </tbody>
                 </table>
-              </section>
-            ) : null}
-            {incidents.length ? <div id="mc-timeline"><Timeline items={incidents} t={t} /></div> : null}
-            {shownStatistics.length ? <div id="mc-stats"><StatCompare rows={shownStatistics} t={t} /></div> : null}
-            {lineups ? <div id="mc-lineups"><Lineups shape={lineups} event={event} t={t} /></div> : null}
+              </div>
+            </section>
+          ) : null}
+          {incidents.length ? <Timeline items={incidents} t={t} /> : null}
+          {hits || errors ? (
+            <section className="mc-card">
+              <h2>{t("match.box")}</h2>
+              <p>
+                {usefulNumber(hits?.home) || usefulNumber(hits?.away)
+                  ? `${t("match.hits")}: ${hits?.home ?? "–"} – ${hits?.away ?? "–"}`
+                  : ""}
+                {errors && (usefulNumber(errors.home) || usefulNumber(errors.away))
+                  ? ` · ${t("match.errors")}: ${errors?.home ?? "–"} – ${errors?.away ?? "–"}`
+                  : ""}
+              </p>
+            </section>
+          ) : null}
+          <InfoRows event={event} t={t} />
+          {related.length ? (
+            <section className="mc-card">
+              <h2>{t("live.upcoming")}</h2>
+              <ul>
+                {related.slice(0, 6).map((row) => (
+                  <li key={row.id || row.label}>{row.label || `${participantName(row.home)} vs ${participantName(row.away)}`}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+
+        {shownStatistics.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-stats"
+            role="tabpanel"
+            aria-labelledby="mc-tab-stats"
+            hidden={currentSection !== "stats"}
+          >
+            <StatCompare rows={shownStatistics} t={t} />
+          </div>
+        ) : null}
+
+        {lineups ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-lineups"
+            role="tabpanel"
+            aria-labelledby="mc-tab-lineups"
+            hidden={currentSection !== "lineups"}
+          >
+            <Lineups shape={lineups} event={event} t={t} />
+          </div>
+        ) : null}
+
+        {playerStats.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-players"
+            role="tabpanel"
+            aria-labelledby="mc-tab-players"
+            hidden={currentSection !== "players"}
+          >
             <PlayerTable rows={playerStats} event={event} />
+          </div>
+        ) : null}
+
+        {scorecard.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-scorecard"
+            role="tabpanel"
+            aria-labelledby="mc-tab-scorecard"
+            hidden={currentSection !== "scorecard"}
+          >
+            <Scorecard blocks={scorecard} />
+          </div>
+        ) : null}
+
+        {shots.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-shots"
+            role="tabpanel"
+            aria-labelledby="mc-tab-shots"
+            hidden={currentSection !== "shots"}
+          >
             <ShotList shots={shots} />
-            {hits || errors ? (
-              <section className="mc-card">
-                <h2>{t("match.box")}</h2>
-                <p>
-                  {usefulNumber(hits?.home) || usefulNumber(hits?.away)
-                    ? `${t("match.hits")}: ${hits?.home ?? "–"} – ${hits?.away ?? "–"}`
-                    : ""}
-                  {errors && (usefulNumber(errors.home) || usefulNumber(errors.away))
-                    ? ` · ${t("match.errors")}: ${errors?.home ?? "–"} – ${errors?.away ?? "–"}`
-                    : ""}
-                </p>
-              </section>
-            ) : null}
+          </div>
+        ) : null}
+
+        {formUseful || h2h.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-h2h"
+            role="tabpanel"
+            aria-labelledby="mc-tab-h2h"
+            hidden={currentSection !== "h2h"}
+          >
             {formUseful ? (
               <section className="mc-card">
                 <h2>{t("predictions.recentForm")}</h2>
@@ -700,18 +788,28 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             {h2h.length ? (
               <section className="mc-card">
                 <h2>{t("predictions.h2h")}</h2>
-                <ul>
+                <ul className="mc-h2h-list">
                   {h2h.map((row, index) => (
                     <li key={row.id || index}>{row.label || row.summary}</li>
                   ))}
                 </ul>
               </section>
             ) : null}
-            {classification.length ? (
-              <section className="mc-card" id="mc-classification">
-                <h2>{event.sport === "golf" ? "Leaderboard" : t("match.classification")}</h2>
-                {classColumns.length ? <ClassificationTable rows={classification} /> : null}
-                {classColumns.length ? null : (
+          </div>
+        ) : null}
+
+        {classification.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-classification"
+            role="tabpanel"
+            aria-labelledby="mc-tab-classification"
+            hidden={currentSection !== "classification"}
+          >
+            <section className="mc-card">
+              <h2>{event.sport === "golf" ? "Leaderboard" : t("match.classification")}</h2>
+              {classColumns.length ? <ClassificationTable rows={classification} /> : null}
+              {classColumns.length ? null : (
                 <ol className="mc-leader">
                   {classification.map((row, index) => {
                     const name =
@@ -730,39 +828,46 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                     return <li key={row.id || name || index}>{name || String(row.value ?? "")}</li>;
                   })}
                 </ol>
-                )}
-              </section>
-            ) : null}
-            <InfoRows event={event} t={t} />
-            {related.length ? (
-              <section className="mc-card">
-                <h2>{t("live.upcoming")}</h2>
-                <ul>
-                  {related.slice(0, 6).map((row) => (
-                    <li key={row.id || row.label}>{row.label || `${participantName(row.home)} vs ${participantName(row.away)}`}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {standings.length ? (
-              <section className="mc-card" id="mc-standings">
-                <h2>{t("match.standings")}</h2>
-                <StandingsTable sport={event.sport} rows={standings} />
-              </section>
-            ) : null}
-            {news.length ? (
-              <section className="mc-card" id="mc-news">
-                <h2>{t("section.topStories")}</h2>
-                <ul>
-                  {news.slice(0, 8).map((row) => (
-                    <li key={row.slug}>
-                      <Link to={`/article/${row.slug}`}>{row.title}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-        </div>
+              )}
+            </section>
+          </div>
+        ) : null}
+
+        {standings.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-standings"
+            role="tabpanel"
+            aria-labelledby="mc-tab-standings"
+            hidden={currentSection !== "standings"}
+          >
+            <section className="mc-card">
+              <h2>{t("match.standings")}</h2>
+              <StandingsTable sport={event.sport} rows={standings} />
+            </section>
+          </div>
+        ) : null}
+
+        {news.length ? (
+          <div
+            className="mc-panel"
+            id="mc-panel-news"
+            role="tabpanel"
+            aria-labelledby="mc-tab-news"
+            hidden={currentSection !== "news"}
+          >
+            <section className="mc-card">
+              <h2>{t("section.topStories")}</h2>
+              <ul>
+                {news.slice(0, 8).map((row) => (
+                  <li key={row.slug}>
+                    <Link to={`/article/${row.slug}`}>{row.title}</Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        ) : null}
       </div>
     </div>
   );
