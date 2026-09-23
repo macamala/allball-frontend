@@ -231,13 +231,38 @@ function periodBucket(item) {
   return "first";
 }
 
+function timelineKind(row) {
+  const value = String(row?.family || row?.type || "").toLowerCase();
+  if (value.includes("goal")) return "goal";
+  if (value.includes("red")) return "red-card";
+  if (value.includes("yellow") || value.includes("card")) return "yellow-card";
+  if (value.includes("sub")) return "substitution";
+  if (value.includes("var")) return "var";
+  return "event";
+}
+
+function TimelineEvent({ row, body, score }) {
+  const kind = timelineKind(row);
+  return (
+    <span className="mc-timeline-event">
+      <span className={`mc-event-icon is-${kind}`} aria-hidden="true">
+        {kind === "goal" ? "●" : kind === "substitution" ? "↕" : kind === "var" ? "VAR" : ""}
+      </span>
+      <span className="mc-timeline-copy">{body || String(row?.description || row?.type || "").replace(/_/g, " ")}</span>
+      {score ? <span className="mc-tl-score">{score}</span> : null}
+    </span>
+  );
+}
+
 function Timeline({ items, t }) {
   if (!items.length) return null;
   const first = items.filter((row) => periodBucket(row) === "first");
   const second = items.filter((row) => periodBucket(row) === "second");
-  const groups = second.length ? [["first", first, t("match.firstHalf")], ["second", second, t("match.secondHalf")]] : [["all", items, t("match.timeline")]];
+  const groups = second.length
+    ? [["first", first, t("match.firstHalf")], ["second", second, t("match.secondHalf")]]
+    : [["all", items, t("match.timeline")]];
   return (
-    <section className="mc-card">
+    <section className="mc-card mc-timeline-card">
       <h2>{t("match.timeline")}</h2>
       {groups.map(([key, rows, label]) => (
         <div key={key} className="mc-timeline-block">
@@ -251,14 +276,22 @@ function Timeline({ items, t }) {
               const body =
                 row.family === "substitution" || row.type === "substitution"
                   ? [row.player_in, row.player_out ? `↓ ${row.player_out}` : ""].filter(Boolean).join(" ")
-                  : [row.player, row.assist ? `(${row.assist})` : "", row.type && row.family !== "goal" ? String(row.type).replace(/_/g, " ") : ""]
+                  : [
+                      row.player,
+                      row.assist ? `(${row.assist})` : "",
+                      row.type && row.family !== "goal" && !String(row.type).toLowerCase().includes("goal")
+                        ? String(row.type).replace(/_/g, " ")
+                        : "",
+                    ]
                       .filter(Boolean)
                       .join(" ");
+              const side = row.side === "away" ? "away" : row.side === "home" ? "home" : "neutral";
+              const eventNode = <TimelineEvent row={row} body={body} score={score} />;
               return (
-                <li key={row.id || `${row.minute}-${index}`}>
+                <li className={`mc-timeline-item is-${side}`} key={row.id || `${row.minute}-${index}`}>
+                  <span className="mc-timeline-side is-home">{side !== "away" ? eventNode : null}</span>
                   <span className="mc-minute">{row.minute != null ? `${row.minute}’` : ""}</span>
-                  <span>{body}</span>
-                  {score ? <span className="mc-tl-score">{score}</span> : null}
+                  <span className="mc-timeline-side is-away">{side === "away" ? eventNode : null}</span>
                 </li>
               );
             })}
@@ -269,28 +302,38 @@ function Timeline({ items, t }) {
   );
 }
 
+function statNumeric(value) {
+  if (typeof value === "number") return value;
+  if (value == null || value === "") return Number.NaN;
+  const match = String(value).replace(",", ".").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : Number.NaN;
+}
+
 function StatCompare({ rows, t }) {
   if (!rows.length) return null;
   return (
-    <section className="mc-card">
+    <section className="mc-card mc-stats-card">
       <h2>{t("predictions.statistics")}</h2>
       <ul className="mc-stats">
         {rows.map((row, index) => {
           const home = row.home;
           const away = row.away;
-          const hNum = Number(home);
-          const aNum = Number(away);
-          const total = (Number.isFinite(hNum) ? hNum : 0) + (Number.isFinite(aNum) ? aNum : 0);
+          const hNum = statNumeric(home);
+          const aNum = statNumeric(away);
+          const total = (Number.isFinite(hNum) ? Math.max(0, hNum) : 0) + (Number.isFinite(aNum) ? Math.max(0, aNum) : 0);
+          const hShare = total > 0 && Number.isFinite(hNum) ? (Math.max(0, hNum) / total) * 100 : 0;
+          const aShare = total > 0 && Number.isFinite(aNum) ? (Math.max(0, aNum) / total) * 100 : 0;
           return (
             <li key={row.label || index}>
               <div className="mc-stat-nums">
-                <span>{home ?? "–"}</span>
+                <span className={hNum > aNum ? "is-leading" : ""}>{home ?? "–"}</span>
                 <span className="mc-stat-label">{row.label || row.name}</span>
-                <span>{away ?? row.value ?? "–"}</span>
+                <span className={aNum > hNum ? "is-leading" : ""}>{away ?? row.value ?? "–"}</span>
               </div>
               {Number.isFinite(hNum) && Number.isFinite(aNum) && total > 0 ? (
-                <div className="mc-stat-bar" aria-hidden="true">
-                  <span style={{ width: `${(hNum / total) * 100}%` }} />
+                <div className="mc-stat-bars" aria-hidden="true">
+                  <span className="mc-stat-track is-home"><span style={{ width: `${hShare}%` }} /></span>
+                  <span className="mc-stat-track is-away"><span style={{ width: `${aShare}%` }} /></span>
                 </div>
               ) : null}
             </li>
