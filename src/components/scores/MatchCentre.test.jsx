@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../../context/I18nContext.jsx";
@@ -87,6 +87,56 @@ describe("Match Centre layouts", () => {
     expect(screen.getByRole("tablist")).toBeTruthy();
     expect(screen.getAllByText("Timeline").length).toBeGreaterThan(0);
     expect(screen.queryByText("Odds")).toBeNull();
+  });
+
+  it("renders a real football formation pitch and interactive tabs", () => {
+    const starters = (prefix) =>
+      Array.from({ length: 11 }, (_, index) => ({
+        id: `${prefix}-${index + 1}`,
+        name: `${prefix} Player ${index + 1}`,
+        number: index + 1,
+        image: index === 0 ? `https://images.example.com/${prefix}-keeper.png` : undefined,
+      }));
+    wrap(
+      <MatchCentre
+        event={{
+          id: "pitch-rich",
+          sport: "football",
+          competition: "Premier League",
+          home: { name: "Arsenal" },
+          away: { name: "Chelsea" },
+          status: "finished",
+          score: { home: 2, away: 1 },
+          statistics: [
+            { label: "Possession", home: "58%", away: "42%" },
+            { label: "Shots on target", home: 7, away: 4 },
+          ],
+          lineups: {
+            confirmed: true,
+            home: { formation: "4-3-3", coach: "Home Coach", start: starters("Home"), bench: [] },
+            away: { formation: "4-2-3-1", coach: "Away Coach", start: starters("Away"), bench: [] },
+          },
+        }}
+        data={{}}
+        standings={[]}
+      />
+    );
+
+    const lineupTab = screen.getByRole("tab", { name: /lineups/i });
+    fireEvent.click(lineupTab);
+    expect(lineupTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.querySelector(".mc-pitch")).toBeTruthy();
+    expect(document.querySelector(".mc-pitch-team.is-home")).toBeTruthy();
+    expect(document.querySelector(".mc-pitch-team.is-away")).toBeTruthy();
+    expect(document.querySelector(".mc-player-avatar img")).toBeTruthy();
+    expect(screen.getByText("4-3-3")).toBeTruthy();
+    expect(screen.getByText("4-2-3-1")).toBeTruthy();
+
+    const statsTab = screen.getByRole("tab", { name: /statistics/i });
+    fireEvent.click(statsTab);
+    expect(statsTab.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("58%")).toBeTruthy();
+    expect(document.querySelectorAll(".mc-stat-track").length).toBeGreaterThan(0);
   });
 
   it("renders tennis set tables", () => {
