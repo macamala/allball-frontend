@@ -111,6 +111,22 @@ describe("Match Centre layouts", () => {
             { label: "Possession", home: "58%", away: "42%" },
             { label: "Shots on target", home: 7, away: 4 },
           ],
+          sport_detail: {
+            statistics_periods: {
+              all: [
+                { label: "Possession", home: "58%", away: "42%" },
+                { label: "Shots on target", home: 7, away: 4 },
+              ],
+              first_half: [
+                { label: "Possession", home: "61%", away: "39%" },
+                { label: "Shots on target", home: 5, away: 1 },
+              ],
+              second_half: [
+                { label: "Possession", home: "55%", away: "45%" },
+                { label: "Shots on target", home: 2, away: 3 },
+              ],
+            },
+          },
           lineups: {
             confirmed: true,
             home: { formation: "4-3-3", coach: "Home Coach", start: starters("Home"), bench: [] },
@@ -137,6 +153,10 @@ describe("Match Centre layouts", () => {
     expect(statsTab.getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("58%")).toBeTruthy();
     expect(document.querySelectorAll(".mc-stat-track").length).toBeGreaterThan(0);
+    const firstHalfTab = screen.getByRole("tab", { name: /first half/i });
+    fireEvent.click(firstHalfTab);
+    expect(firstHalfTab.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("61%")).toBeTruthy();
   });
 
   it("renders tennis set tables", () => {
