@@ -4619,3 +4619,36 @@ select {
   .mc-player-avatar{width:38px;height:38px;flex-basis:38px}
   .mc-shirt-number{min-width:18px;height:18px}
 }
+
+
+/* Match Centre — comparison stats and event timeline */
+.mc-stat-nums .is-leading{font-weight:900;color:var(--ns-text)}
+.mc-stat-bars{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
+.mc-stat-track{position:relative;height:6px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--ns-text) 10%,transparent)}
+.mc-stat-track>span{position:absolute;top:0;bottom:0;display:block;min-width:2px;background:var(--ns-teal)}
+.mc-stat-track.is-home>span{right:0}
+.mc-stat-track.is-away>span{left:0}
+.mc-timeline-card{overflow:visible}
+.mc-timeline-item{display:grid!important;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr)!important;gap:8px!important;align-items:center;min-height:48px;padding:7px 0!important}
+.mc-timeline-side{min-width:0;display:flex;align-items:center}
+.mc-timeline-side.is-home{justify-content:flex-end;text-align:right}
+.mc-timeline-side.is-away{justify-content:flex-start;text-align:left}
+.mc-timeline-event{min-width:0;display:inline-flex;align-items:center;gap:6px}
+.mc-timeline-side.is-home .mc-timeline-event{flex-direction:row-reverse}
+.mc-timeline-copy{min-width:0;font-size:.8rem;line-height:1.25}
+.mc-minute{display:flex;align-items:center;justify-content:center;min-height:28px;padding:3px 5px;border-radius:999px;background:color-mix(in srgb,var(--ns-text) 7%,transparent);text-align:center}
+.mc-event-icon{width:18px;height:18px;flex:0 0 18px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:.62rem;font-weight:900;line-height:1}
+.mc-event-icon.is-goal{border:2px solid currentColor;background:var(--ns-bg-elevated);font-size:.52rem}
+.mc-event-icon.is-yellow-card,.mc-event-icon.is-red-card{width:12px;height:17px;flex-basis:12px;border-radius:2px}
+.mc-event-icon.is-yellow-card{background:#f0c419}
+.mc-event-icon.is-red-card{background:#d93b3b}
+.mc-event-icon.is-substitution{color:var(--ns-teal);font-size:1rem}
+.mc-event-icon.is-var{width:auto;min-width:26px;padding:0 4px;border-radius:4px;background:color-mix(in srgb,var(--ns-text) 10%,transparent)}
+.mc-event-icon.is-event{width:8px;height:8px;flex-basis:8px;background:color-mix(in srgb,var(--ns-text) 35%,transparent)}
+.mc-tl-score{white-space:nowrap}
+@media(max-width:560px){
+  .mc-timeline-item{grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr)!important;gap:5px!important}
+  .mc-timeline-copy{font-size:.72rem}
+  .mc-timeline-event{gap:4px}
+  .mc-tl-score{font-size:.68rem;padding:2px 5px}
+}
