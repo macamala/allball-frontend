@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
-import SportScoreAttribution from "./SportScoreAttribution.jsx";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { competitionPresentation } from "../../lib/competitionPresentation.js";
@@ -1021,8 +1020,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             </section>
           </div>
         ) : null}
-        <SportScoreAttribution />
-      </div>
+</div>
     </div>
   );
 }
