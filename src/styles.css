@@ -4685,3 +4685,9 @@ select {
   .mc-rubber-head strong{font-size:.78rem}
   .mc-innings>li{grid-template-columns:minmax(0,1fr) auto}
 }
+
+
+/* Match Centre — grouped statistics */
+.mc-stat-group+.mc-stat-group{margin-top:18px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--ns-text) 8%,transparent)}
+.mc-stat-group h3{margin:0 0 6px;font-size:.78rem;font-weight:900;letter-spacing:.045em;text-transform:uppercase;color:var(--ns-text-muted)}
+.mc-lineup-status{display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--ns-teal) 14%,transparent);color:var(--ns-teal);font-size:.68rem;font-weight:900;white-space:nowrap}
