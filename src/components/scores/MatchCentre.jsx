@@ -12,6 +12,7 @@ import {
   formatEventTime,
   isConfirmedLive,
   isFinishedStatus,
+  eventPath,
   participantName,
   playerProfilePath,
   teamProfilePath,
@@ -44,6 +45,7 @@ import {
 } from "./nativeSections.jsx";
 import { scopedCompetitionId } from "../../config/sports.js";
 import { flagEmoji } from "../../lib/identityAssets.js";
+import { getRegistrySport } from "../../config/sportsRegistry.js";
 
 function competitionHead(event) {
   const presented = competitionPresentation(event);
@@ -151,7 +153,7 @@ function ParticipantBlock({ side, event, align, onSelect }) {
   );
 }
 
-function PairScoreboard({ event, t, locale, favorite, onTeamSelect }) {
+function PairScoreboard({ event, t, locale, favorite, onParticipantSelect }) {
   const presented = competitionHead(event);
   const live = isConfirmedLive(event);
   const finished = isFinishedStatus(event.status);
@@ -175,13 +177,13 @@ function PairScoreboard({ event, t, locale, favorite, onTeamSelect }) {
         {event.round ? ` · ${event.round}` : ""}
       </p>
       <div className="mc-board">
-        <ParticipantBlock side={event.home} event={event} align="home" onSelect={onTeamSelect} />
+        <ParticipantBlock side={event.home} event={event} align="home" onSelect={onParticipantSelect} />
         <div className="mc-score">
           <div className="mc-score-value">{score}</div>
           <div className={`mc-score-status ${live ? "is-live" : ""}`}>{statusLabel(event, t, time)}</div>
           {clock != null && clock !== "" && live ? <div className="mc-score-status is-live">{String(clock).replace(/'$/, "")}’</div> : null}
         </div>
-        <ParticipantBlock side={event.away} event={event} align="away" onSelect={onTeamSelect} />
+        <ParticipantBlock side={event.away} event={event} align="away" onSelect={onParticipantSelect} />
       </div>
       {!live && stamp ? <p className="mc-when">{stamp}</p> : null}
       {favorite}
@@ -757,14 +759,25 @@ export default function MatchCentre({ event, data, standings, articles = [], det
     setActiveSection("overview");
   }, [event.id]);
 
-  const openTeamProfile = (selected) => {
-    const side = selected?.entity || selected;
-    const name = selected?.name || participantName(side);
-    navigate(teamProfilePath(side, event, name));
+  const openPlayerProfile = (player) => {
+    const entity = player?.entity || player;
+    const name = player?.name || player?.display_name || participantName(entity);
+    navigate(playerProfilePath(entity, event, name || ""));
   };
 
-  const openPlayerProfile = (player) => {
-    navigate(playerProfilePath(player, event, player?.name || player?.display_name || ""));
+  const openParticipantProfile = (selected) => {
+    const side = selected?.entity || selected;
+    const name = selected?.name || participantName(side);
+    const registry = getRegistrySport(event.sport);
+    const individual =
+      event.event_family === "individual_match" ||
+      event.event_family === "combat" ||
+      ["person", "fighter"].includes(String(registry?.participant_type || "").toLowerCase());
+    if (individual) {
+      openPlayerProfile({ ...side, name });
+      return;
+    }
+    navigate(teamProfilePath(side, event, name));
   };
 
   const sections = useMemo(() => {
@@ -819,7 +832,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
         <Link to="/live-scores">{t("liveScores")}</Link>
       </p>
       {pair ? (
-        <PairScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} onTeamSelect={openTeamProfile} />
+        <PairScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} onParticipantSelect={openParticipantProfile} />
       ) : (
         <MetaScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} />
       )}
@@ -920,9 +933,14 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             <section className="mc-card">
               <h2>{t("live.upcoming")}</h2>
               <ul>
-                {related.slice(0, 6).map((row) => (
-                  <li key={row.id || row.label}>{row.label || `${participantName(row.home)} vs ${participantName(row.away)}`}</li>
-                ))}
+                {related.slice(0, 6).map((row) => {
+                  const label = row.label || `${participantName(row.home)} vs ${participantName(row.away)}`;
+                  return (
+                    <li key={row.id || row.label}>
+                      {row.id ? <Link to={eventPath(row.id)} state={{ event: row }}>{label}</Link> : label}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}
@@ -1007,9 +1025,14 @@ export default function MatchCentre({ event, data, standings, articles = [], det
               <section className="mc-card">
                 <h2>{t("predictions.h2h")}</h2>
                 <ul className="mc-h2h-list">
-                  {h2h.map((row, index) => (
-                    <li key={row.id || index}>{row.label || row.summary}</li>
-                  ))}
+                  {h2h.map((row, index) => {
+                    const label = row.label || row.summary || `${participantName(row.home)} vs ${participantName(row.away)}`;
+                    return (
+                      <li key={row.id || index}>
+                        {row.id ? <Link to={eventPath(row.id)} state={{ event: row }}>{label}</Link> : label}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ) : null}
@@ -1061,7 +1084,12 @@ export default function MatchCentre({ event, data, standings, articles = [], det
           >
             <section className="mc-card">
               <h2>{t("match.standings")}</h2>
-              <StandingsTable sport={event.sport} rows={standings} />
+              <StandingsTable
+                sport={event.sport}
+                rows={standings}
+                competition={event.competition_key || event.competition}
+                competitionCountry={event.country_id}
+              />
             </section>
           </div>
         ) : null}
