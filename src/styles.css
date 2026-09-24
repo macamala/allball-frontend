@@ -4867,3 +4867,21 @@ select {
     flex-basis: 20px;
   }
 }
+
+
+/* Multi-country participant flags */
+.score-crest-flags {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.score-crest-flags > span {
+  font-size: 0.72em;
+  line-height: 1;
+}
+.mc-player .score-crest-flags > span {
+  font-size: 0.72em;
+}
