@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
@@ -13,6 +13,8 @@ import {
   isConfirmedLive,
   isFinishedStatus,
   participantName,
+  playerProfilePath,
+  teamProfilePath,
 } from "../../lib/sportsData.js";
 import {
   eventTitle,
@@ -709,65 +711,10 @@ function Lineups({ shape, event, t, onPlayerSelect }) {
   );
 }
 
-function EntityDetailSheet({ selected, onClose }) {
-  if (!selected) return null;
-  const entity = selected.entity || {};
-  const player = selected.kind === "player";
-  const name = selected.name || entity.name || entity.display_name || "Details";
-  const image = player ? playerImage(entity) : entity.logo || entity.crest || entity.image || "";
-  const country = entity.country_id || entity.country || entity.nationality || "";
-  const fields = player
-    ? [
-        ["Number", entity.number],
-        ["Position", entity.position],
-        ["Rating", entity.rating],
-        ["Captain", entity.captain ? "Yes" : ""],
-        ["Minutes", entity.minutes],
-        ["Goals", entity.goals],
-        ["Assists", entity.assists],
-        ["Points", entity.points],
-        ["Rebounds", entity.rebounds],
-        ["Tackles", entity.tackles],
-        ["Shots", entity.shots],
-      ]
-    : [
-        ["Sport", selected.event?.sport],
-        ["Competition", selected.event ? competitionHead(selected.event).name : ""],
-        ["Team ID", entity.id],
-      ];
-  const visible = fields.filter(([, value]) => value !== null && value !== undefined && value !== "");
-  return (
-    <div className="mc-entity-backdrop" role="presentation" onClick={onClose}>
-      <aside className="mc-entity-sheet" role="dialog" aria-modal="true" aria-label={name} onClick={(ev) => ev.stopPropagation()}>
-        <button type="button" className="mc-entity-close" onClick={onClose} aria-label="Close">×</button>
-        <div className="mc-entity-head">
-          {image ? (
-            <img src={image} alt="" loading="lazy" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="mc-entity-avatar">{playerInitials(name)}</span>
-          )}
-          <div>
-            <p className="kicker">{player ? "Player" : "Team"}</p>
-            <h2>{name}</h2>
-            {country ? <span className="mc-entity-country">{flagEmoji(country)} {country}</span> : null}
-          </div>
-        </div>
-        {visible.length ? (
-          <dl className="mc-entity-facts">
-            {visible.map(([label, value]) => (
-              <div key={label}><dt>{label}</dt><dd>{String(value)}</dd></div>
-            ))}
-          </dl>
-        ) : null}
-      </aside>
-    </div>
-  );
-}
-
-
 export default function MatchCentre({ event, data, standings, articles = [], detailPending = false }) {
   const { t, dateLocale } = useI18n();
   const { favorites, syncFavorites } = useAuth();
+  const navigate = useNavigate();
   const kind = rendererForEvent(event);
   const incidents = timelineItems(event, data);
   const statistics = statisticsRows(event, data);
@@ -805,12 +752,20 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
   const shots = Array.isArray(event.sport_detail?.shots) ? event.sport_detail.shots : [];
   const [activeSection, setActiveSection] = useState("overview");
-  const [selectedEntity, setSelectedEntity] = useState(null);
 
   useEffect(() => {
     setActiveSection("overview");
-    setSelectedEntity(null);
   }, [event.id]);
+
+  const openTeamProfile = (selected) => {
+    const side = selected?.entity || selected;
+    const name = selected?.name || participantName(side);
+    navigate(teamProfilePath(side, event, name));
+  };
+
+  const openPlayerProfile = (player) => {
+    navigate(playerProfilePath(player, event, player?.name || player?.display_name || ""));
+  };
 
   const sections = useMemo(() => {
     const list = [{ id: "overview", label: t("match.overview") }];
@@ -864,7 +819,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
         <Link to="/live-scores">{t("liveScores")}</Link>
       </p>
       {pair ? (
-        <PairScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} onTeamSelect={setSelectedEntity} />
+        <PairScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} onTeamSelect={openTeamProfile} />
       ) : (
         <MetaScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} />
       )}
@@ -993,7 +948,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-lineups"
             hidden={currentSection !== "lineups"}
           >
-            <Lineups shape={lineups} event={event} t={t} onPlayerSelect={(player) => setSelectedEntity({ kind: "player", entity: player, name: player?.name, event })} />
+            <Lineups shape={lineups} event={event} t={t} onPlayerSelect={openPlayerProfile} />
           </div>
         ) : null}
 
@@ -1005,7 +960,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-players"
             hidden={currentSection !== "players"}
           >
-            <PlayerTable rows={playerStats} event={event} onPlayerClick={(player) => setSelectedEntity({ kind: "player", entity: player, name: player?.name, event })} />
+            <PlayerTable rows={playerStats} event={event} onPlayerClick={openPlayerProfile} />
           </div>
         ) : null}
 
@@ -1132,7 +1087,6 @@ export default function MatchCentre({ event, data, standings, articles = [], det
           </div>
         ) : null}
       </div>
-      <EntityDetailSheet selected={selectedEntity} onClose={() => setSelectedEntity(null)} />
     </div>
   );
 }
