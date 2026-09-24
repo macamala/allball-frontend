@@ -22,9 +22,24 @@ jobs:
       - name: Apply checksum-bound patch
         run: python3 audit/apply_groups.py
       - run: npm ci
+      - name: Record exact tested source and dependencies for reproducibility
+        run: |
+          git rev-parse HEAD
+          git ls-files '*test*'
+          git status --short
+          tar -czf /tmp/frontend-tested-source.tgz --exclude=.git --exclude=node_modules --exclude=dist .
+          tar -czf /tmp/frontend-test-dependencies.tgz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-exact-tested-source
+          path: |
+            /tmp/frontend-tested-source.tgz
+            /tmp/frontend-test-dependencies.tgz
+          retention-days: 2
       - name: Test full frontend suite
-        run: npm test
+        run: npm test -- --reporter=default --reporter=junit --outputFile=/tmp/frontend-tests.xml
       - name: Build production assets
+        if: always()
         env:
           VITE_API_URL: https://allball-backend-production.up.railway.app
         run: npm run build
@@ -32,7 +47,9 @@ jobs:
         if: always()
         with:
           name: football-group-verified-patch
-          path: /tmp/football-groups.patch
+          path: |
+            /tmp/football-groups.patch
+            /tmp/frontend-tests.xml
           retention-days: 7
   publish-tested-branch:
     needs: verify
