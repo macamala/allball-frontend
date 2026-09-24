@@ -488,6 +488,15 @@ export function localDayUtcBounds(dateKey) {
   return { date_from: from.toISOString(), date_to: to.toISOString() };
 }
 
+export function rollingUtcBounds(now = new Date(), hoursBack = 12, hoursForward = 36) {
+  const stamp = now instanceof Date ? now : new Date(now);
+  const base = Number.isNaN(stamp.getTime()) ? new Date() : stamp;
+  return {
+    date_from: new Date(base.getTime() - hoursBack * 60 * 60 * 1000).toISOString(),
+    date_to: new Date(base.getTime() + hoursForward * 60 * 60 * 1000).toISOString(),
+  };
+}
+
 export function eventLocalDateKey(event) {
   if (event?.start_precision === "DATE_ONLY" && event?.start_date) {
     return String(event.start_date).slice(0, 10);
