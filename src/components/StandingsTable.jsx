@@ -11,6 +11,30 @@ const PREFERRED = {
   "australian-rules": ["position", "team", "played", "wins", "losses", "draws", "percentage", "points"],
 };
 
+function TeamCell({ row }) {
+  const [failed, setFailed] = React.useState(false);
+  const logo = !failed ? (row.logo || row.crest || row.badge || row.team_logo || row.teamLogo || "") : "";
+  return (
+    <span className="standings-team">
+      {logo ? (
+        <img
+          className="standings-team-logo"
+          src={logo}
+          alt=""
+          width={22}
+          height={22}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="standings-team-logo is-missing" data-asset-missing="team-logo" aria-hidden="true">◆</span>
+      )}
+      <span>{row.team ?? "—"}</span>
+    </span>
+  );
+}
+
 const LABELS = {
   position: "Pos",
   team: "Team",
@@ -62,7 +86,7 @@ export default function StandingsTable({ rows = [], sport = "football", empty })
           {rows.map((row, index) => (
             <tr key={row.team_slug || row.team || index}>
               {all.map((col) => (
-                <td key={col}>{row[col] ?? "—"}</td>
+                <td key={col}>{col === "team" ? <TeamCell row={row} /> : row[col] ?? "—"}</td>
               ))}
             </tr>
           ))}
