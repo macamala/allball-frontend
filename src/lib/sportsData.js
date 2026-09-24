@@ -532,10 +532,13 @@ export function groupEventsByCompetition(events) {
   const groups = new Map();
   for (const event of events || []) {
     const key = event.competition_key || event.competition || "unknown";
-    if (!groups.has(key)) {
-      groups.set(key, {
+    const sport = event.sport || "unknown";
+    const identityKey = `${sport}::${key}`;
+    if (!groups.has(identityKey)) {
+      groups.set(identityKey, {
         key,
-        sport: event.sport,
+        identity_key: identityKey,
+        sport,
         competition: event.competition || key,
         country_id: event.country_id || null,
         geography_label: event.geography_label || null,
@@ -545,7 +548,7 @@ export function groupEventsByCompetition(events) {
         events: [],
       });
     }
-    groups.get(key).events.push(event);
+    groups.get(identityKey).events.push(event);
   }
   for (const group of groups.values()) {
     group.events.sort((left, right) => {
