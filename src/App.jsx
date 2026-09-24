@@ -11,6 +11,8 @@ import PredictionsPage from "./pages/PredictionsPage.jsx";
 import PredictionDetailPage from "./pages/PredictionDetailPage.jsx";
 import MySportsPage from "./pages/MySportsPage.jsx";
 import MatchPage from "./pages/MatchPage.jsx";
+import TeamPage from "./pages/TeamPage.jsx";
+import PlayerPage from "./pages/PlayerPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/match/:matchId" element={<MatchPage />} />
+        <Route path="/teams/:entityKey" element={<TeamPage />} />
+        <Route path="/players/:playerKey" element={<PlayerPage />} />
         <Route path="/sports/:sportSlug" element={<SportPage />} />
         <Route path="/:sportSlug" element={<SportPage />} />
         <Route path="/:sportSlug/:leagueSlug" element={<LeaguePage />} />
