@@ -1,0 +1,56 @@
+name: Football group regression gate
+on:
+  push:
+    branches: [fix/football-groups-20260925]
+permissions:
+  contents: read
+concurrency:
+  group: football-groups-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply checksum-bound patch
+        run: python3 audit/apply_groups.py
+      - run: npm ci
+      - name: Test full frontend suite
+        run: npm test
+      - name: Build production assets
+        env:
+          VITE_API_URL: https://allball-backend-production.up.railway.app
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-group-verified-patch
+          path: /tmp/football-groups.patch
+          retention-days: 7
+  publish-tested-branch:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Publish tested source only to recovery branch
+        run: |
+          python3 audit/apply_groups.py
+          git add src/components/StandingsTable.jsx src/components/scores/EventList.jsx src/components/scores/MatchCentre.jsx src/components/scores/MatchCentre.test.jsx src/lib/sportsData.js src/lib/standingsGroups.js src/lib/standingsGroups.test.js src/styles.css
+          git rm -r audit/groups
+          git config user.name 'NinkoSports recovery checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git commit -m 'Separate football group tables and open match table links (tests and production build verified)'
+          git push origin HEAD:fix/football-groups-20260925
+          echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)"
