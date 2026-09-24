@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
-import { isoDate, localDayUtcBounds } from "../lib/sportsData.js";
+import { isoDate, localDayUtcBounds, rollingUtcBounds } from "../lib/sportsData.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -39,30 +39,44 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const todayKey = isoDate(new Date());
-    getSportsDataEvents(localDayUtcBounds(todayKey))
-      .then((payload) => {
-        if (cancelled) return;
-        const rows = Array.isArray(payload?.events)
-          ? payload.events
-          : Array.isArray(payload?.matches)
-            ? payload.matches
-            : [];
-        const liveRank = (row) =>
-          row?.live || ["live", "halftime", "break"].includes(String(row?.status || "").toLowerCase())
-            ? 0
-            : 1;
-        setHomeScoreRows(
-          [...rows].sort((left, right) => {
-            const rankDiff = liveRank(left) - liveRank(right);
-            if (rankDiff) return rankDiff;
-            return String(left?.start_time || "").localeCompare(String(right?.start_time || ""));
-          })
-        );
-      })
-      .catch(() => {
-        // The news home should still render if scores are temporarily unavailable.
+    const extractRows = (payload) =>
+      Array.isArray(payload?.events)
+        ? payload.events
+        : Array.isArray(payload?.matches)
+          ? payload.matches
+          : [];
+    const sortScoreRows = (rows) => {
+      const liveRank = (row) =>
+        row?.live || ["live", "halftime", "break"].includes(String(row?.status || "").toLowerCase())
+          ? 0
+          : 1;
+      return [...rows].sort((left, right) => {
+        const rankDiff = liveRank(left) - liveRank(right);
+        if (rankDiff) return rankDiff;
+        return String(left?.start_time || "").localeCompare(String(right?.start_time || ""));
       });
+    };
+    const loadHomeScores = async () => {
+      const todayKey = isoDate(new Date());
+      try {
+        const primary = await getSportsDataEvents(localDayUtcBounds(todayKey));
+        const rows = extractRows(primary);
+        if (rows.length) return rows;
+      } catch {
+        // Fall through to a rolling instant-based window. This prevents one
+        // browser's timezone/date setting or a transient empty day response
+        // from removing Live Scores from the home page entirely.
+      }
+      try {
+        const fallback = await getSportsDataEvents(rollingUtcBounds(new Date(), 12, 36));
+        return extractRows(fallback);
+      } catch {
+        return [];
+      }
+    };
+    loadHomeScores().then((rows) => {
+      if (!cancelled) setHomeScoreRows(sortScoreRows(rows));
+    });
 
     const cachedHome = peekPortalHome();
     if (cachedHome) {
