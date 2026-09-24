@@ -82,9 +82,17 @@ export function sideLogo(side) {
   return participantLogo(side);
 }
 
-export function sideCountry(side, fallback) {
+export function sideCountries(side, fallback) {
   if (side && typeof side === "object") {
-    return side.country_id || side.country || side.nationality || fallback || "";
+    const values = Array.isArray(side.country_ids) ? side.country_ids.filter(Boolean) : [];
+    const single = side.country_id || side.country || side.nationality || "";
+    const combined = single ? [single, ...values] : values;
+    const unique = [...new Set(combined.map((value) => String(value).trim()).filter(Boolean))];
+    if (unique.length) return unique;
   }
-  return fallback || "";
+  return fallback ? [fallback] : [];
+}
+
+export function sideCountry(side, fallback) {
+  return sideCountries(side, fallback)[0] || "";
 }
