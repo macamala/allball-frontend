@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { flagEmoji, sideCountry, sideLogo } from "../../lib/identityAssets.js";
+import { crestInitial, flagEmoji, sideCountry, sideLogo } from "../../lib/identityAssets.js";
 
 export default function Crest({ side, fallbackCountry, size = 22, className = "" }) {
   const logo = sideLogo(side);
@@ -21,9 +21,15 @@ export default function Crest({ side, fallbackCountry, size = 22, className = ""
     );
   }
 
+  const initials = crestInitial(side?.display_name || side?.name || "");
   return (
-    <span className={`score-crest is-fallback ${className}`.trim()} style={{ width: size, height: size }} aria-hidden="true">
-      {flag || ""}
+    <span
+      className={`score-crest is-fallback ${flag ? "has-flag" : "is-missing"} ${className}`.trim()}
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+      data-asset-missing={flag ? undefined : "true"}
+    >
+      {flag || initials}
     </span>
   );
 }
