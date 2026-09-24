@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getPortalHome, peekPortalHome } from "../api.js";
+import { getPortalHome, getSportsDataEvents, peekPortalHome } from "../api.js";
 import { MAIN_SPORTS, leaguePath, sportPath } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
+import { isoDate, localDayUtcBounds } from "../lib/sportsData.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -21,6 +22,7 @@ import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 export default function HomePage() {
   const cached = peekPortalHome();
   const [data, setData] = useState(cached);
+  const [homeScoreRows, setHomeScoreRows] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!cached);
   const { favorites } = useAuth();
@@ -37,6 +39,31 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
+    const todayKey = isoDate(new Date());
+    getSportsDataEvents(localDayUtcBounds(todayKey))
+      .then((payload) => {
+        if (cancelled) return;
+        const rows = Array.isArray(payload?.events)
+          ? payload.events
+          : Array.isArray(payload?.matches)
+            ? payload.matches
+            : [];
+        const liveRank = (row) =>
+          row?.live || ["live", "halftime", "break"].includes(String(row?.status || "").toLowerCase())
+            ? 0
+            : 1;
+        setHomeScoreRows(
+          [...rows].sort((left, right) => {
+            const rankDiff = liveRank(left) - liveRank(right);
+            if (rankDiff) return rankDiff;
+            return String(left?.start_time || "").localeCompare(String(right?.start_time || ""));
+          })
+        );
+      })
+      .catch(() => {
+        // The news home should still render if scores are temporarily unavailable.
+      });
+
     const cachedHome = peekPortalHome();
     if (cachedHome) {
       setData(cachedHome);
@@ -83,7 +110,11 @@ export default function HomePage() {
 
   const modules = composeHomeModules(data || {});
   const scores = data?.sports_data;
-  const liveRail = hasLiveUtilityData(scores) ? <LiveScoresRail scores={scores} /> : null;
+  const liveRail = homeScoreRows.length
+    ? <LiveScoresRail rows={homeScoreRows} title={t("liveScores")} />
+    : hasLiveUtilityData(scores)
+      ? <LiveScoresRail scores={scores} />
+      : null;
 
   return (
     <div className="page-home">
