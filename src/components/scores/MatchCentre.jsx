@@ -134,17 +134,22 @@ function lineupsShape(event, data) {
   return null;
 }
 
-function ParticipantBlock({ side, event, align }) {
+function ParticipantBlock({ side, event, align, onSelect }) {
   const name = participantName(side, { sport: event.sport, competitionCountry: event.country_id }) || "—";
   return (
-    <div className={`mc-player is-${align}`}>
+    <button
+      type="button"
+      className={`mc-player is-${align} mc-entity-trigger`}
+      onClick={() => onSelect?.({ kind: "team", entity: side, name, event })}
+      aria-label={`Open ${name} details`}
+    >
       <Crest side={side} fallbackCountry={event.scope_type !== "DOMESTIC" ? name : ""} size={48} />
       <strong>{name}</strong>
-    </div>
+    </button>
   );
 }
 
-function PairScoreboard({ event, t, locale, favorite }) {
+function PairScoreboard({ event, t, locale, favorite, onTeamSelect }) {
   const presented = competitionHead(event);
   const live = isConfirmedLive(event);
   const finished = isFinishedStatus(event.status);
@@ -168,13 +173,13 @@ function PairScoreboard({ event, t, locale, favorite }) {
         {event.round ? ` · ${event.round}` : ""}
       </p>
       <div className="mc-board">
-        <ParticipantBlock side={event.home} event={event} align="home" />
+        <ParticipantBlock side={event.home} event={event} align="home" onSelect={onTeamSelect} />
         <div className="mc-score">
           <div className="mc-score-value">{score}</div>
           <div className={`mc-score-status ${live ? "is-live" : ""}`}>{statusLabel(event, t, time)}</div>
           {clock != null && clock !== "" && live ? <div className="mc-score-status is-live">{String(clock).replace(/'$/, "")}’</div> : null}
         </div>
-        <ParticipantBlock side={event.away} event={event} align="away" />
+        <ParticipantBlock side={event.away} event={event} align="away" onSelect={onTeamSelect} />
       </div>
       {!live && stamp ? <p className="mc-when">{stamp}</p> : null}
       {favorite}
@@ -690,6 +695,62 @@ function Lineups({ shape, event, t }) {
   );
 }
 
+function EntityDetailSheet({ selected, onClose }) {
+  if (!selected) return null;
+  const entity = selected.entity || {};
+  const player = selected.kind === "player";
+  const name = selected.name || entity.name || entity.display_name || "Details";
+  const image = player ? playerImage(entity) : entity.logo || entity.crest || entity.image || "";
+  const country = entity.country_id || entity.country || entity.nationality || "";
+  const fields = player
+    ? [
+        ["Number", entity.number],
+        ["Position", entity.position],
+        ["Rating", entity.rating],
+        ["Captain", entity.captain ? "Yes" : ""],
+        ["Minutes", entity.minutes],
+        ["Goals", entity.goals],
+        ["Assists", entity.assists],
+        ["Points", entity.points],
+        ["Rebounds", entity.rebounds],
+        ["Tackles", entity.tackles],
+        ["Shots", entity.shots],
+      ]
+    : [
+        ["Sport", selected.event?.sport],
+        ["Competition", selected.event ? competitionHead(selected.event).name : ""],
+        ["Team ID", entity.id],
+      ];
+  const visible = fields.filter(([, value]) => value !== null && value !== undefined && value !== "");
+  return (
+    <div className="mc-entity-backdrop" role="presentation" onClick={onClose}>
+      <aside className="mc-entity-sheet" role="dialog" aria-modal="true" aria-label={name} onClick={(ev) => ev.stopPropagation()}>
+        <button type="button" className="mc-entity-close" onClick={onClose} aria-label="Close">×</button>
+        <div className="mc-entity-head">
+          {image ? (
+            <img src={image} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="mc-entity-avatar">{playerInitials(name)}</span>
+          )}
+          <div>
+            <p className="kicker">{player ? "Player" : "Team"}</p>
+            <h2>{name}</h2>
+            {country ? <span className="mc-entity-country">{flagEmoji(country)} {country}</span> : null}
+          </div>
+        </div>
+        {visible.length ? (
+          <dl className="mc-entity-facts">
+            {visible.map(([label, value]) => (
+              <div key={label}><dt>{label}</dt><dd>{String(value)}</dd></div>
+            ))}
+          </dl>
+        ) : null}
+      </aside>
+    </div>
+  );
+}
+
+
 export default function MatchCentre({ event, data, standings, articles = [], detailPending = false }) {
   const { t, dateLocale } = useI18n();
   const { favorites, syncFavorites } = useAuth();
@@ -730,9 +791,11 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
   const shots = Array.isArray(event.sport_detail?.shots) ? event.sport_detail.shots : [];
   const [activeSection, setActiveSection] = useState("overview");
+  const [selectedEntity, setSelectedEntity] = useState(null);
 
   useEffect(() => {
     setActiveSection("overview");
+    setSelectedEntity(null);
   }, [event.id]);
 
   const sections = useMemo(() => {
@@ -787,7 +850,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
         <Link to="/live-scores">{t("liveScores")}</Link>
       </p>
       {pair ? (
-        <PairScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} />
+        <PairScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} onTeamSelect={setSelectedEntity} />
       ) : (
         <MetaScoreboard event={event} t={t} locale={dateLocale} favorite={favoriteControl} />
       )}
@@ -1054,7 +1117,8 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             </section>
           </div>
         ) : null}
-</div>
+      </div>
+      <EntityDetailSheet selected={selectedEntity} onClose={() => setSelectedEntity(null)} />
     </div>
   );
 }
