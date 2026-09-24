@@ -43,12 +43,12 @@ export function competitionPresentation(eventOrGroup = {}) {
   const countryId = sample.country_id || eventOrGroup.country_id || null;
   const scopeType = sample.scope_type || eventOrGroup.scope_type || "";
   const kicker = geography && !isSportGeography(geography) ? geography : "";
-  const showFlag = Boolean(kicker && countryId && scopeType === "DOMESTIC");
+  const showFlag = Boolean(countryId && scopeType === "DOMESTIC");
   return {
     displayName,
     geography: kicker,
     kicker,
-    countryId: kicker ? countryId : null,
+    countryId: countryId || null,
     scopeType,
     showFlag,
   };
