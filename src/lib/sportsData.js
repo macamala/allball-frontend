@@ -594,6 +594,36 @@ export function eventPath(eventId) {
   return `/scores/event/${encodeURIComponent(eventId)}`;
 }
 
+function entityKey(entity, fallbackName = "") {
+  return String(entity?.id || entity?.slug || fallbackName || entity?.name || entity?.display_name || "").trim();
+}
+
+export function teamProfilePath(side, event = {}, fallbackName = "") {
+  const name = participantName(side, {
+    sport: event?.sport,
+    competitionCountry: event?.country_id,
+  }) || fallbackName;
+  const key = entityKey(side, name);
+  if (!key) return "/live-scores";
+  const search = new URLSearchParams();
+  if (event?.sport) search.set("sport", event.sport);
+  if (event?.competition_key) search.set("competition", event.competition_key);
+  if (name) search.set("name", name);
+  const qs = search.toString();
+  return `/teams/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
+}
+
+export function playerProfilePath(player, event = {}, fallbackName = "") {
+  const name = String(player?.display_name || player?.name || fallbackName || "").trim();
+  const key = entityKey(player, name);
+  if (!key) return eventPath(event?.id);
+  const search = new URLSearchParams();
+  if (name) search.set("name", name);
+  if (event?.id) search.set("event_id", event.id);
+  const qs = search.toString();
+  return `/players/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
+}
+
 export function formatWeekdayLabel(dateKey, locale = "en-GB") {
   if (!dateKey || dateKey === "undated") return "";
   const date = new Date(`${dateKey}T12:00:00`);
