@@ -269,6 +269,16 @@ export function getMatch(id, options = {}) {
   return cachedGetJSON(matchPath(id), SCORES_LIVE_TTL, options);
 }
 
+export function getTeamProfile(entityKey, params = {}) {
+  const base = `/sports-data/teams/${encodeURIComponent(entityKey || "")}`;
+  return cachedGetJSON(sportsDataQueryPath(base, params), SCORES_LIST_TTL);
+}
+
+export function getPlayerProfile(playerKey, params = {}) {
+  const base = `/sports-data/players/${encodeURIComponent(playerKey || "")}`;
+  return cachedGetJSON(sportsDataQueryPath(base, params), SCORES_LIST_TTL);
+}
+
 export function getSportsDataEvents(params = {}) {
   return cachedGetJSON(sportsDataQueryPath("/sports-data/events", params), SCORES_LIST_TTL);
 }
