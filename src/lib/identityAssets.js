@@ -28,10 +28,29 @@ const SLUG_TO_ISO = {
   ecuador: "EC", venezuela: "VE", bolivia: "BO", "costa-rica": "CR", panama: "PA",
 };
 
+const ALPHA3_TO_ISO = {
+  ALB: "AL", ALG: "DZ", ANG: "AO", ARG: "AR", ARM: "AM", AUS: "AU", AUT: "AT",
+  AZE: "AZ", BEL: "BE", BIH: "BA", BOL: "BO", BRA: "BR", BUL: "BG", CAN: "CA",
+  CHI: "CL", CHL: "CL", CHN: "CN", COL: "CO", CRC: "CR", CRO: "HR", CZE: "CZ",
+  DEN: "DK", ECU: "EC", EGY: "EG", ENG: "GB", ESP: "ES", EST: "EE", FIN: "FI",
+  FRA: "FR", GEO: "GE", GER: "DE", GHA: "GH", GRE: "GR", HUN: "HU", IDN: "ID",
+  IND: "IN", IRL: "IE", IRN: "IR", ISL: "IS", ISR: "IL", ITA: "IT", JPN: "JP",
+  KAZ: "KZ", KOR: "KR", KSA: "SA", MAR: "MA", MEX: "MX", MKD: "MK", NED: "NL",
+  NGA: "NG", NIR: "GB", NOR: "NO", NZL: "NZ", PAR: "PY", PER: "PE", POL: "PL",
+  POR: "PT", ROU: "RO", RSA: "ZA", RUS: "RU", SCO: "GB", SRB: "RS", SUI: "CH",
+  SVK: "SK", SVN: "SI", SWE: "SE", THA: "TH", TUN: "TN", TUR: "TR", UAE: "AE",
+  UKR: "UA", URU: "UY", USA: "US", UZB: "UZ", VEN: "VE", VIE: "VN", WAL: "GB",
+  CMR: "CM", SEN: "SN", CIV: "CI", QAT: "QA", PAN: "PA", PRY: "PY", KEN: "KE",
+  UGA: "UG", TAN: "TZ", ZIM: "ZW", MOZ: "MZ", MNE: "ME", KOS: "XK", BLR: "BY",
+  LTU: "LT", LVA: "LV", LUX: "LU", MLT: "MT", CYP: "CY", SGP: "SG", MAS: "MY",
+  PHI: "PH", HKG: "HK", TPE: "TW",
+};
+
 function isoFromCountry(value) {
   if (!value) return "";
   const raw = String(value).trim();
   if (/^[a-z]{2}$/i.test(raw)) return raw.toUpperCase();
+  if (/^[a-z]{3}$/i.test(raw)) return ALPHA3_TO_ISO[raw.toUpperCase()] || "";
   const slug = raw.toLowerCase().replace(/[\s_]+/g, "-");
   return SLUG_TO_ISO[slug] || SLUG_TO_ISO[slug.replace(/-/g, "")] || "";
 }
