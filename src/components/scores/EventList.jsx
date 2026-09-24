@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { competitionPresentation } from "../../lib/competitionPresentation.js";
@@ -12,6 +12,11 @@ import FavoriteButton from "./FavoriteButton.jsx";
 
 function CompetitionIdentity({ logo, flag }) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [logo]);
+
   const missingLogo = !logo || failed;
   return (
     <span className={`score-comp-identity ${flag ? "has-flag" : ""} ${missingLogo ? "is-logo-missing" : "has-logo"}`} aria-hidden="true">
