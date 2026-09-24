@@ -533,13 +533,23 @@ export function groupEventsByCompetition(events) {
   for (const event of events || []) {
     const key = event.competition_key || event.competition || "unknown";
     const sport = event.sport || "unknown";
-    const identityKey = `${sport}::${key}`;
+    const displayCompetition = String(event.competition_name || event.competition || key || "").trim();
+    const dotaTournamentIdentity =
+      sport === "dota-2" &&
+      key === "professional" &&
+      displayCompetition &&
+      displayCompetition.toLowerCase() !== "dota 2 professional"
+        ? displayCompetition.toLowerCase().replace(/\s+/g, " ")
+        : "";
+    const identityKey = dotaTournamentIdentity
+      ? `${sport}::${key}::${dotaTournamentIdentity}`
+      : `${sport}::${key}`;
     if (!groups.has(identityKey)) {
       groups.set(identityKey, {
         key,
         identity_key: identityKey,
         sport,
-        competition: event.competition || key,
+        competition: displayCompetition || key,
         country_id: event.country_id || null,
         geography_label: event.geography_label || null,
         scope_type: event.scope_type || null,
