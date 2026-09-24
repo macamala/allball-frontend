@@ -41,11 +41,43 @@ import {
   seriesGames,
 } from "./nativeSections.jsx";
 import { scopedCompetitionId } from "../../config/sports.js";
+import { flagEmoji } from "../../lib/identityAssets.js";
 
 function competitionHead(event) {
   const presented = competitionPresentation(event);
   const name = presented.displayName || competitionLabel(event.competition);
-  return { kicker: presented.kicker, name };
+  return {
+    kicker: presented.kicker,
+    name,
+    countryId: presented.countryId,
+    showFlag: presented.showFlag,
+    logo: event.competition_logo || "",
+  };
+}
+
+function CompetitionHeroIdentity({ presented }) {
+  const [failed, setFailed] = useState(false);
+  const flag = presented.showFlag ? flagEmoji(presented.countryId) : "";
+  const logo = presented.logo && !failed ? presented.logo : "";
+  return (
+    <div className="mc-comp-identity" aria-hidden="true">
+      {flag ? <span className="mc-comp-flag">{flag}</span> : null}
+      {logo ? (
+        <img
+          className="mc-comp-logo"
+          src={logo}
+          alt=""
+          width={28}
+          height={28}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="mc-comp-logo-missing" data-asset-missing="competition-logo">◆</span>
+      )}
+    </div>
+  );
 }
 
 function usefulNumber(value) {
@@ -106,7 +138,7 @@ function ParticipantBlock({ side, event, align }) {
   const name = participantName(side, { sport: event.sport, competitionCountry: event.country_id }) || "—";
   return (
     <div className={`mc-player is-${align}`}>
-      <Crest side={side} size={48} />
+      <Crest side={side} fallbackCountry={event.scope_type !== "DOMESTIC" ? name : ""} size={48} />
       <strong>{name}</strong>
     </div>
   );
@@ -129,6 +161,7 @@ function PairScoreboard({ event, t, locale, favorite }) {
   const clock = event.score?.clock || event.score?.minute || detail.clock || detail.minute;
   return (
     <header className={`mc-hero ${live ? "is-live" : ""} ${finished ? "is-finished" : ""}`}>
+      <CompetitionHeroIdentity presented={presented} />
       {presented.kicker ? <p className="mc-geo">{presented.kicker}</p> : null}
       <p className="mc-kicker">
         {presented.name}
@@ -156,6 +189,7 @@ function MetaScoreboard({ event, t, locale, favorite }) {
   const names = namedField(event.classification || event.leaderboard || event.runners || event.athletes, 8);
   return (
     <header className={`mc-hero is-meta ${live ? "is-live" : ""}`}>
+      <CompetitionHeroIdentity presented={presented} />
       {presented.kicker ? <p className="mc-geo">{presented.kicker}</p> : null}
       <p className="mc-kicker">{presented.name}</p>
       <h2 className="mc-event-title">{eventTitle(event)}</h2>
