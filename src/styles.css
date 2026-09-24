@@ -4832,3 +4832,38 @@ select {
     min-width: 40px;
   }
 }
+
+
+/* Standings identity assets */
+.standings-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.standings-team-logo {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.standings-team-logo.is-missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--ns-border) 75%, transparent);
+  color: var(--ns-text-muted);
+  background: color-mix(in srgb, var(--ns-surface-2) 45%, transparent);
+  font-size: 0.5rem;
+}
+@media (max-width: 720px) {
+  .standings-team {
+    gap: 5px;
+  }
+  .standings-team-logo {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+  }
+}
