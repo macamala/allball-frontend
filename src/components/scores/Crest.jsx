@@ -1,9 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { crestInitial, flagEmoji, sideCountries, sideLogo } from "../../lib/identityAssets.js";
 
 export default function Crest({ side, fallbackCountry, size = 22, className = "" }) {
   const logo = sideLogo(side);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [logo]);
+
   const flags = sideCountries(side, fallbackCountry).map(flagEmoji).filter(Boolean);
   const flag = flags[0] || "";
 
