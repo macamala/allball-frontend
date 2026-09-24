@@ -4374,8 +4374,11 @@ select {
 }
 
 .match-centre .mc-tab:first-child {
+  color: var(--ns-text-secondary);
+  border-bottom-color: transparent;
+}
+.match-centre .mc-tab:first-child.is-active {
   color: var(--ns-text);
-  border-bottom-color: var(--ns-blue);
 }
 
 .match-centre .mc-card > h2 {
@@ -4817,7 +4820,7 @@ select {
 
 @media (max-width: 720px) {
   .page-scores .score-comp-head {
-    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-columns: 42px minmax(0, 1fr) auto auto;
   }
   .score-comp-identity {
     width: 42px;
@@ -4842,7 +4845,7 @@ select {
 
 @media (max-width: 390px) {
   .page-scores .score-comp-head {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-columns: 40px minmax(0, 1fr) auto auto;
   }
   .score-comp-identity {
     width: 40px;
