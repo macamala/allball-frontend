@@ -142,6 +142,9 @@ export default function MatchPage() {
       .catch(() => {
         // Keep the last known good Match Centre visible through a transient
         // backend restart or network failure. The next visible poll retries.
+      })
+      .finally(() => {
+        if (seq === requestSeq.current) setLoading(false);
       });
   }, [matchId]);
 
