@@ -6,6 +6,7 @@ import {
   eventLocalDateKey,
   formatEventTime,
   formatPercent,
+  groupEventsByCompetition,
   groupEventsByDate,
   normalizeEvent,
   outcomePercents,
@@ -134,6 +135,31 @@ describe("evidence and grouping", () => {
     expect(groups[1].label).toBeTruthy();
     expect(groups[0].date).not.toBe(groups[1].date);
     expect(eventDateKey(tue)).toBe("2026-09-15");
+  });
+
+  it("keeps canonical Dota key but separates public tournament score groups", () => {
+    const groups = groupEventsByCompetition([
+      {
+        id: "dota-1",
+        sport: "dota-2",
+        competition_key: "professional",
+        competition: "PGL Wallachia 2026 Season 9",
+        competition_name: "PGL Wallachia 2026 Season 9",
+        start_time: "2026-09-24T09:00:00Z",
+      },
+      {
+        id: "dota-2",
+        sport: "dota-2",
+        competition_key: "professional",
+        competition: "Dota 2 Professional",
+        start_time: "2026-09-24T10:00:00Z",
+      },
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups.find((group) => group.competition.includes("PGL"))?.key).toBe("professional");
+    expect(groups.map((group) => group.identity_key)).toContain(
+      "dota-2::professional::pgl wallachia 2026 season 9"
+    );
   });
 
   it("computes period ranges from the supplied now, including This Week Monday–Sunday", () => {
