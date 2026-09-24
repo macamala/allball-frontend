@@ -1,4 +1,6 @@
 import React from "react";
+import { Link } from "react-router-dom";
+import { teamProfilePath } from "../lib/sportsData.js";
 
 const PREFERRED = {
   football: ["position", "team", "played", "wins", "draws", "losses", "goals_for", "goals_against", "goal_difference", "points", "form"],
@@ -11,11 +13,25 @@ const PREFERRED = {
   "australian-rules": ["position", "team", "played", "wins", "losses", "draws", "percentage", "points"],
 };
 
-function TeamCell({ row }) {
+function TeamCell({ row, sport, competition, competitionCountry }) {
   const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => setFailed(false), [row.logo, row.crest, row.badge, row.team_logo, row.teamLogo]);
   const logo = !failed ? (row.logo || row.crest || row.badge || row.team_logo || row.teamLogo || "") : "";
-  return (
-    <span className="standings-team">
+  const name = row.team ?? "—";
+  const side = {
+    id: row.team_id || row.id || "",
+    slug: row.team_slug || "",
+    name,
+    display_name: name,
+    logo,
+  };
+  const path = teamProfilePath(
+    side,
+    { sport, competition_key: competition, country_id: row.country_id || competitionCountry },
+    name
+  );
+  const content = (
+    <>
       {logo ? (
         <img
           className="standings-team-logo"
@@ -30,8 +46,15 @@ function TeamCell({ row }) {
       ) : (
         <span className="standings-team-logo is-missing" data-asset-missing="team-logo" aria-hidden="true">◆</span>
       )}
-      <span>{row.team ?? "—"}</span>
-    </span>
+      <span>{name}</span>
+    </>
+  );
+  return path && path !== "/live-scores" ? (
+    <Link className="standings-team" to={path} style={{ color: "inherit", textDecoration: "none" }}>
+      {content}
+    </Link>
+  ) : (
+    <span className="standings-team">{content}</span>
   );
 }
 
@@ -60,7 +83,13 @@ const LABELS = {
   gb: "GB",
 };
 
-export default function StandingsTable({ rows = [], sport = "football", empty }) {
+export default function StandingsTable({
+  rows = [],
+  sport = "football",
+  competition = "",
+  competitionCountry = "",
+  empty,
+}) {
   if (!rows.length) return empty || null;
   const sample = rows[0] || {};
   const preferred = PREFERRED[sport] || PREFERRED.football;
@@ -89,7 +118,18 @@ export default function StandingsTable({ rows = [], sport = "football", empty })
           {rows.map((row, index) => (
             <tr key={row.team_slug || row.team || index}>
               {all.map((col) => (
-                <td key={col}>{col === "team" ? <TeamCell row={row} /> : row[col] ?? "—"}</td>
+                <td key={col}>
+                  {col === "team" ? (
+                    <TeamCell
+                      row={row}
+                      sport={sport}
+                      competition={competition}
+                      competitionCountry={competitionCountry}
+                    />
+                  ) : (
+                    row[col] ?? "—"
+                  )}
+                </td>
               ))}
             </tr>
           ))}
