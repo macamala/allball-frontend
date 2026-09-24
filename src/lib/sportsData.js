@@ -324,6 +324,8 @@ export function normalizeEvent(raw) {
     participant_b: participantB,
     round: raw.round || raw.stage || null,
     stage: raw.stage || raw.round || null,
+    group: raw.group || null,
+    group_name: raw.group_name || null,
     country_id: raw.country_id || null,
     country_based: Boolean(raw.country_based),
     competition_logo: raw.competition_logo || raw.competition_image || "",
@@ -550,13 +552,18 @@ export function groupEventsByCompetition(events) {
       displayCompetition.toLowerCase() !== "dota 2 professional"
         ? displayCompetition.toLowerCase().replace(/\s+/g, " ")
         : "";
-    const identityKey = dotaTournamentIdentity
-      ? `${sport}::${key}::${dotaTournamentIdentity}`
-      : `${sport}::${key}`;
+    const footballGroup = sport === "football" ? String(event.group || "").trim() : "";
+    const identityKey = footballGroup
+      ? `${sport}::${key}::${footballGroup.toLowerCase()}`
+      : dotaTournamentIdentity
+        ? `${sport}::${key}::${dotaTournamentIdentity}`
+        : `${sport}::${key}`;
     if (!groups.has(identityKey)) {
       groups.set(identityKey, {
         key,
         identity_key: identityKey,
+        group: footballGroup || null,
+        stage: event.stage || null,
         sport,
         competition: displayCompetition || key,
         country_id: event.country_id || null,

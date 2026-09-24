@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { teamProfilePath } from "../lib/sportsData.js";
+import { standingsGroups, preferredStandingsGroup } from "../lib/standingsGroups.js";
 
 const PREFERRED = {
   football: ["position", "team", "played", "wins", "draws", "losses", "goals_for", "goals_against", "goal_difference", "points", "form"],
@@ -88,10 +89,18 @@ export default function StandingsTable({
   sport = "football",
   competition = "",
   competitionCountry = "",
+  event = {},
   empty,
 }) {
+  const groups = React.useMemo(() => standingsGroups(rows), [rows]);
+  const preferredGroup = preferredStandingsGroup(groups, event);
+  const [selectedGroup, setSelectedGroup] = React.useState(preferredGroup);
+  React.useEffect(() => setSelectedGroup(preferredGroup), [competition, event.id, preferredGroup]);
+  const selected = groups.find(group => group.key === selectedGroup)
+    || groups.find(group => group.key === preferredGroup);
+  const visibleRows = selected?.rows || (groups.length === 1 ? rows : []);
   if (!rows.length) return empty || null;
-  const sample = rows[0] || {};
+  const sample = visibleRows[0] || {};
   const preferred = PREFERRED[sport] || PREFERRED.football;
   const columns = preferred.filter((key) => rows.some((row) => row[key] != null && row[key] !== ""));
   const extras = Object.keys(sample).filter(
@@ -103,7 +112,18 @@ export default function StandingsTable({
   const all = columns.length ? columns : ["position", "team", ...extras];
 
   return (
-    <div className="table-wrap">
+    <div className="standings-grouped">
+      {groups.length > 1 ? (
+        <label className="standings-group-control">
+          <span>Group</span>
+          <select aria-label="Standings group" value={selected?.key || ""} onChange={e => setSelectedGroup(e.target.value)}>
+            {!selected ? <option value="">Select a group</option> : null}
+            {groups.map(group => <option key={group.key} value={group.key}>{group.label}</option>)}
+          </select>
+        </label>
+      ) : null}
+      {selected && groups.length > 1 ? <h3 className="standings-group-heading">{selected.label}</h3> : null}
+      <div className="table-wrap">
       <table className="standings-table">
         <thead>
           <tr>
@@ -115,7 +135,7 @@ export default function StandingsTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
+          {visibleRows.map((row, index) => (
             <tr key={row.team_slug || row.team || index}>
               {all.map((col) => (
                 <td key={col}>
@@ -135,6 +155,7 @@ export default function StandingsTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

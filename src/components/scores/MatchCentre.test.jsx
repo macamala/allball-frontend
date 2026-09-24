@@ -145,8 +145,9 @@ describe("Match Centre layouts", () => {
     expect(document.querySelector(".mc-pitch-team.is-home")).toBeTruthy();
     expect(document.querySelector(".mc-pitch-team.is-away")).toBeTruthy();
     expect(document.querySelector(".mc-player-avatar img")).toBeTruthy();
-    expect(screen.getByText("4-3-3")).toBeTruthy();
-    expect(screen.getByText("4-2-3-1")).toBeTruthy();\n    expect(screen.getAllByText("Starting XI").length).toBe(2);
+    expect(screen.getAllByText("4-3-3")).toHaveLength(2);
+    expect(screen.getAllByText("4-2-3-1")).toHaveLength(2);
+    expect(screen.getAllByText("Starting XI").length).toBe(2);
 
     const statsTab = screen.getByRole("tab", { name: /statistics/i });
     fireEvent.click(statsTab);
@@ -498,6 +499,8 @@ describe("Match Centre layouts", () => {
       />
     );
     expect(screen.getAllByText("George Russell").length).toBeGreaterThan(0);
+    fireEvent.click(document.getElementById("mc-tab-classification"));
+    expect(document.getElementById("mc-panel-classification").hidden).toBe(false);
     expect(screen.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual([
       "Pos",
       "Name",

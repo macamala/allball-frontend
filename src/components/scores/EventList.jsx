@@ -46,7 +46,7 @@ function headerMeta(group) {
     kicker: presented.kicker,
     showFlag: presented.showFlag,
     countryId: presented.countryId,
-    title: presented.displayName || competitionLabel(group.competition),
+    title: group.group || presented.displayName || competitionLabel(group.competition),
   };
 }
 

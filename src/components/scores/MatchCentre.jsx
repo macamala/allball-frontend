@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { matchSectionFromHash } from "../../lib/standingsGroups.js";
 import StandingsTable from "../StandingsTable.jsx";
 import Crest from "./Crest.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
@@ -754,11 +755,12 @@ export default function MatchCentre({ event, data, standings, articles = [], det
 
   const playerStats = Array.isArray(event.player_statistics) ? event.player_statistics.filter((row) => row && row.name) : [];
   const shots = Array.isArray(event.sport_detail?.shots) ? event.sport_detail.shots : [];
-  const [activeSection, setActiveSection] = useState("overview");
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState(() => matchSectionFromHash(location.hash));
 
   useEffect(() => {
-    setActiveSection("overview");
-  }, [event.id]);
+    setActiveSection(matchSectionFromHash(location.hash));
+  }, [event.id, location.hash]);
 
   const openPlayerProfile = (player) => {
     const entity = player?.entity || player;
@@ -1088,6 +1090,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
               <StandingsTable
                 sport={event.sport}
                 rows={standings}
+                event={event}
                 competition={event.competition_key || event.competition}
                 competitionCountry={event.country_id}
               />

@@ -5054,3 +5054,10 @@ select {
     grid-template-columns: 34px 24px minmax(0,1fr) auto;
   }
 }
+
+/* Group-scoped football tables; scrolling stays inside the table on mobile. */
+.standings-grouped { min-width: 0; max-width: 100%; }
+.standings-group-control { display: flex; align-items: center; gap: .65rem; margin-bottom: .75rem; max-width: 100%; }
+.standings-group-control select { min-width: 0; max-width: 100%; padding: .5rem; flex: 1; }
+.standings-group-heading { font-size: 1rem; margin: .5rem 0; }
+.standings-grouped .table-wrap { max-width: 100%; overflow-x: auto; }
