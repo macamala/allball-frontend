@@ -428,10 +428,14 @@ function tablePlayerInitials(name) {
     .toUpperCase();
 }
 
-function TablePlayer({ row }) {
+function TablePlayer({ row, onClick }) {
   const image = row?.image || row?.photo || row?.avatar || "";
+  const Wrapper = onClick ? "button" : "span";
   return (
-    <span className="mc-table-player">
+    <Wrapper
+      className={`mc-table-player ${onClick ? "is-clickable" : ""}`}
+      {...(onClick ? { type: "button", onClick: () => onClick(row), "aria-label": `Open ${row?.name || "player"} details` } : {})}
+    >
       <span className="mc-table-avatar">
         <span>{tablePlayerInitials(row?.name)}</span>
         {image ? (
@@ -449,11 +453,11 @@ function TablePlayer({ row }) {
         <strong>{row.name}</strong>
         {row.hero ? <small> · {row.hero}</small> : null}
       </span>
-    </span>
+    </Wrapper>
   );
 }
 
-export function PlayerTable({ rows, event }) {
+export function PlayerTable({ rows, event, onPlayerClick }) {
   if (!rows.length) return null;
   const combat = rows.some((row) => row.kills != null);
   const fields = combat ? [] : PLAYER_FIELDS.filter(([key]) => rows.some((row) => row[key] != null && row[key] !== ""));
@@ -478,7 +482,7 @@ export function PlayerTable({ rows, event }) {
             <tbody>
               {group.map((row, index) => (
                 <tr key={row.id || row.name || index}>
-                  <td><TablePlayer row={row} /></td>
+                  <td><TablePlayer row={row} onClick={onPlayerClick} /></td>
                   {combat ? <td>{`${row.kills ?? 0}/${row.deaths ?? 0}/${row.assists ?? 0}`}</td> : null}
                   {fields.map(([key]) => (
                     <td key={key}>{row[key] ?? "–"}</td>
