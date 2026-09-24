@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { getArticles, getJSON, getMatch, getStandings, matchPath } from "../api.js";
 import { setPageSeo, breadcrumbJsonLd } from "../lib/seo.js";
@@ -32,27 +32,56 @@ const RICH_MATCH_KEYS = [
   "games",
   "rubbers",
   "shots",
+  "h2h",
+  "related",
+  "form",
+  "statistics_periods",
 ];
+
+function hasRichValue(value) {
+  if (value == null || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
+}
+
+function preserveRichFields(previous, incoming) {
+  const next = { ...(previous || {}), ...(incoming || {}) };
+  for (const key of RICH_MATCH_KEYS) {
+    if (!hasRichValue(incoming?.[key]) && hasRichValue(previous?.[key])) {
+      next[key] = previous[key];
+    }
+  }
+  return next;
+}
 
 function mergeMatchPayload(previous, incoming) {
   if (!previous) return incoming;
   if (!incoming) return previous;
-  const next = { ...previous, ...incoming };
+  const next = preserveRichFields(previous, incoming);
   const prevEvent = previous.event || previous.header;
   const incomingEvent = incoming.event || incoming.header;
   if (prevEvent || incomingEvent) {
-    const event = {
-      ...(prevEvent || {}),
-      ...(incomingEvent || {}),
-      score: { ...((prevEvent || {}).score || {}), ...((incomingEvent || {}).score || {}) },
+    const event = preserveRichFields(prevEvent, incomingEvent);
+    event.score = { ...((prevEvent || {}).score || {}), ...((incomingEvent || {}).score || {}) };
+    event.sport_detail = {
+      ...((prevEvent || {}).sport_detail || {}),
+      ...((incomingEvent || {}).sport_detail || {}),
     };
+    if (
+      !hasRichValue((incomingEvent || {}).sport_detail?.shots) &&
+      hasRichValue((prevEvent || {}).sport_detail?.shots)
+    ) {
+      event.sport_detail.shots = prevEvent.sport_detail.shots;
+    }
+    if (
+      !hasRichValue((incomingEvent || {}).sport_detail?.statistics_periods) &&
+      hasRichValue((prevEvent || {}).sport_detail?.statistics_periods)
+    ) {
+      event.sport_detail.statistics_periods = prevEvent.sport_detail.statistics_periods;
+    }
     if (incoming.event || previous.event) next.event = event;
     if (incoming.header || previous.header) next.header = event;
-  }
-  for (const key of RICH_MATCH_KEYS) {
-    if ((incoming[key] == null || incoming[key] === "") && previous[key] != null) {
-      next[key] = previous[key];
-    }
   }
   return next;
 }
@@ -67,9 +96,11 @@ export default function MatchPage() {
   const [articles, setArticles] = useState([]);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const requestSeq = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const seq = ++requestSeq.current;
     const controller = typeof AbortController === "function" ? new AbortController() : null;
     setData((prev) => (payloadEventId(prev) === matchId ? prev : null));
     setStandings([]);
@@ -78,19 +109,19 @@ export default function MatchPage() {
     setLoading(true);
     getMatch(matchId, controller ? { signal: controller.signal } : {})
       .then((payload) => {
-        if (cancelled) return;
+        if (cancelled || seq !== requestSeq.current) return;
         const payloadId = payloadEventId(payload);
         if (payloadId && payloadId !== matchId) return;
         setData(payload);
         setError(false);
       })
       .catch((err) => {
-        if (cancelled || err?.name === "AbortError") return;
+        if (cancelled || seq !== requestSeq.current || err?.name === "AbortError") return;
         setError(true);
         setData({ connected: false, id: matchId });
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && seq === requestSeq.current) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -99,8 +130,10 @@ export default function MatchPage() {
   }, [matchId]);
 
   const refreshMatch = useCallback(() => {
+    const seq = ++requestSeq.current;
     getJSON(matchPath(matchId))
       .then((payload) => {
+        if (seq !== requestSeq.current) return;
         const payloadId = payloadEventId(payload);
         if (payloadId && payloadId !== matchId) return;
         setData((previous) => mergeMatchPayload(previous, payload));
