@@ -4706,3 +4706,129 @@ select {
 @media(max-width:720px){
   .mc-starting-lists{grid-template-columns:1fr}
 }
+
+
+/* NinkoSports identity assets: country + competition + participant coverage */
+.score-crest.is-fallback {
+  color: var(--ns-text-secondary);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+.score-crest.is-fallback.has-flag {
+  background: transparent;
+  border-color: transparent;
+  font-size: 1rem;
+}
+.score-crest.is-fallback.is-missing {
+  color: var(--ns-text-muted);
+}
+.mc-player .score-crest.is-fallback {
+  font-size: 0.95rem;
+}
+.mc-player .score-crest.is-fallback.has-flag {
+  font-size: 1.8rem;
+}
+
+.score-comp-identity {
+  width: 46px;
+  min-width: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+.score-comp-flag {
+  width: 20px;
+  min-width: 20px;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+.score-comp-logo,
+.score-comp-logo-missing {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 4px;
+}
+.score-comp-logo {
+  object-fit: contain;
+}
+.score-comp-logo-missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--ns-border) 75%, transparent);
+  color: var(--ns-text-muted);
+  background: color-mix(in srgb, var(--ns-surface-2) 50%, transparent);
+  font-size: 0.5rem;
+}
+.page-scores .score-comp-head {
+  grid-template-columns: 46px minmax(0, 1fr) auto auto;
+}
+
+.mc-comp-identity {
+  min-height: 30px;
+  margin: 0 auto 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.mc-comp-flag {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.mc-comp-logo,
+.mc-comp-logo-missing {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+}
+.mc-comp-logo {
+  object-fit: contain;
+}
+.mc-comp-logo-missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--ns-border) 75%, transparent);
+  color: var(--ns-text-muted);
+  font-size: 0.56rem;
+}
+
+@media (max-width: 720px) {
+  .page-scores .score-comp-head {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+  .score-comp-identity {
+    width: 42px;
+    min-width: 42px;
+    gap: 2px;
+  }
+  .score-comp-flag {
+    width: 18px;
+    min-width: 18px;
+    font-size: 0.92rem;
+  }
+  .score-comp-logo,
+  .score-comp-logo-missing {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+  }
+  .mc-comp-identity {
+    margin-bottom: 4px;
+  }
+}
+
+@media (max-width: 390px) {
+  .page-scores .score-comp-head {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+  .score-comp-identity {
+    width: 40px;
+    min-width: 40px;
+  }
+}
