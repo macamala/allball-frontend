@@ -61,6 +61,7 @@ function competitionHead(event) {
 
 function CompetitionHeroIdentity({ presented }) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [presented.logo]);
   const flag = presented.showFlag ? flagEmoji(presented.countryId) : "";
   const logo = presented.logo && !failed ? presented.logo : "";
   return (
