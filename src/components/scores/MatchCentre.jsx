@@ -510,20 +510,26 @@ function teamAverageRating(side) {
   return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
 }
 
-function PitchPlayer({ player }) {
+function PitchPlayer({ player, onSelect }) {
   return (
-    <div className="mc-pitch-player" title={[player?.name, player?.position].filter(Boolean).join(" · ")}>
+    <button
+      type="button"
+      className="mc-pitch-player mc-entity-trigger"
+      title={[player?.name, player?.position].filter(Boolean).join(" · ")}
+      onClick={() => onSelect?.(player)}
+      aria-label={`Open ${player?.name || "player"} details`}
+    >
       <div className="mc-pitch-avatar-wrap">
         <PlayerAvatar player={player} />
         {player?.number != null && player?.number !== "" ? <span className="mc-shirt-number">{player.number}</span> : null}
       </div>
       <strong>{player?.name || "—"}{player?.captain ? <span className="mc-captain-mark">C</span> : null}</strong>
       {player?.rating != null && player?.rating !== "" ? <span className="mc-player-rating">{player.rating}</span> : null}
-    </div>
+    </button>
   );
 }
 
-function StartingList({ side, label }) {
+function StartingList({ side, label, onSelect }) {
   const starters = Array.isArray(side?.start) ? side.start.filter((row) => row?.name) : [];
   if (!starters.length) return null;
   return (
@@ -535,14 +541,16 @@ function StartingList({ side, label }) {
       <ul className="mc-roster-list">
         {starters.map((player, index) => (
           <li key={player.id || player.name || index}>
-            <PlayerAvatar player={player} compact />
-            <span className="mc-bench-number">{player.number ?? ""}</span>
-            <span className="mc-bench-name">
-              {player.name}
-              {player.captain ? <span className="mc-list-captain">C</span> : null}
-            </span>
-            {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
-            {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+            <button type="button" className="mc-roster-player-button" onClick={() => onSelect?.(player)}>
+              <PlayerAvatar player={player} compact />
+              <span className="mc-bench-number">{player.number ?? ""}</span>
+              <span className="mc-bench-name">
+                {player.name}
+                {player.captain ? <span className="mc-list-captain">C</span> : null}
+              </span>
+              {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
+              {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+            </button>
           </li>
         ))}
       </ul>
@@ -550,7 +558,7 @@ function StartingList({ side, label }) {
   );
 }
 
-function BenchList({ side, label, t }) {
+function BenchList({ side, label, t, onSelect }) {
   const bench = Array.isArray(side?.bench) ? side.bench.filter((row) => row?.name) : [];
   if (!bench.length && !side?.coach) return null;
   return (
@@ -566,11 +574,13 @@ function BenchList({ side, label, t }) {
           <ul className="mc-bench-list">
             {bench.map((player, index) => (
               <li key={player.id || player.name || index}>
-                <PlayerAvatar player={player} compact />
-                <span className="mc-bench-number">{player.number ?? ""}</span>
-                <span className="mc-bench-name">{player.name}</span>
-                {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
-                {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+                <button type="button" className="mc-roster-player-button" onClick={() => onSelect?.(player)}>
+                  <PlayerAvatar player={player} compact />
+                  <span className="mc-bench-number">{player.number ?? ""}</span>
+                  <span className="mc-bench-name">{player.name}</span>
+                  {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
+                  {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+                </button>
               </li>
             ))}
           </ul>
@@ -580,7 +590,7 @@ function BenchList({ side, label, t }) {
   );
 }
 
-function FootballLineups({ home, away, event, t, confirmed = false }) {
+function FootballLineups({ home, away, event, t, confirmed = false, onPlayerSelect }) {
   const homeRows = formationRows(home);
   const awayRows = formationRows(away).slice().reverse();
   const homeName = participantName(event.home);
@@ -608,32 +618,32 @@ function FootballLineups({ home, away, event, t, confirmed = false }) {
         <div className="mc-pitch-team is-home">
           {homeRows.map((row, rowIndex) => (
             <div className="mc-pitch-row" key={`home-${rowIndex}`}>
-              {row.map((player, index) => <PitchPlayer player={player} key={player.id || player.name || index} />)}
+              {row.map((player, index) => <PitchPlayer player={player} onSelect={onPlayerSelect} key={player.id || player.name || index} />)}
             </div>
           ))}
         </div>
         <div className="mc-pitch-team is-away">
           {awayRows.map((row, rowIndex) => (
             <div className="mc-pitch-row" key={`away-${rowIndex}`}>
-              {row.map((player, index) => <PitchPlayer player={player} key={player.id || player.name || index} />)}
+              {row.map((player, index) => <PitchPlayer player={player} onSelect={onPlayerSelect} key={player.id || player.name || index} />)}
             </div>
           ))}
         </div>
       </div>
       <div className="mc-starting-lists">
-        <StartingList side={home} label={homeName} />
-        <StartingList side={away} label={awayName} />
+        <StartingList side={home} label={homeName} onSelect={onPlayerSelect} />
+        <StartingList side={away} label={awayName} onSelect={onPlayerSelect} />
       </div>
       <div className="mc-lineup-benches">
-        <BenchList side={home} label={homeName} t={t} />
-        <BenchList side={away} label={awayName} t={t} />
+        <BenchList side={home} label={homeName} t={t} onSelect={onPlayerSelect} />
+        <BenchList side={away} label={awayName} t={t} onSelect={onPlayerSelect} />
       </div>
     </>
   );
 }
 
 
-function RosterLineups({ home, away, event, t }) {
+function RosterLineups({ home, away, event, t, onPlayerSelect }) {
   return (
     <div className="mc-rosters">
       {[
@@ -649,22 +659,24 @@ function RosterLineups({ home, away, event, t }) {
           <ul className="mc-roster-list">
             {(side.start || []).map((player, index) => (
               <li key={player.id || player.name || index}>
-                <PlayerAvatar player={player} compact />
-                <span className="mc-bench-number">{player.number ?? ""}</span>
-                <span className="mc-bench-name">{player.name}</span>
-                {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
-                {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+                <button type="button" className="mc-roster-player-button" onClick={() => onPlayerSelect?.(player)}>
+                  <PlayerAvatar player={player} compact />
+                  <span className="mc-bench-number">{player.number ?? ""}</span>
+                  <span className="mc-bench-name">{player.name}</span>
+                  {player.position ? <span className="mc-bench-pos">{player.position}</span> : null}
+                  {player.rating != null && player.rating !== "" ? <span className="mc-bench-rating">{player.rating}</span> : null}
+                </button>
               </li>
             ))}
           </ul>
-          {(side.bench || []).length ? <BenchList side={{ ...side, coach: null }} label={t("match.bench")} t={t} /> : null}
+          {(side.bench || []).length ? <BenchList side={{ ...side, coach: null }} label={t("match.bench")} t={t} onSelect={onPlayerSelect} /> : null}
         </div>
       ))}
     </div>
   );
 }
 
-function Lineups({ shape, event, t }) {
+function Lineups({ shape, event, t, onPlayerSelect }) {
   if (!shape) return null;
   if (Array.isArray(shape)) {
     return (
@@ -673,8 +685,10 @@ function Lineups({ shape, event, t }) {
         <ul className="mc-roster-list">
           {shape.map((row, index) => (
             <li key={row.id || row.name || index}>
-              <PlayerAvatar player={row} compact />
-              <span className="mc-bench-name">{row.name || row.label}</span>
+              <button type="button" className="mc-roster-player-button" onClick={() => onPlayerSelect?.(row)}>
+                <PlayerAvatar player={row} compact />
+                <span className="mc-bench-name">{row.name || row.label}</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -687,9 +701,9 @@ function Lineups({ shape, event, t }) {
     <section className="mc-card mc-lineup-card">
       <h2>{t("match.lineups")}</h2>
       {event.sport === "football" && (home.start || []).length >= 7 && (away.start || []).length >= 7 ? (
-        <FootballLineups home={home} away={away} event={event} t={t} confirmed={Boolean(shape.confirmed)} />
+        <FootballLineups home={home} away={away} event={event} t={t} confirmed={Boolean(shape.confirmed)} onPlayerSelect={onPlayerSelect} />
       ) : (
-        <RosterLineups home={home} away={away} event={event} t={t} />
+        <RosterLineups home={home} away={away} event={event} t={t} onPlayerSelect={onPlayerSelect} />
       )}
     </section>
   );
@@ -979,7 +993,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-lineups"
             hidden={currentSection !== "lineups"}
           >
-            <Lineups shape={lineups} event={event} t={t} />
+            <Lineups shape={lineups} event={event} t={t} onPlayerSelect={(player) => setSelectedEntity({ kind: "player", entity: player, name: player?.name, event })} />
           </div>
         ) : null}
 
@@ -991,7 +1005,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-players"
             hidden={currentSection !== "players"}
           >
-            <PlayerTable rows={playerStats} event={event} />
+            <PlayerTable rows={playerStats} event={event} onPlayerClick={(player) => setSelectedEntity({ kind: "player", entity: player, name: player?.name, event })} />
           </div>
         ) : null}
 
