@@ -39,7 +39,7 @@ const SLUG_TO_ISO = {
   mali: "ML", benin: "BJ", togo: "TG", gabon: "GA", gambia: "GM",
   liberia: "LR", rwanda: "RW", burundi: "BI", zambia: "ZM", malawi: "MW",
   namibia: "NA", lesotho: "LS", eswatini: "SZ", swaziland: "SZ",
-  "burkina-faso": "BF", "cape-verde": "CV", cabo-verde: "CV",
+  "burkina-faso": "BF", "cape-verde": "CV", "cabo-verde": "CV",
   ethiopia: "ET", sudan: "SD", "south-sudan": "SS",
   haiti: "HT", guyana: "GY", suriname: "SR", nicaragua: "NI",
   honduras: "HN", guatemala: "GT", "el-salvador": "SV", belize: "BZ",
