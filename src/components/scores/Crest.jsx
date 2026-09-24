@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { crestInitial, flagEmoji, sideCountry, sideLogo } from "../../lib/identityAssets.js";
+import { crestInitial, flagEmoji, sideCountries, sideLogo } from "../../lib/identityAssets.js";
 
 export default function Crest({ side, fallbackCountry, size = 22, className = "" }) {
   const logo = sideLogo(side);
   const [failed, setFailed] = useState(false);
-  const flag = flagEmoji(sideCountry(side, fallbackCountry));
+  const flags = sideCountries(side, fallbackCountry).map(flagEmoji).filter(Boolean);
+  const flag = flags[0] || "";
 
   if (logo && !failed) {
     return (
@@ -29,7 +30,11 @@ export default function Crest({ side, fallbackCountry, size = 22, className = ""
       aria-hidden="true"
       data-asset-missing={flag ? undefined : "true"}
     >
-      {flag || initials}
+      {flags.length > 1 ? (
+        <span className="score-crest-flags">{flags.slice(0, 2).map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}</span>
+      ) : (
+        flag || initials
+      )}
     </span>
   );
 }
