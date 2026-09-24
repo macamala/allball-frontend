@@ -113,6 +113,15 @@ export function rendererForEvent(event) {
     if (mapped === "TOURNAMENT" && MEET_SPORTS.has(sport)) return "MEET";
     return mapped;
   }
+
+  // Defensive public rendering: if canonical data already has two named
+  // participants, never degrade the row to a metadata-only UNKNOWN card.
+  const homeName = displayParticipantName(event.home);
+  const awayName = displayParticipantName(event.away);
+  if (homeName && awayName) {
+    if (["tennis", "table-tennis", "badminton", "squash"].includes(sport)) return "HEAD_TO_HEAD";
+    return "TEAM_MATCH";
+  }
   return "UNKNOWN";
 }
 
