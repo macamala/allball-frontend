@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { getPrimaryNav } from "../config/sports.js";
 import { CATEGORY_I18N, groupedDirectorySports } from "../config/sportsRegistry.js";
 import { sportI18nKey } from "../i18n/index.js";
@@ -15,6 +15,7 @@ const FOCUSABLE =
 
 export default function MobileNavDrawer() {
   const { open, setOpen } = useMobileNav();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const nav = useMemo(() => getPrimaryNav(t), [t]);
@@ -22,6 +23,10 @@ export default function MobileNavDrawer() {
   const panelRef = useRef(null);
   const closeRef = useRef(null);
   const lastFocus = useRef(null);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname, location.search, setOpen]);
 
   useEffect(() => {
     if (!open) return undefined;
