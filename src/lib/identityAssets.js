@@ -69,6 +69,21 @@ const ALPHA3_TO_ISO = {
   UGA: "UG", TAN: "TZ", ZIM: "ZW", MOZ: "MZ", MNE: "ME", KOS: "XK", BLR: "BY",
   LTU: "LT", LVA: "LV", LUX: "LU", MLT: "MT", CYP: "CY", SGP: "SG", MAS: "MY",
   PHI: "PH", HKG: "HK", TPE: "TW",
+  AFG: "AF", AHO: "CW", AND: "AD", ANT: "AG", ARU: "AW", BAH: "BS", BHR: "BH",
+  BAN: "BD", BGD: "BD", BAR: "BB", BDI: "BI", BEN: "BJ", BER: "BM", BHU: "BT",
+  BOT: "BW", BRB: "BB", BRU: "BN", BUR: "BF", BFA: "BF", CAM: "KH", CPV: "CV",
+  CAY: "KY", CAF: "CF", CHA: "TD", COM: "KM", CGO: "CG", COD: "CD", CUB: "CU",
+  DJI: "DJ", DMA: "DM", DOM: "DO", ESA: "SV", SLV: "SV", EQG: "GQ", ERI: "ER",
+  SWZ: "SZ", ETH: "ET", FIJ: "FJ", GAB: "GA", GAM: "GM", GMB: "GM", GRN: "GD",
+  GUA: "GT", GTM: "GT", GUI: "GN", GNB: "GW", GUY: "GY", HAI: "HT", HON: "HN",
+  HND: "HN", IRQ: "IQ", JAM: "JM", JOR: "JO", KUW: "KW", KGZ: "KG", LAO: "LA",
+  LBN: "LB", LES: "LS", LBR: "LR", LBY: "LY", LIE: "LI", MAD: "MG", MWI: "MW",
+  MDV: "MV", MLI: "ML", MDA: "MD", MON: "MC", MNG: "MN", MTN: "MR", MRI: "MU",
+  MYA: "MM", NAM: "NA", NEP: "NP", NCA: "NI", NIG: "NE", OMA: "OM", PAK: "PK",
+  PLE: "PS", PNG: "PG", PUR: "PR", RWA: "RW", SKN: "KN", LCA: "LC", VIN: "VC",
+  SAM: "WS", SMR: "SM", STP: "ST", SEY: "SC", SLE: "SL", SOL: "SB", SOM: "SO",
+  SSD: "SS", SUD: "SD", SUR: "SR", SYR: "SY", TJK: "TJ", TLS: "TL", TOG: "TG",
+  TGA: "TO", TRI: "TT", TKM: "TM", VAN: "VU", YEM: "YE", ZAM: "ZM", ZMB: "ZM",
 };
 
 function isoFromCountry(value) {
