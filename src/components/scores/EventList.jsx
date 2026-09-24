@@ -5,6 +5,7 @@ import { competitionPresentation } from "../../lib/competitionPresentation.js";
 import { competitionLabel } from "../../labels.js";
 import { eventPath, groupEventsByCompetition } from "../../lib/sportsData.js";
 import { scopedCompetitionId } from "../../config/sports.js";
+import { getRegistrySport } from "../../config/sportsRegistry.js";
 import { flagEmoji } from "../../lib/identityAssets.js";
 import EventRow from "./EventRow.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
@@ -62,6 +63,9 @@ export default function EventList({ events, compact = false }) {
     return [...list].sort((left, right) => {
       const diff = rank(left) - rank(right);
       if (diff) return diff;
+      const leftSportPriority = getRegistrySport(left.sport)?.display_priority ?? 999;
+      const rightSportPriority = getRegistrySport(right.sport)?.display_priority ?? 999;
+      if (leftSportPriority !== rightSportPriority) return leftSportPriority - rightSportPriority;
       if (left.earliest !== right.earliest) return String(left.earliest).localeCompare(String(right.earliest));
       return String(left.competition).localeCompare(String(right.competition));
     });
