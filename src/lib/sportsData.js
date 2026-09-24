@@ -109,6 +109,7 @@ function normalizeSide(raw, fallbackName, fallbackSlug, side, options = {}) {
       side,
       logo: participantLogo(raw),
       country_id: raw.country_id || raw.country || raw.nationality || "",
+      country_ids: Array.isArray(raw.country_ids) ? raw.country_ids.filter(Boolean) : [],
     };
   }
   const name = raw || fallbackName || "";
@@ -121,6 +122,7 @@ function normalizeSide(raw, fallbackName, fallbackSlug, side, options = {}) {
     side,
     logo: "",
     country_id: "",
+    country_ids: [],
   };
 }
 
