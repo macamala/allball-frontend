@@ -66,7 +66,10 @@ export default function StandingsTable({ rows = [], sport = "football", empty })
   const preferred = PREFERRED[sport] || PREFERRED.football;
   const columns = preferred.filter((key) => rows.some((row) => row[key] != null && row[key] !== ""));
   const extras = Object.keys(sample).filter(
-    (key) => !columns.includes(key) && !["team_slug", "id", "logo"].includes(key) && rows.some((row) => row[key] != null && row[key] !== "")
+    (key) =>
+      !columns.includes(key) &&
+      !["team_slug", "team_id", "id", "logo", "crest", "badge", "team_logo", "teamLogo", "country_id"].includes(key) &&
+      rows.some((row) => row[key] != null && row[key] !== "")
   );
   const all = columns.length ? columns : ["position", "team", ...extras];
 
