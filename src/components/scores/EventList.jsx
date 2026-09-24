@@ -9,6 +9,30 @@ import { flagEmoji } from "../../lib/identityAssets.js";
 import EventRow from "./EventRow.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
 
+function CompetitionIdentity({ logo, flag }) {
+  const [failed, setFailed] = useState(false);
+  const missingLogo = !logo || failed;
+  return (
+    <span className={`score-comp-identity ${flag ? "has-flag" : ""} ${missingLogo ? "is-logo-missing" : "has-logo"}`} aria-hidden="true">
+      {flag ? <span className="score-comp-flag">{flag}</span> : null}
+      {missingLogo ? (
+        <span className="score-comp-logo-missing" data-asset-missing="competition-logo">◆</span>
+      ) : (
+        <img
+          className="score-comp-logo"
+          src={logo}
+          alt=""
+          width={22}
+          height={22}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  );
+}
+
 function headerMeta(group) {
   const sample = group.events[0] || {};
   const presented = competitionPresentation({ ...group, ...sample, events: group.events });
@@ -81,23 +105,7 @@ export default function EventList({ events, compact = false }) {
             aria-label={title}
           >
             <header className="score-comp-head">
-              <span className="score-comp-mark" aria-hidden="true">
-                {logo ? (
-                  <img
-                    src={logo}
-                    alt=""
-                    width={22}
-                    height={22}
-                    loading="lazy"
-                    decoding="async"
-                    onError={(event) => {
-                      event.currentTarget.replaceWith(document.createElement("span"));
-                    }}
-                  />
-                ) : (
-                  flag || ""
-                )}
-              </span>
+              <CompetitionIdentity logo={logo} flag={flag} />
               <button
                 type="button"
                 className="score-comp-toggle"
