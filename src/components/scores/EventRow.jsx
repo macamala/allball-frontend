@@ -24,7 +24,7 @@ function SideLine({ side, event, score, winner, align, periods = [] }) {
   const name = participantName(side, { sport: event.sport, competitionCountry: event.country_id }) || "—";
   return (
     <div className={`score-line is-${align} ${winner ? "is-winner" : ""}`}>
-      <Crest side={side} />
+      <Crest side={side} fallbackCountry={event.scope_type !== "DOMESTIC" ? name : ""} />
       <span className="score-name">{name}</span>
       {periods.length ? (
         <span className="score-sets" aria-label="Period scores">
