@@ -97,10 +97,11 @@ export default function EventList({ events, compact = false }) {
           followedLeagues.includes(group.key);
         const logo = group.events.find((item) => item.competition_logo)?.competition_logo;
         const flag = meta.showFlag ? flagEmoji(meta.countryId) : "";
-        const isCollapsed = collapsed.has(group.key);
+        const identityKey = group.identity_key || `${group.sport || "unknown"}::${group.key}`;
+        const isCollapsed = collapsed.has(identityKey);
         return (
           <section
-            key={group.key}
+            key={identityKey}
             className={followed ? "score-comp is-followed" : "score-comp"}
             aria-label={title}
           >
@@ -110,7 +111,7 @@ export default function EventList({ events, compact = false }) {
                 type="button"
                 className="score-comp-toggle"
                 aria-expanded={!isCollapsed}
-                onClick={() => toggleCollapse(group.key)}
+                onClick={() => toggleCollapse(identityKey)}
               >
                 <div className="score-comp-copy">
                   {meta.kicker ? <p className="score-comp-kicker">{meta.kicker}</p> : null}
