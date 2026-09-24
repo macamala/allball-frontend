@@ -91,7 +91,17 @@ export function participantName(side, options = {}) {
 
 export function participantLogo(side) {
   if (!side || typeof side !== "object") return "";
-  return side.logo || side.crest || side.image || "";
+  return (
+    side.logo ||
+    side.crest ||
+    side.image ||
+    side.badge ||
+    side.team_logo ||
+    side.teamLogo ||
+    side.logo_url ||
+    side.logoUrl ||
+    ""
+  );
 }
 
 function normalizeSide(raw, fallbackName, fallbackSlug, side, options = {}) {
