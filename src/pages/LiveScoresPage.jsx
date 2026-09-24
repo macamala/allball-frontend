@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getSportsDataEvents, getSportsDataLive, getSportsDataStatusDelta } from "../api.js";
+import { getJSON, getSportsDataEvents, getSportsDataLive, getSportsDataStatusDelta, sportsDataQueryPath } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -29,6 +29,62 @@ import SportRail from "../components/scores/SportRail.jsx";
 import DateRail from "../components/scores/DateRail.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
 import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
+
+const BOARD_SNAPSHOT_PREFIX = "ninkosports.live-scores.snapshot.v1:";
+const BOARD_SHRINK_FLOOR = 20;
+const BOARD_SHRINK_RATIO = 0.75;
+
+function rawPayloadRows(data) {
+  return data?.events?.length ? data.events : data?.matches || [];
+}
+
+function restoreBoardSnapshot(key) {
+  if (typeof window === "undefined" || !key) return null;
+  try {
+    const raw = window.sessionStorage.getItem(`${BOARD_SNAPSHOT_PREFIX}${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.payload || null;
+  } catch {
+    return null;
+  }
+}
+
+function persistBoardSnapshot(key, payload) {
+  if (typeof window === "undefined" || !key || !payload) return;
+  const count = rawPayloadRows(payload).length;
+  if (!count) return;
+  try {
+    window.sessionStorage.setItem(
+      `${BOARD_SNAPSHOT_PREFIX}${key}`,
+      JSON.stringify({ saved_at: Date.now(), payload })
+    );
+  } catch {
+    // Storage is best-effort. The live board must keep working without it.
+  }
+}
+
+function stabilizeDayPayload(previousPayload, incomingPayload) {
+  if (!incomingPayload) return { payload: previousPayload, protectedShrink: Boolean(previousPayload) };
+  if (!previousPayload) return { payload: incomingPayload, protectedShrink: false };
+
+  const previousCount = rawPayloadRows(previousPayload).length;
+  const incomingRows = rawPayloadRows(incomingPayload);
+  const incomingCount = incomingRows.length;
+  const suspiciousShrink =
+    previousCount >= BOARD_SHRINK_FLOOR &&
+    incomingCount < Math.floor(previousCount * BOARD_SHRINK_RATIO);
+
+  if (!suspiciousShrink) {
+    return { payload: incomingPayload, protectedShrink: false };
+  }
+
+  const merged = mergeEventPayload(previousPayload, incomingRows);
+  return {
+    payload: { ...previousPayload, ...incomingPayload, events: merged.events },
+    protectedShrink: true,
+  };
+}
 
 const STATUSES = [
   { id: "all", labelKey: "live.all" },
@@ -110,12 +166,25 @@ export default function LiveScoresPage() {
       if (competition) filters.competition = competition;
       const key = `${date}|${competition}`;
       const seq = ++requestSeq.current;
-      getSportsDataEvents(filters)
+      const request = silent
+        ? getJSON(sportsDataQueryPath("/sports-data/events", filters))
+        : getSportsDataEvents(filters);
+      request
         .then((data) => {
           if (seq !== requestSeq.current) return;
-          setBoard({ key, payload: data });
+          let protectedShrink = false;
+          setBoard((prev) => {
+            const fallback =
+              prev.key === key && prev.payload
+                ? prev.payload
+                : restoreBoardSnapshot(key);
+            const stable = stabilizeDayPayload(fallback, data);
+            protectedShrink = stable.protectedShrink;
+            persistBoardSnapshot(key, stable.payload);
+            return { key, payload: stable.payload };
+          });
           sinceRef.current = new Date().toISOString();
-          setError(false);
+          setError(protectedShrink);
         })
         .catch(() => {
           if (seq !== requestSeq.current) return;
@@ -140,6 +209,8 @@ export default function LiveScoresPage() {
     fetchScores(false);
   }, [fetchScores]);
 
+  // Silent refresh deliberately bypasses the 90s browser memory cache so a
+  // restarted backend cannot leave the visible board pinned to a partial list.
   const silentRefresh = useCallback(() => fetchScores(true), [fetchScores]);
   const livePresent = useMemo(
     () => payloadEvents(board.payload || {}).some((event) => isConfirmedLive(event)),
