@@ -12,6 +12,7 @@ import {
   outcomePercents,
   periodRange,
   predictionMarket,
+  rollingUtcBounds,
   visibleEvidence,
 } from "./sportsData.js";
 
@@ -160,6 +161,14 @@ describe("evidence and grouping", () => {
     expect(groups.map((group) => group.identity_key)).toContain(
       "dota-2::professional::pgl wallachia 2026 season 9"
     );
+  });
+
+  it("builds a timezone-independent rolling fallback around the current instant", () => {
+    const now = new Date("2026-09-24T10:00:00Z");
+    expect(rollingUtcBounds(now, 12, 36)).toEqual({
+      date_from: "2026-09-23T22:00:00.000Z",
+      date_to: "2026-09-25T22:00:00.000Z",
+    });
   });
 
   it("computes period ranges from the supplied now, including This Week Monday–Sunday", () => {
