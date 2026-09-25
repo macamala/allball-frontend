@@ -1,0 +1,51 @@
+name: C13 measured layout forward gate
+on:
+  push:
+    branches: [fix/match-layout-c13-20260925]
+    paths: ['audit/c13_match_layout.patch', 'audit/c13_layout_browser.py', '.github/workflows/c13-layout-forward.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: |
+          echo '86b5a0610d29732bba797cfe2874180a98ea974daa5c6d3f1d284e5fbe94422f  audit/c13_match_layout.patch' | sha256sum -c
+          git apply --check audit/c13_match_layout.patch
+          git apply audit/c13_match_layout.patch
+          mkdir -p evidence
+          git diff 50e90628178e4ef1cdb242d7fca4b798fa525d31 -- src/styles.css > evidence/source.patch
+          cmp audit/c13_match_layout.patch evidence/source.patch
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+      - run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+          python audit/c13_layout_browser.py
+      - name: Publish tested candidate to isolated branch only
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src/styles.css
+          git commit -m 'Center match detail and restore full-width readable starting XI and bench names'
+          git push origin HEAD:refs/heads/fix/match-layout-c13-20260925
+          git rev-parse HEAD > evidence/candidate.txt
+          sha256sum src/styles.css > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c13-layout-forward
+          path: evidence
+          retention-days: 30
