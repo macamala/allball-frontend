@@ -29,7 +29,7 @@ try:
             page.locator('.player-club-link').click();page.locator('.entity-hero h1').wait_for(timeout=45000)
             page.wait_for_function("!document.querySelector('.player-summary') && document.querySelector('.entity-hero h1')?.textContent.includes('Patrick')",timeout=45000)
             team=page.locator('.entity-hero h1').inner_text();overflow=page.evaluate('document.documentElement.scrollWidth>innerWidth+1')
-            report.append({'page':'team-link','width':width,'pass':"Patrick" in team and not overflow and not errors,'team':team,'url':page.url,'errors':errors.copy()})
+            report.append({'page':'team-link','width':width,'pass':"Patrick" in team and not overflow and not errors,'team':team,'url':str(page.url),'errors':errors.copy()})
             page.screenshot(path=str(out/f'team-{width}.png'));ctx.close()
         browser.close()
 finally:
