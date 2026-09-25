@@ -30,7 +30,7 @@ import DateRail from "../components/scores/DateRail.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
 import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
 
-const BOARD_SNAPSHOT_PREFIX = "ninkosports.live-scores.snapshot.v1:";
+const BOARD_SNAPSHOT_PREFIX = "ninkosports.live-scores.snapshot.v2:";
 const BOARD_SHRINK_FLOOR = 20;
 const BOARD_SHRINK_RATIO = 0.75;
 
@@ -44,6 +44,7 @@ function restoreBoardSnapshot(key) {
     const raw = window.sessionStorage.getItem(`${BOARD_SNAPSHOT_PREFIX}${key}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    if (!parsed?.saved_at || Date.now() - parsed.saved_at > 5 * 60 * 1000) return null;
     return parsed?.payload || null;
   } catch {
     return null;
@@ -166,6 +167,7 @@ export default function LiveScoresPage() {
       if (competition) filters.competition = competition;
       const key = `${date}|${competition}`;
       const seq = ++requestSeq.current;
+      const requestedAt = new Date(Date.now() - 5000).toISOString();
       const request = silent
         ? getJSON(sportsDataQueryPath("/sports-data/events", filters))
         : getSportsDataEvents(filters);
@@ -183,7 +185,7 @@ export default function LiveScoresPage() {
             persistBoardSnapshot(key, stable.payload);
             return { key, payload: stable.payload };
           });
-          sinceRef.current = new Date().toISOString();
+          sinceRef.current = requestedAt;
           setError(protectedShrink);
         })
         .catch(() => {
@@ -216,24 +218,30 @@ export default function LiveScoresPage() {
     () => payloadEvents(board.payload || {}).some((event) => isConfirmedLive(event)),
     [board.payload]
   );
+  const liveRequest = useRef(false);
   const refreshLive = useCallback(() => {
+    if (liveRequest.current) return;
+    liveRequest.current = true;
+    const requestedAt = new Date(Date.now() - 5000).toISOString();
+    const boardKey = requestKey;
     Promise.all([
       getSportsDataLive({}),
       getSportsDataStatusDelta({ since: sinceRef.current }),
     ])
       .then(([live, delta]) => {
-        sinceRef.current = new Date().toISOString();
+        sinceRef.current = delta?.next_since || requestedAt;
         setBoard((prev) => {
-          if (!prev.payload) return prev;
+          if (!prev.payload || prev.key !== boardKey) return prev;
           return {
             ...prev,
             payload: mergeEventPayload(prev.payload, [...(live?.events || []), ...(delta?.events || [])]),
           };
         });
       })
-      .catch(() => {});
-  }, []);
-  useVisiblePoll(silentRefresh, livePresent ? 120000 : 45000);
+      .catch(() => {})
+      .finally(() => { liveRequest.current = false; });
+  }, [requestKey]);
+  useVisiblePoll(silentRefresh, livePresent ? 30000 : 45000);
   useVisiblePoll(refreshLive, livePresent ? 8000 : 25000);
 
   const dayEvents = useMemo(() => {

@@ -176,14 +176,13 @@ export function isLiveStatus(status, liveFlag) {
 }
 
 export function isConfirmedLive(event) {
-  if (!event) return false;
-  if (isRacingEvent(event)) return false;
+  if (!event || isRacingEvent(event)) return false;
+  // A retained quality flag cannot turn an explicit FT/cancelled/scheduled
+  // status back into LIVE after a partial status update.
+  if (!isLiveStatus(event.status) || event.live === false) return false;
   const liveClass = String(event.live_class || "").toUpperCase();
-  if (liveClass === "STALE_LIVE" || liveClass === "RAPID_RESULT" || liveClass === "RESULTS_ONLY") {
-    return false;
-  }
-  if (liveClass === "CONFIRMED_LIVE") return true;
-  return isLiveStatus(event.status);
+  if (["STALE_LIVE", "UNPROVEN_LIVE", "STATUS_CONFLICT", "RAPID_RESULT", "RESULTS_ONLY"].includes(liveClass)) return false;
+  return true;
 }
 
 export function isFinishedStatus(status) {
@@ -298,7 +297,7 @@ export function normalizeEvent(raw) {
           outs: null,
         };
   const status = raw.status || "scheduled";
-  const live = isLiveStatus(status);
+  const live = isConfirmedLive({ ...raw, status });
   return {
     id: String(raw.id || ""),
     sport: raw.sport || "",
@@ -701,24 +700,25 @@ export function browseCompetitions(sportConfig, providerCompetitions) {
 }
 
 export function mergeEventPayload(payload, incomingRows) {
-  const list = [...(payload?.events || [])];
-  const index = new Map(list.map((row, i) => [row?.id, i]));
+  const rows = new Map((payload?.events || []).filter((row) => row?.id).map((row) => [row.id, row]));
   for (const row of incomingRows || []) {
     if (!row?.id) continue;
-    const at = index.get(row.id);
-    if (at == null) {
-      index.set(row.id, list.length);
-      list.push(row);
-      continue;
+    const current = rows.get(row.id);
+    const oldAt = Date.parse(current?.updated_at || "");
+    const newAt = Date.parse(row.updated_at || "");
+    if (Number.isFinite(oldAt) && Number.isFinite(newAt) && newAt < oldAt) continue;
+    if (row.removed === true) { rows.delete(row.id); continue; }
+    // Deltas are patches, not new fixtures. Do not resurrect a hidden alias
+    // with only an ID, status and score; discovery belongs to full day lists.
+    if (!current && !(row.start_time && row.home && row.away)) continue;
+    const next = { ...(current || {}), ...row, score: { ...(current?.score || {}), ...(row.score || {}) } };
+    if (row.status != null && !isLiveStatus(row.status)) {
+      next.live = false;
+      if (next.live_class === "CONFIRMED_LIVE") next.live_class = null;
     }
-    const current = list[at] || {};
-    list[at] = {
-      ...current,
-      ...row,
-      score: { ...(current.score || {}), ...(row.score || {}) },
-    };
+    rows.set(row.id, next);
   }
-  return { ...(payload || {}), events: list };
+  return { ...(payload || {}), events: [...rows.values()] };
 }
 
 export function predictionPath(sportSlug, competitionSlug, eventId) {
