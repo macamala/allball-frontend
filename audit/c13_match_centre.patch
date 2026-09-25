@@ -1,0 +1,276 @@
+diff --git a/src/components/scores/MatchCentre.jsx b/src/components/scores/MatchCentre.jsx
+index ba04b50..7cbe0e9 100644
+--- a/src/components/scores/MatchCentre.jsx
++++ b/src/components/scores/MatchCentre.jsx
+@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate, useLocation } from "react-router-dom";
+ import { matchSectionFromHash } from "../../lib/standingsGroups.js";
+ import StandingsTable from "../StandingsTable.jsx";
++import FootballTimeline from "./FootballTimeline.jsx";
++import FootballShots from "./FootballShots.jsx";
++import { uniqueStatistics, formationBands } from "../../lib/matchDetail.js";
+ import MatchSectionTabs from "./MatchSectionTabs.jsx";
+ import Crest from "./Crest.jsx";
+ import FavoriteButton from "./FavoriteButton.jsx";
+@@ -116,16 +119,7 @@ function timelineItems(event, data) {
+ }
+ 
+ function statisticsRows(event, data) {
+-  const raw = data?.statistics || event.statistics;
+-  if (!Array.isArray(raw)) return [];
+-  return raw.filter((row) => {
+-    if (!row) return false;
+-    if (usefulNumber(row.home) || usefulNumber(row.away)) {
+-      if (row.home === 0 && row.away === 0 && row.unknown) return false;
+-      return true;
+-    }
+-    return row.value != null && row.value !== "";
+-  });
++  return uniqueStatistics(data?.statistics?.length ? data.statistics : event.statistics);
+ }
+ 
+ function lineupsShape(event, data) {
+@@ -258,7 +252,7 @@ function InfoRows({ event, t }) {
+   ].filter(Boolean);
+   if (!rows.length) return null;
+   return (
+-    <section className="mc-card">
++    <section className="mc-card mc-match-facts">
+       <h2>{t("match.details")}</h2>
+       <dl className="mc-dl">
+         {rows.map(([label, value]) => (
+@@ -416,12 +410,12 @@ function StatCompare({ rows, t, sport, periods = {}, eventId }) {
+ 
+   if (!rows.length) return null;
+   const options = [
+-    ["all", "Match", Array.isArray(periods?.all) && periods.all.length ? periods.all : rows],
++    ["all", "Match", Array.isArray(periods?.all) && periods.all.length ? uniqueStatistics(periods.all) : rows],
+     ["first_half", t("match.firstHalf"), Array.isArray(periods?.first_half) ? periods.first_half : []],
+     ["second_half", t("match.secondHalf"), Array.isArray(periods?.second_half) ? periods.second_half : []],
+   ].filter(([, , values]) => values.length);
+   const selected = options.find(([key]) => key === activePeriod) || options[0];
+-  const activeRows = selected?.[2] || rows;
++  const activeRows = uniqueStatistics(selected?.[2] || rows);
+   const groups = statisticGroups(activeRows, sport);
+ 
+   return (
+@@ -474,6 +468,7 @@ function playerInitials(name) {
+ function PlayerAvatar({ player, compact = false }) {
+   const [failed, setFailed] = useState(false);
+   const src = playerImage(player);
++  useEffect(() => setFailed(false), [src]);
+   const number = player?.number != null && player?.number !== "" ? String(player.number) : "";
+   return (
+     <span className={`mc-player-avatar ${compact ? "is-compact" : ""}`}>
+@@ -486,30 +481,7 @@ function PlayerAvatar({ player, compact = false }) {
+   );
+ }
+ 
+-function formationRows(side) {
+-  const starters = Array.isArray(side?.start) ? side.start.filter((row) => row?.name) : [];
+-  if (!starters.length) return [];
+-  const counts = String(side?.formation || "")
+-    .match(/\d+/g)
+-    ?.map(Number)
+-    .filter((value) => value > 0);
+-  let bands = counts && counts.reduce((sum, value) => sum + value, 0) === starters.length - 1 ? [1, ...counts] : null;
+-  if (!bands) {
+-    if (starters.length >= 11) bands = [1, 4, 4, starters.length - 9];
+-    else if (starters.length >= 8) bands = [1, 3, 3, starters.length - 7];
+-    else if (starters.length >= 5) bands = [1, 2, starters.length - 3];
+-    else bands = [1, Math.max(1, starters.length - 1)];
+-  }
+-  const rows = [];
+-  let cursor = 0;
+-  bands.forEach((count) => {
+-    const row = starters.slice(cursor, cursor + count);
+-    if (row.length) rows.push(row);
+-    cursor += count;
+-  });
+-  if (cursor < starters.length) rows.push(starters.slice(cursor));
+-  return rows;
+-}
++function formationRows(side) { return formationBands(side); }
+ 
+ function teamAverageRating(side) {
+   const values = (side?.start || [])
+@@ -709,7 +681,7 @@ function Lineups({ shape, event, t, onPlayerSelect }) {
+   return (
+     <section className="mc-card mc-lineup-card">
+       <h2>{t("match.lineups")}</h2>
+-      {event.sport === "football" && (home.start || []).length >= 7 && (away.start || []).length >= 7 ? (
++      {event.sport === "football" && formationRows(home).length > 0 && formationRows(away).length > 0 ? (
+         <FootballLineups home={home} away={away} event={event} t={t} confirmed={Boolean(shape.confirmed)} onPlayerSelect={onPlayerSelect} />
+       ) : (
+         <RosterLineups home={home} away={away} event={event} t={t} onPlayerSelect={onPlayerSelect} />
+@@ -768,7 +740,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
+   const openPlayerProfile = (player) => {
+     const entity = player?.entity || player;
+     const name = player?.name || player?.display_name || participantName(entity);
+-    navigate(playerProfilePath(entity, event, name || ""));
++    navigate(playerProfilePath(entity, event, name || ""), { state: { matchReturnTo: location.pathname + location.search + location.hash } });
+   };
+ 
+   const openParticipantProfile = (selected) => {
+@@ -844,7 +816,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
+       )}
+       {detailPending ? <p className="mc-when">{t("match.loadingDetails")}</p> : null}
+       {sections.length > 1 ? (
+-        <MatchSectionTabs sections={sections} currentSection={currentSection} onSelect={setActiveSection} label={t("match.center")} />
++        <MatchSectionTabs sections={sections} currentSection={currentSection} onSelect={(section) => { setActiveSection(section); navigate({ pathname: location.pathname, search: location.search, hash: `#mc-${section}` }, { replace: true, state: location.state }); }} label={t("match.center")} />
+       ) : null}
+       <div className="mc-body">
+         <div
+@@ -901,7 +873,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
+               </div>
+             </section>
+           ) : null}
+-          {incidents.length ? <Timeline items={incidents} t={t} /> : null}
++          {incidents.length ? (event.sport === "football" ? <FootballTimeline key={event.id} items={incidents} t={t} onPlayerSelect={openPlayerProfile} /> : <Timeline items={incidents} t={t} />) : null}
+           {hits || errors ? (
+             <section className="mc-card">
+               <h2>{t("match.box")}</h2>
+@@ -989,7 +961,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
+             aria-labelledby="mc-tab-shots"
+             hidden={currentSection !== "shots"}
+           >
+-            <ShotList shots={shots} />
++            {event.sport === "football" ? <FootballShots key={event.id} shots={shots} event={event} onPlayerSelect={openPlayerProfile} /> : <ShotList shots={shots} />}
+           </div>
+         ) : null}
+ 
+diff --git a/src/pages/MatchPage.jsx b/src/pages/MatchPage.jsx
+index cbdc46d..18e6854 100644
+--- a/src/pages/MatchPage.jsx
++++ b/src/pages/MatchPage.jsx
+@@ -8,11 +8,12 @@ import { competitionLabel } from "../labels.js";
+ import ProviderPending from "../components/ProviderPending.jsx";
+ import EmptyState from "../components/EmptyState.jsx";
+ import { CardSkeleton } from "../components/Skeleton.jsx";
++import { matchPayloadMatches } from "../lib/matchDetail.js";
+ import MatchCentre from "../components/scores/MatchCentre.jsx";
+ import useVisiblePoll from "../hooks/useVisiblePoll.js";
+ 
+ function payloadEventId(payload) {
+-  return payload?.event?.id || payload?.header?.id || payload?.id || "";
++  return payload?.id || payload?.event?.id || payload?.header?.id || "";
+ }
+ 
+ 
+@@ -110,8 +111,7 @@ export default function MatchPage() {
+     getMatch(matchId, controller ? { signal: controller.signal } : {})
+       .then((payload) => {
+         if (cancelled || seq !== requestSeq.current) return;
+-        const payloadId = payloadEventId(payload);
+-        if (payloadId && payloadId !== matchId) return;
++        if (!matchPayloadMatches(payload, matchId)) return;
+         setData(payload);
+         setError(false);
+       })
+@@ -134,8 +134,7 @@ export default function MatchPage() {
+     getJSON(matchPath(matchId))
+       .then((payload) => {
+         if (seq !== requestSeq.current) return;
+-        const payloadId = payloadEventId(payload);
+-        if (payloadId && payloadId !== matchId) return;
++        if (!matchPayloadMatches(payload, matchId)) return;
+         setData((previous) => mergeMatchPayload(previous, payload));
+         setError(false);
+       })
+@@ -150,7 +149,7 @@ export default function MatchPage() {
+ 
+   const event = useMemo(() => {
+     const payloadEvent = data?.event || data?.header;
+-    if (payloadEvent && (payloadEvent.id === matchId || data?.id === matchId)) {
++    if (matchPayloadMatches(data, matchId)) {
+       return normalizeEvent(publicEventSafe(payloadEvent));
+     }
+     if (preview) return normalizeEvent(publicEventSafe(preview));
+diff --git a/src/pages/PlayerPage.jsx b/src/pages/PlayerPage.jsx
+index 91ef4a5..4f62ce7 100644
+--- a/src/pages/PlayerPage.jsx
++++ b/src/pages/PlayerPage.jsx
+@@ -1,5 +1,5 @@
+ import React, { useEffect, useState } from "react";
+-import { Link, useParams, useSearchParams } from "react-router-dom";
++import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+ import { getPlayerProfile } from "../api.js";
+ import { setPageSeo } from "../lib/seo.js";
+ import {
+@@ -52,9 +52,12 @@ function AppearanceList({ rows }) {
+ 
+ export default function PlayerPage() {
+   const { playerKey = "" } = useParams();
++  const location = useLocation();
+   const [search] = useSearchParams();
+   const requestedName = search.get("name") || "";
+   const eventId = search.get("event_id") || "";
++  const returnTo = location.state?.matchReturnTo;
++  const backPath = typeof returnTo === "string" && returnTo.startsWith("/scores/event/") ? returnTo : eventId ? eventPath(eventId) : "/live-scores";
+   const [data, setData] = useState(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(false);
+@@ -84,7 +87,7 @@ export default function PlayerPage() {
+ 
+   if (loading) return <div className="entity-page"><div className="entity-card entity-loading">Loading player…</div></div>;
+   if (error || !data?.available) {
+-    return <div className="entity-page"><Link className="entity-back" to={eventId ? eventPath(eventId) : "/live-scores"}>← Back</Link><section className="entity-card"><h1>{name || "Player"}</h1><p>Player data is not available yet.</p></section></div>;
++    return <div className="entity-page"><Link className="entity-back" to={backPath}>← Back</Link><section className="entity-card"><h1>{name || "Player"}</h1><p>Player data is not available yet.</p></section></div>;
+   }
+ 
+   const fields = [
+@@ -103,7 +106,7 @@ export default function PlayerPage() {
+ 
+   return (
+     <div className="entity-page">
+-      <Link className="entity-back" to={eventId ? eventPath(eventId) : "/live-scores"}>← Back</Link>
++      <Link className="entity-back" to={backPath}>← Back</Link>
+       <header className="entity-hero">
+         <PlayerAvatar player={player} name={name} />
+         <div>
+diff --git a/src/styles.css b/src/styles.css
+index e9a6eee..1a2fb5a 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -5098,3 +5098,41 @@ select {
+   text-overflow: clip;
+   font-size: 0.78rem;
+ }
++
++/* Match Centre: coherent, scoped detail components. No changes to the score hub. */
++.match-centre .mc-control-group { display:flex; gap:4px; flex-wrap:wrap; }
++.match-centre .mc-control-group button, .match-centre .mc-toggle { padding:7px 11px; border:1px solid var(--border,#274762); border-radius:7px; color:var(--muted,#9eafc5); background:transparent; font:inherit; font-size:.78rem; cursor:pointer; }
++.match-centre .mc-control-group button[aria-pressed="true"], .match-centre .mc-toggle[aria-pressed="true"] { background:#173b57; border-color:#42bcb8; color:#e7f8f5; }
++.match-centre .mc-event-person { padding:0; border:0; color:inherit; background:none; font:inherit; font-weight:650; text-align:inherit; cursor:pointer; }
++.match-centre .mc-event-person:hover { text-decoration:underline; text-underline-offset:3px; }
++.match-centre button:focus-visible { outline:2px solid #59cfc5; outline-offset:3px; }
++.match-centre .mc-timeline-copy { display:flex; flex-direction:column; gap:3px; line-height:1.45; overflow-wrap:anywhere; min-width:0; }
++.match-centre .mc-timeline-copy small, .match-centre .mc-sub-out { color:#99adc4; font-size:.75rem; }
++.match-centre .mc-sub-in { color:#86daca; }
++.match-centre .mc-card-title-row { gap:12px; flex-wrap:wrap; }
++.match-centre .mc-timeline-label { border-top:1px solid #263e58; padding-top:12px; letter-spacing:.04em; }
++.match-centre .mc-muted { color:#9aafc5; font-size:.82rem; line-height:1.6; }
++.match-centre .mc-shot-heading, .match-centre .mc-shot-list li { display:grid; grid-template-columns:50px minmax(0,1fr) 45px; align-items:center; gap:12px; padding:12px 2px; }
++.match-centre .mc-shot-heading { margin-top:12px; font-size:.72rem; color:#9aafc5; border-bottom:1px solid #29435c; }
++.match-centre .mc-shot-list { padding:0; list-style:none; margin:0; }
++.match-centre .mc-shot-list li { border-bottom:1px solid #20394f; }
++.match-centre .mc-shot-list small { display:block; color:#9aafc5; font-size:.75rem; margin-top:4px; }
++.match-centre .mc-shot-list time { font-variant-numeric:tabular-nums; color:#9aafc5; font-size:.8rem; }
++.match-centre .mc-shot-list li > span:last-child, .match-centre .mc-shot-heading > span:last-child { text-align:right; font-variant-numeric:tabular-nums; }
++.match-centre .mc-shot-list .is-goal { border-left:3px solid #45c3aa; padding-left:9px; }
++.match-centre .mc-shots-card h2 small { color:#9aafc5; font-size:.8rem; margin-left:6px; }
++.match-centre .mc-footnote { margin-top:16px; padding-top:10px; border-top:1px solid #29435c; }
++@media (min-width:1000px) {
++  .match-centre #mc-panel-overview:not([hidden]):has(.mc-match-story) { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
++  .match-centre #mc-panel-overview > .mc-match-story { grid-column:1; grid-row:1 / span 4; }
++  .match-centre #mc-panel-overview:has(.mc-match-story) > :not(.mc-match-story) { grid-column:2; min-width:0; }
++  .match-centre .mc-match-facts .mc-dl > div { grid-template-columns:1fr; gap:3px; }
++  .match-centre .mc-match-facts dd { text-align:left; }
++}
++@media (max-width:480px) {
++  .match-centre .mc-timeline-item { grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr); gap:5px; }
++  .match-centre .mc-timeline-event { flex-wrap:wrap; gap:5px; }
++  .match-centre .mc-timeline-copy { font-size:.75rem; }
++  .match-centre .mc-minute { font-size:.72rem; }
++  .match-centre .mc-shot-heading, .match-centre .mc-shot-list li { grid-template-columns:40px minmax(0,1fr) 36px; gap:8px; }
++}
