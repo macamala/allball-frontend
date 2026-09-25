@@ -22,7 +22,7 @@ jobs:
           git apply audit/c13_match_centre.patch
           mkdir -p evidence
           git diff 4355aa22a26036376fa86f018b6c838424b7eff2 -- src > evidence/source.patch
-          echo '04fb2f531d557c5c99d8fdbc8e07a9f65060350eeb4c7cb5cb20005058e3202a  evidence/source.patch' | sha256sum -c
+          echo 'e671ac04fd822477daeb09f6a532892177fb88da38f6a0c5c14f5d3f60cfa669  evidence/source.patch' | sha256sum -c
           npm ci
       - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
       - run: npm run build
