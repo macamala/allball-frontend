@@ -1,0 +1,32 @@
+--- a/src/lib/competitionHub.js
++++ b/src/lib/competitionHub.js
+@@ -1,7 +1,7 @@
+-import { isConfirmedLive, isFinishedStatus } from './sportsData.js';
++import { isConfirmedLive } from './sportsData.js';
+ export const textKey = value => String(value || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+ export function matchBucket(event, now = Date.now()) {
+-  if (isFinishedStatus(event?.status)) return 'results';
++  if (['finished', 'complete', 'final', 'ft', 'ended', 'aet', 'pen'].includes(String(event?.status || '').toLowerCase())) return 'results';
+   if (isConfirmedLive(event) || ['in_progress', 'halftime', 'break'].includes(event?.status)) return 'fixtures';
+   const at = Date.parse(event?.start_time || '');
+   return ['scheduled', 'upcoming', 'not_started'].includes(event?.status) && Number.isFinite(at) && at >= now - 3 * 3600000 ? 'fixtures' : 'other';
+--- a/src/components/scores/CompetitionHubPanels.jsx
++++ b/src/components/scores/CompetitionHubPanels.jsx
+@@ -3,7 +3,7 @@
+ import { useI18n } from '../../context/I18nContext.jsx';
+ import useScopedResource from '../../hooks/useScopedResource.js';
+ import { filteredMatches, matchBucket, textKey } from '../../lib/competitionHub.js';
+-import { eventPath, isConfirmedLive, isFinishedStatus } from '../../lib/sportsData.js';
++import { eventPath, isConfirmedLive } from '../../lib/sportsData.js';
+ import { normalizeAssetUrl } from '../../lib/assetUrls.js';
+ import StandingsTable from '../StandingsTable.jsx';
+ import HeadToHeadPanel from './HeadToHeadPanel.jsx';
+@@ -17,7 +17,7 @@
+ function FixtureRow({ event, onCompare, sr }) {
+   const at = new Date(event.start_time), dated = Number.isFinite(at.getTime());
+   let status = dated ? at.toLocaleTimeString(sr ? 'sr-Latn' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+-  if (isFinishedStatus(event.status)) status = 'FT';
++  if (matchBucket(event) === 'results') status = 'FT';
+   else if (isConfirmedLive(event)) status = event.score?.minute ? `${event.score.minute}′` : 'LIVE';
+   else if (event.status === 'in_progress') status = sr ? 'U toku' : 'In progress';
+   else if (['cancelled', 'postponed', 'suspended', 'abandoned'].includes(event.status)) status = event.status;
