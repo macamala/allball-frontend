@@ -13,7 +13,7 @@ with sync_playwright() as p:
         ctx=browser.new_context(viewport={'width':width,'height':1000},timezone_id='Australia/Sydney');page=ctx.new_page();errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(URL+'#mc-lineups',wait_until='domcontentloaded',timeout=60000)
-        page.locator('#mc-panel-lineups:not([hidden]) .mc-bench-name').first.wait_for(timeout=45000)
+        page.locator('#mc-panel-lineups:not([hidden]) .mc-pitch-player').first.wait_for(timeout=45000)
         before=page.evaluate(METRICS)
         page.add_style_tag(content=CSS)
         page.wait_for_timeout(300)
