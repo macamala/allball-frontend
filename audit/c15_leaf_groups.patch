@@ -1,0 +1,135 @@
+diff --git a/src/components/scores/EventList.jsx b/src/components/scores/EventList.jsx
+index c18a109..ff8f2a2 100644
+--- a/src/components/scores/EventList.jsx
++++ b/src/components/scores/EventList.jsx
+@@ -124,7 +124,7 @@ export default function EventList({ events, compact = false }) {
+               />
+               <div className="score-comp-actions">
+                 {group.events.some((item) => item.standings_available) ? (
+-                  <Link className="score-comp-standings" to={competitionStandingsPath(group.key, { sport: group.sport, group: group.group || "" })}>
++                  <Link className="score-comp-standings" to={competitionStandingsPath(group.key, { sport: group.sport, group: group.standings_group || "" })}>
+                     Table
+                   </Link>
+                 ) : null}
+diff --git a/src/lib/competitionLeafGrouping.test.js b/src/lib/competitionLeafGrouping.test.js
+new file mode 100644
+index 0000000..d430941
+--- /dev/null
++++ b/src/lib/competitionLeafGrouping.test.js
+@@ -0,0 +1,37 @@
++import { describe, it, expect } from "vitest";
++import { groupEventsByCompetition } from "./sportsData.js";
++const name = "FIFA ASEAN Cup Premier Division Grp. A";
++const leaf = { sport: "football", competition_key: "football-fifa-asean-cup-premier-division-grp-a", competition_name: name, competition: name, status: "scheduled", start_time: "2026-09-25T09:00:00Z" };
++describe("canonical competition leaf presentation", () => {
++  it.each([false, true])("mixed enriched and plain rows form one group, reverse=%s", reverse => {
++    const events = [{...leaf, id:"plain"}, {...leaf,id:"rich",group:name}];
++    const before = JSON.stringify(events);
++    const groups = groupEventsByCompetition(reverse ? [...events].reverse() : events);
++    expect(groups).toHaveLength(1);
++    expect(groups[0].events.map(e=>e.id)).toEqual(["plain","rich"]);
++    expect(groups[0].group).toBe(name);
++    expect(groups[0].standings_group).toBe("");
++    expect(JSON.stringify(events)).toBe(before);
++  });
++  it("does not assign an unknown parent-league match to the only known group", () => {
++    const parent={...leaf,competition_key:"uefa-nations-league",competition_name:"UEFA Nations League"};
++    const groups=groupEventsByCompetition([{...parent,id:"unknown"},{...parent,id:"a",group:"UEFA Nations League A Grp. 2"}]);
++    expect(groups).toHaveLength(2);
++    expect(groups.find(g=>g.events[0].id==="unknown").group).toBeNull();
++    expect(groups.find(g=>g.events[0].id==="a").standings_group).toBe("UEFA Nations League A Grp. 2");
++  });
++  it("retains distinct explicit groups and distinct competition IDs", () => {
++    const groups=groupEventsByCompetition([{...leaf,id:"a",group:name},{...leaf,id:"b",group:"FIFA ASEAN Cup Premier Division Grp. B"},{...leaf,id:"other",competition_key:"unrelated"}]);
++    expect(groups).toHaveLength(3);
++  });
++  it("does not transfer a football group to another sport with the same key", () => {
++    const groups=groupEventsByCompetition([{...leaf,id:"a",group:name},{...leaf,id:"b",sport:"basketball"}]);
++    expect(groups).toHaveLength(2);
++    expect(groups.find(g=>g.sport==="basketball").group).toBeNull();
++  });
++  it("matches full labels apart from case and whitespace, not partial names",()=>{
++    const groups=groupEventsByCompetition([{...leaf,id:"a",group:name},{...leaf,id:"b",competition_name:"  FIFA ASEAN Cup  Premier Division Grp. A  "},{...leaf,id:"c",competition_name:"FIFA ASEAN Cup"}]);
++    expect(groups).toHaveLength(2);
++    expect(groups.find(g=>g.group).events.map(e=>e.id)).toEqual(["a","b"]);
++  });
++});
+diff --git a/src/lib/sportsData.js b/src/lib/sportsData.js
+index df52e8e..eec629a 100644
+--- a/src/lib/sportsData.js
++++ b/src/lib/sportsData.js
+@@ -542,6 +542,20 @@ export function formatEventDateTime(event, locale = "en-GB") {
+ 
+ export function groupEventsByCompetition(events) {
+   const groups = new Map();
++  const labelKey = value => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
++  // Some accepted leaf-competition rows predate group enrichment. Reconcile
++  // only an exact full competition label observed as a group in the SAME key.
++  // An unknown parent-league group must never borrow its first known group.
++  const explicitGroups = new Map();
++  for (const event of events || []) {
++    if (event.sport !== "football" || !labelKey(event.group)) continue;
++    const key = event.competition_key || event.competition || "unknown";
++    const labels = explicitGroups.get(key) || new Map();
++    const normalized = labelKey(event.group);
++    const label = String(event.group).trim();
++    if (!labels.has(normalized) || label.localeCompare(labels.get(normalized)) < 0) labels.set(normalized, label);
++    explicitGroups.set(key, labels);
++  }
+   for (const event of events || []) {
+     const key = event.competition_key || event.competition || "unknown";
+     const sport = event.sport || "unknown";
+@@ -553,9 +567,11 @@ export function groupEventsByCompetition(events) {
+       displayCompetition.toLowerCase() !== "dota 2 professional"
+         ? displayCompetition.toLowerCase().replace(/\s+/g, " ")
+         : "";
+-    const footballGroup = sport === "football" ? String(event.group || "").trim() : "";
++    const labels = sport === "football" ? explicitGroups.get(key) : null;
++    const footballGroup = labels?.get(labelKey(event.group))
++      || (!labelKey(event.group) ? labels?.get(labelKey(displayCompetition)) : "") || "";
+     const identityKey = footballGroup
+-      ? `${sport}::${key}::${footballGroup.toLowerCase()}`
++      ? `${sport}::${key}::${labelKey(footballGroup)}`
+       : dotaTournamentIdentity
+         ? `${sport}::${key}::${dotaTournamentIdentity}`
+         : `${sport}::${key}`;
+@@ -564,6 +580,9 @@ export function groupEventsByCompetition(events) {
+         key,
+         identity_key: identityKey,
+         group: footballGroup || null,
++        // A canonical leaf already scopes the API table. Repeating its display
++        // label as a parent-group selector can conflict with native prefixes.
++        standings_group: footballGroup && labelKey(footballGroup) !== labelKey(displayCompetition) ? footballGroup : "",
+         stage: event.stage || null,
+         sport,
+         competition: displayCompetition || key,
+diff --git a/src/pages/CompetitionStandingsPage.test.jsx b/src/pages/CompetitionStandingsPage.test.jsx
+index 935455d..dae0c9f 100644
+--- a/src/pages/CompetitionStandingsPage.test.jsx
++++ b/src/pages/CompetitionStandingsPage.test.jsx
+@@ -15,7 +15,7 @@ const rows=[{team:'Serbia',team_id:'1',group:a,points:3,played:1},{team:'Greece'
+ const data={competition:{id:'uefa-nations-league',name:'UEFA Nations League',sport:'football'},rows,season:'2026',seasons:['2026','2025'],updated_at:'2026-09-25T09:00:00Z'};
+ const event={id:'must-not-open',sport:'football',competition_key:'uefa-nations-league',competition:'UEFA Nations League',group:b,standings_available:true,status:'scheduled',start_time:'2026-09-25T10:00:00Z',home:{name:'Austria'},away:{name:'Israel'},event_family:'team_match'};
+ function Location(){return <output data-testid="location">{useLocation().pathname+useLocation().search}</output>;}
+-function view(path){return render(<I18nProvider><MemoryRouter initialEntries={[path]}><Location/><Link to="/scores/competition/other-league/standings">Other league</Link><Routes><Route path="/live-scores" element={<EventList events={[event]}/>}/><Route path="/scores/competition/:competitionKey/standings" element={<CompetitionStandingsPage/>}/><Route path="/scores/event/:id" element={<p>Wrong match navigation</p>}/></Routes></MemoryRouter></I18nProvider>);}
++function view(path, events=[event]){return render(<I18nProvider><MemoryRouter initialEntries={[path]}><Location/><Link to="/scores/competition/other-league/standings">Other league</Link><Routes><Route path="/live-scores" element={<EventList events={events}/>}/><Route path="/scores/competition/:competitionKey/standings" element={<CompetitionStandingsPage/>}/><Route path="/scores/event/:id" element={<p>Wrong match navigation</p>}/></Routes></MemoryRouter></I18nProvider>);}
+ beforeEach(()=>{mocks.getStandings.mockReset().mockResolvedValue(data);mocks.poll=null;});
+ afterEach(cleanup);
+ it('Table opens the competition and exact group, never the first match',async()=>{
+@@ -64,3 +64,16 @@ it('shows an honest empty state instead of manufacturing a table',async()=>{
+   mocks.getStandings.mockResolvedValue({...data,rows:[],seasons:[]});view(competitionStandingsPath('football-friendlies'));
+   await screen.findByText('Standings not available yet');expect(screen.queryByRole('table')).toBeNull();
+ });
++
++it('one leaf Table link shows its scoped table even when native group text has a parent prefix',async()=>{
++  const name='EURO U21 Qualification Grp. C', key='football-euro-u21-qualification-grp-c';
++  mocks.getStandings.mockResolvedValue({competition:{id:key,name,sport:'football'},rows:[{team:'Iceland U21',team_id:'is',points:3,group:'EURO U-21 Qualification '+name},{team:'France U21',team_id:'fr',points:0,group:'EURO U-21 Qualification '+name}]});
++  const leaf={...event,competition_key:key,competition:name,competition_name:name};
++  view('/live-scores',[{...leaf,id:'plain',group:null},{...leaf,id:'rich',group:name}]);
++  expect(screen.getAllByRole('link',{name:'Table'})).toHaveLength(1);
++  fireEvent.click(screen.getByRole('link',{name:'Table'}));await screen.findByRole('table');
++  expect(within(screen.getByRole('table')).getByText('Iceland U21')).toBeTruthy();
++  expect(screen.getByTestId('location').textContent).not.toContain('group=');
++  expect(screen.queryByText('Wrong match navigation')).toBeNull();
++  expect(mocks.getStandings).toHaveBeenCalledWith(key,{season:''});
++});
