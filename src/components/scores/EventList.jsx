@@ -6,7 +6,9 @@ import { competitionLabel } from "../../labels.js";
 import { eventPath, groupEventsByCompetition } from "../../lib/sportsData.js";
 import { scopedCompetitionId } from "../../config/sports.js";
 import { getRegistrySport } from "../../config/sportsRegistry.js";
-import { flagEmoji } from "../../lib/identityAssets.js";
+import { flagImageUrl } from "../../lib/identityAssets.js";
+import CountryFlag from "./CountryFlag.jsx";
+import { normalizeAssetUrl } from "../../lib/assetUrls.js";
 import EventRow from "./EventRow.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
 
@@ -20,7 +22,7 @@ function CompetitionIdentity({ logo, flag }) {
   const missingLogo = !logo || failed;
   return (
     <span className={`score-comp-identity ${flag ? "has-flag" : ""} ${missingLogo ? "is-logo-missing" : "has-logo"}`} aria-hidden="true">
-      {flag ? <span className="score-comp-flag">{flag}</span> : null}
+      {flag ? <CountryFlag countryId={flag} className="score-comp-flag" /> : null}
       {missingLogo ? (
         <span className="score-comp-logo-missing" data-asset-missing="competition-logo">◆</span>
       ) : (
@@ -104,8 +106,8 @@ export default function EventList({ events, compact = false }) {
         const followed =
           followedLeagues.includes(scopedCompetitionId(group.sport, group.key)) ||
           followedLeagues.includes(group.key);
-        const logo = group.events.find((item) => item.competition_logo)?.competition_logo;
-        const flag = meta.showFlag ? flagEmoji(meta.countryId) : "";
+        const logo = normalizeAssetUrl(group.events.find((item) => item.competition_logo)?.competition_logo);
+        const flag = meta.showFlag && flagImageUrl(meta.countryId) ? meta.countryId : "";
         const identityKey = group.identity_key || `${group.sport || "unknown"}::${group.key}`;
         const isCollapsed = collapsed.has(identityKey);
         return (

@@ -86,11 +86,30 @@ const ALPHA3_TO_ISO = {
   TGA: "TO", TRI: "TT", TKM: "TM", VAN: "VU", YEM: "YE", ZAM: "ZM", ZMB: "ZM",
 };
 
+// ISO spellings complement the existing sports-provider codes (GER, CRO, etc.).
+const ISO3_FALLBACK = {"ABW":"AW","AGO":"AO","AIA":"AI","ALA":"AX","ARE":"AE","ASM":"AS","ATA":"AQ","ATF":"TF","ATG":"AG","BES":"BQ","BGR":"BG","BHS":"BS","BLM":"BL","BLZ":"BZ","BMU":"BM","BRN":"BN","BTN":"BT","BVT":"BV","BWA":"BW","CCK":"CC","CHE":"CH","COG":"CG","COK":"CK","CRI":"CR","CUW":"CW","CXR":"CX","CYM":"KY","DEU":"DE","DNK":"DK","DZA":"DZ","ESH":"EH","FJI":"FJ","FLK":"FK","FRO":"FO","FSM":"FM","GBR":"GB","GGY":"GG","GIB":"GI","GIN":"GN","GLP":"GP","GNQ":"GQ","GRC":"GR","GRD":"GD","GRL":"GL","GUF":"GF","GUM":"GU","HMD":"HM","HRV":"HR","HTI":"HT","IMN":"IM","IOT":"IO","JEY":"JE","KHM":"KH","KIR":"KI","KNA":"KN","KWT":"KW","LKA":"LK","LSO":"LS","MAC":"MO","MAF":"MF","MCO":"MC","MDG":"MG","MHL":"MH","MMR":"MM","MNP":"MP","MRT":"MR","MSR":"MS","MTQ":"MQ","MUS":"MU","MYS":"MY","MYT":"YT","NCL":"NC","NER":"NE","NFK":"NF","NIC":"NI","NIU":"NU","NLD":"NL","NPL":"NP","NRU":"NR","OMN":"OM","PCN":"PN","PHL":"PH","PLW":"PW","PRI":"PR","PRK":"KP","PRT":"PT","PSE":"PS","PYF":"PF","REU":"RE","SAU":"SA","SDN":"SD","SGS":"GS","SHN":"SH","SJM":"SJ","SLB":"SB","SPM":"PM","SXM":"SX","SYC":"SC","TCA":"TC","TCD":"TD","TGO":"TG","TKL":"TK","TON":"TO","TTO":"TT","TUV":"TV","TWN":"TW","TZA":"TZ","UMI":"UM","URY":"UY","VAT":"VA","VCT":"VC","VGB":"VG","VIR":"VI","VNM":"VN","VUT":"VU","WLF":"WF","WSM":"WS","ZAF":"ZA","ZWE":"ZW"};
+const FLAG_CODES = new Set("ad ae af ag ai al am ao aq ar as at au aw ax az ba bb bd be bf bg bh bi bj bl bm bn bo bq br bs bt bv bw by bz ca cc cd cf cg ch ci ck cl cm cn co cr cu cv cw cx cy cz de dj dk dm do dz ec ee eg eh er es et fi fj fk fm fo fr ga gb gd ge gf gg gh gi gl gm gn gp gq gr gs gt gu gw gy hk hm hn hr ht hu id ie il im in io iq ir is it je jm jo jp ke kg kh ki km kn kp kr kw ky kz la lb lc li lk lr ls lt lu lv ly ma mc md me mf mg mh mk ml mm mn mo mp mq mr ms mt mu mv mw mx my mz na nc ne nf ng ni nl no np nr nu nz om pa pe pf pg ph pk pl pm pn pr ps pt pw py qa re ro rs ru rw sa sb sc sd se sg sh si sj sk sl sm sn so sr ss st sv sx sy sz tc td tf tg th tj tk tl tm tn to tr tt tv tw tz ua ug um us uy uz va vc ve vg vi vn vu wf ws xk ye yt za zm zw".split(" "));
+const HOME_NATION_FLAGS = {
+  england: "gb-eng", eng: "gb-eng", "gb-eng": "gb-eng",
+  scotland: "gb-sct", sco: "gb-sct", "gb-sct": "gb-sct",
+  wales: "gb-wls", wal: "gb-wls", "gb-wls": "gb-wls",
+  "northern-ireland": "gb-nir", nir: "gb-nir", "gb-nir": "gb-nir",
+};
+
+// Real PNG flags do not depend on the operating system's flag-emoji font.
+// Public-domain images: https://flagpedia.net/download/api
+export function flagImageUrl(countryId) {
+  const key = String(countryId || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  const homeNation = HOME_NATION_FLAGS[key];
+  const code = homeNation || isoFromCountry(countryId).toLowerCase();
+  return code && (homeNation || FLAG_CODES.has(code)) ? `https://flagcdn.com/w40/${code}.png` : "";
+}
+
 function isoFromCountry(value) {
   if (!value) return "";
   const raw = String(value).trim();
   if (/^[a-z]{2}$/i.test(raw)) return raw.toUpperCase();
-  if (/^[a-z]{3}$/i.test(raw)) return ALPHA3_TO_ISO[raw.toUpperCase()] || "";
+  if (/^[a-z]{3}$/i.test(raw)) return ALPHA3_TO_ISO[raw.toUpperCase()] || ISO3_FALLBACK[raw.toUpperCase()] || "";
   const slug = raw.toLowerCase().replace(/[\s_]+/g, "-");
   return SLUG_TO_ISO[slug] || SLUG_TO_ISO[slug.replace(/-/g, "")] || "";
 }

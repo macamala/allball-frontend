@@ -46,7 +46,9 @@ import {
   seriesGames,
 } from "./nativeSections.jsx";
 import { scopedCompetitionId } from "../../config/sports.js";
-import { flagEmoji } from "../../lib/identityAssets.js";
+import { flagImageUrl } from "../../lib/identityAssets.js";
+import CountryFlag from "./CountryFlag.jsx";
+import { normalizeAssetUrl } from "../../lib/assetUrls.js";
 import { getRegistrySport } from "../../config/sportsRegistry.js";
 
 function competitionHead(event) {
@@ -57,18 +59,18 @@ function competitionHead(event) {
     name,
     countryId: presented.countryId,
     showFlag: presented.showFlag,
-    logo: event.competition_logo || "",
+    logo: normalizeAssetUrl(event.competition_logo),
   };
 }
 
 function CompetitionHeroIdentity({ presented }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [presented.logo]);
-  const flag = presented.showFlag ? flagEmoji(presented.countryId) : "";
+  const flag = presented.showFlag && flagImageUrl(presented.countryId) ? presented.countryId : "";
   const logo = presented.logo && !failed ? presented.logo : "";
   return (
     <div className="mc-comp-identity" aria-hidden="true">
-      {flag ? <span className="mc-comp-flag">{flag}</span> : null}
+      {flag ? <CountryFlag countryId={flag} className="mc-comp-flag" size={24} /> : null}
       {logo ? (
         <img
           className="mc-comp-logo"

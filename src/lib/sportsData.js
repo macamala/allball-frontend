@@ -1,3 +1,4 @@
+import { normalizeAssetUrl } from "./assetUrls.js";
 /** Shared normalized sports-data helpers for Live Scores and Predictions.
 
 Frontend never depends on a vendor response shape. Both ScoreMatch-style
@@ -91,7 +92,7 @@ export function participantName(side, options = {}) {
 
 export function participantLogo(side) {
   if (!side || typeof side !== "object") return "";
-  return (
+  return normalizeAssetUrl(
     side.logo ||
     side.crest ||
     side.image ||

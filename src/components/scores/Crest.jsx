@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { crestInitial, flagEmoji, sideCountries, sideLogo } from "../../lib/identityAssets.js";
+import { crestInitial, flagImageUrl, sideCountries, sideLogo } from "../../lib/identityAssets.js";
+
+import CountryFlag from "./CountryFlag.jsx";
 
 export default function Crest({ side, fallbackCountry, size = 22, className = "" }) {
   const logo = sideLogo(side);
@@ -9,7 +11,7 @@ export default function Crest({ side, fallbackCountry, size = 22, className = ""
     setFailed(false);
   }, [logo]);
 
-  const flags = sideCountries(side, fallbackCountry).map(flagEmoji).filter(Boolean);
+  const flags = sideCountries(side, fallbackCountry).filter((value) => flagImageUrl(value));
   const flag = flags[0] || "";
 
   if (logo && !failed) {
@@ -36,9 +38,9 @@ export default function Crest({ side, fallbackCountry, size = 22, className = ""
       data-asset-missing={flag ? undefined : "true"}
     >
       {flags.length > 1 ? (
-        <span className="score-crest-flags">{flags.slice(0, 2).map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}</span>
+        <span className="score-crest-flags">{flags.slice(0, 2).map((item, index) => <CountryFlag key={`${item}-${index}`} countryId={item} size={Math.max(12, size / 2)} />)}</span>
       ) : (
-        flag || initials
+        flag ? <CountryFlag countryId={flag} size={size} /> : initials
       )}
     </span>
   );
