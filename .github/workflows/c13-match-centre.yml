@@ -1,0 +1,44 @@
+name: C13 match centre frontend gate
+on:
+  push:
+    branches: [fix/match-centre-c13-20260925]
+    paths: ['audit/c13_match_centre.patch', '.github/workflows/c13-match-centre.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          echo 'e497a45f8673efe7a75325b6eb6af0216319551ccd326e10e1389339d764c230  audit/c13_match_centre.patch' | sha256sum -c
+          git apply --check audit/c13_match_centre.patch
+          git apply audit/c13_match_centre.patch
+          mkdir -p evidence
+          git diff 4355aa22a26036376fa86f018b6c838424b7eff2 -- src > evidence/source.patch
+          echo '04fb2f531d557c5c99d8fdbc8e07a9f65060350eeb4c7cb5cb20005058e3202a  evidence/source.patch' | sha256sum -c
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+      - name: Publish tested candidate to isolated branch only
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src/components/scores/MatchCentre.jsx src/pages/MatchPage.jsx src/pages/PlayerPage.jsx src/styles.css
+          git commit -m 'Build coherent football match centre with timeline, shots, verified formation and canonical navigation'
+          git push origin HEAD:refs/heads/fix/match-centre-c13-20260925
+          git rev-parse HEAD > evidence/candidate.txt
+          sha256sum src/lib/matchDetail* src/components/scores/FootballTimeline.jsx src/components/scores/FootballShots.jsx src/components/scores/MatchCentre.jsx src/components/scores/MatchCentrePolish.test.jsx src/pages/MatchPage.jsx src/pages/PlayerPage.jsx src/styles.css > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c13-match-centre-frontend
+          path: evidence
+          retention-days: 30
