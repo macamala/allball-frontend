@@ -1,0 +1,44 @@
+name: C14 news live player UI gate
+on:
+  push:
+    branches: [fix/news-live-player-c14-20260925]
+    paths: ['audit/c14_integration.patch', '.github/workflows/c14-news-live-player.yml', 'src/pages/MatchFastLane.test.jsx']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          echo '4ce0875329a856a0dc237f10662b08824c70df1dcd2cb90f8cc2b27275d33ed5  audit/c14_integration.patch' | sha256sum -c
+          git apply --check audit/c14_integration.patch
+          git apply audit/c14_integration.patch
+          mkdir -p evidence
+          git diff 1889513abda991fd836f4e8dee08f2ef8da9c179 -- src > evidence/source.patch
+          echo 'f937689868f615ecebbda6cdcdde0dd49601a7ac9373dde73503f6960b1e4260  evidence/source.patch' | sha256sum -c
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+      - name: Publish tested source to isolated branch only
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src
+          git commit -m 'Make home news-only, keep major competition groups together and connect fast scores and player facts'
+          git push origin HEAD:refs/heads/fix/news-live-player-c14-20260925
+          git rev-parse HEAD > evidence/candidate.txt
+          git diff --name-only 1889513abda991fd836f4e8dee08f2ef8da9c179 -- src | xargs sha256sum > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c14-frontend-gate
+          path: evidence
+          retention-days: 30
