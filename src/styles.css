@@ -5136,3 +5136,46 @@ select {
   .match-centre .mc-minute { font-size:.72rem; }
   .match-centre .mc-shot-heading, .match-centre .mc-shot-list li { grid-template-columns:40px minmax(0,1fr) 36px; gap:8px; }
 }
+
+/* Match detail owns its page width; nested roster buttons own the row grid. */
+.page-match {
+  max-width: 1100px;
+  margin-inline: auto;
+}
+.page-match > .match-centre {
+  max-width: none;
+}
+.page-match .mc-player .score-crest {
+  width: 48px;
+  height: 48px;
+}
+.page-match .mc-bench-list li:has(> .mc-roster-player-button),
+.page-match .mc-roster-list li:has(> .mc-roster-player-button) {
+  display: block;
+}
+.page-match .mc-roster-player-button {
+  grid-template-columns: 34px 26px minmax(0, 1fr) auto 42px;
+  min-height: 40px;
+}
+.page-match .mc-roster-player-button > .mc-player-avatar { grid-column: 1; }
+.page-match .mc-roster-player-button > .mc-bench-number { grid-column: 2; }
+.page-match .mc-roster-player-button > .mc-bench-name {
+  grid-column: 3;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.4;
+}
+.page-match .mc-roster-player-button > .mc-bench-pos { grid-column: 4; }
+.page-match .mc-roster-player-button > .mc-bench-rating { grid-column: 5; }
+.page-match .mc-match-facts dd { margin-left: 0; }
+@media (max-width: 640px) {
+  .page-match .mc-roster-player-button {
+    grid-template-columns: 34px 24px minmax(0, 1fr) 38px;
+    gap: 6px;
+  }
+  .page-match .mc-roster-player-button > .mc-bench-pos { display: none; }
+  .page-match .mc-roster-player-button > .mc-bench-rating { grid-column: 4; }
+  .page-match .mc-player .score-crest { width: 40px; height: 40px; }
+}
