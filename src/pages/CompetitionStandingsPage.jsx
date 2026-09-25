@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { getStandings } from "../api.js";
+import CompetitionHubPanels from "../components/scores/CompetitionHubPanels.jsx";
 import StandingsTable from "../components/StandingsTable.jsx";
 import CountryFlag from "../components/scores/CountryFlag.jsx";
 import { normalizeAssetUrl } from "../lib/assetUrls.js";
@@ -65,7 +66,7 @@ export default function CompetitionStandingsPage() {
         <div className="competition-standings-identity">
           {logo ? <img src={logo} alt="" width="48" height="48" /> : null}
           <div>
-            <p className="standings-eyebrow">{meta.country_id ? <CountryFlag countryId={meta.country_id} /> : null}{sr ? "Tabela takmičenja" : "Competition standings"}</p>
+            <p className="standings-eyebrow">{meta.country_id ? <CountryFlag countryId={meta.country_id} /> : null}{sr ? "Pregled takmičenja" : "Competition centre"}</p>
             <h1>{title}</h1>
           </div>
         </div>
@@ -73,6 +74,7 @@ export default function CompetitionStandingsPage() {
           {seasons.length > 1 ? <label>{sr ? "Sezona" : "Season"}<select aria-label="Standings season" value={season || payload?.season || ""} onChange={e => updateParam("season", e.target.value)}>{seasons.map(s => <option key={s} value={s}>{s}</option>)}</select></label> : payload?.season ? <span>{sr ? "Sezona" : "Season"} {payload.season}</span> : null}
         </div>
       </header>
+      <CompetitionHubPanels competitionKey={competitionKey} sport={meta.sport || sport} group={group} season={season} meta={meta}>
       <section className="competition-table-card" aria-label={sr ? "Tabela lige ili grupe" : "League or group table"} aria-busy={state.loading}>
         {state.error ? <p className="standings-message" role="alert">{state.error} <button type="button" onClick={refresh}>{sr ? "Pokušaj ponovo" : "Try again"}</button></p> : null}
         {state.loading ? <p className="standings-message" role="status">{sr ? "Učitavanje tabele…" : "Loading standings…"}</p> : rows.length ? (
@@ -80,6 +82,7 @@ export default function CompetitionStandingsPage() {
         ) : !state.error ? <div className="standings-empty"><h2>{sr ? "Tabela još nije dostupna" : "Standings not available yet"}</h2><p>{sr ? "Za ovu ligu, grupu ili sezonu još nemamo potvrđenu tabelu. Prijateljske i neke kup-utakmice nemaju ligašku tabelu." : "A confirmed table for this competition or season is not available yet. Friendlies and some knockout competitions do not have league standings."}</p><button type="button" onClick={refresh}>{sr ? "Proveri ponovo" : "Check again"}</button></div> : null}
         {updated && Number.isFinite(updated.getTime()) ? <p className="standings-updated">{payload.stale ? (sr ? "Poslednja sačuvana tabela" : "Last saved table") : (sr ? "Poslednja provera" : "Last checked")}: <time dateTime={payload.updated_at}>{updated.toLocaleString(sr ? "sr-Latn" : "en-GB")}</time></p> : null}
       </section>
+      </CompetitionHubPanels>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { matchSectionFromHash } from "../../lib/standingsGroups.js";
 import StandingsTable from "../StandingsTable.jsx";
+import HeadToHeadPanel from "./HeadToHeadPanel.jsx";
 import FootballTimeline from "./FootballTimeline.jsx";
 import FootballShots from "./FootballShots.jsx";
 import { uniqueStatistics, formationBands } from "../../lib/matchDetail.js";
@@ -973,6 +974,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-h2h"
             hidden={currentSection !== "h2h"}
           >
+            {event.sport === "football" ? <HeadToHeadPanel key={event.id} event={event} h2h={h2h} form={form || {}} /> : <>
             {formUseful ? (
               <section className="mc-card">
                 <h2>{t("predictions.recentForm")}</h2>
@@ -995,6 +997,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
                 </ul>
               </section>
             ) : null}
+            </>}
           </div>
         ) : null}
 
