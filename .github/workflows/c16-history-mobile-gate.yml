@@ -1,0 +1,45 @@
+name: C16 readable history labels gate
+on:
+  push:
+    branches: [fix/history-mobile-labels-c16-20260925]
+    paths: ['audit/c16_history_mobile.patch','.github/workflows/c16-history-mobile-gate.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          mkdir -p evidence
+          echo '54d04b8e160fd0647d791062b05fa686d2fc00307ad2d8badeb393fa9fe8e899  audit/c16_history_mobile.patch' | sha256sum -c
+          git apply --check audit/c16_history_mobile.patch
+          git apply audit/c16_history_mobile.patch
+          git diff -- src/styles/competitionHub.css > evidence/source.patch
+          cmp audit/c16_history_mobile.patch evidence/source.patch
+          echo '28c35558d6a1ec710eda1db6ff129b6d54637deaa45d7094132da2c8efd4ff04  src/styles/competitionHub.css' | sha256sum -c
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+      - name: Publish tested isolated candidate only
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src/styles/competitionHub.css
+          git commit -m 'Place historical competition labels below mobile match pairs for readable full names'
+          git push origin HEAD:refs/heads/fix/history-mobile-labels-c16-20260925
+          git rev-parse HEAD > evidence/candidate.txt
+          sha256sum src/styles/competitionHub.css > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c16-history-mobile-gate
+          path: evidence
+          retention-days: 30
