@@ -1,0 +1,52 @@
+name: C16 connected competition UI gate
+on:
+  push:
+    branches: [feature/competition-centre-c16-20260925]
+    paths: ['audit/c16_ui.*.b64', '.github/workflows/c16-competition-ui-gate.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import gzip,base64,hashlib
+          from pathlib import Path
+          encoded=''.join(Path(f'audit/c16_ui.{i}.b64').read_text().strip() for i in range(3))
+          patch=gzip.decompress(base64.b64decode(encoded,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='dd13427e4c274b94ecb1b0afd058ada66da90a58eefa519a65547fe5ca3d2a81'
+          Path('evidence/reviewed.patch').write_bytes(patch)
+          PY
+          git apply --check evidence/reviewed.patch
+          git apply evidence/reviewed.patch
+          git add -N src
+          git diff -- src > evidence/source.patch
+          cmp evidence/reviewed.patch evidence/source.patch
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+      - name: Publish only the tested isolated candidate
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src
+          git commit -m 'Connect standings to fixtures, past results and explicit head-to-head comparisons in a responsive competition centre'
+          git push origin HEAD:refs/heads/feature/competition-centre-c16-20260925
+          git rev-parse HEAD > evidence/candidate.txt
+          git diff --name-only 35906e1bde4f5bdba3eb79d6c4c9854093339cd9 HEAD -- src | xargs sha256sum > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c16-competition-ui-gate
+          path: evidence
+          retention-days: 30
