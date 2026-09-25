@@ -113,6 +113,8 @@ export default function StandingsTable({
   competition = "",
   competitionCountry = "",
   event = {},
+  onGroupChange,
+  strictGroup = false,
   empty,
 }) {
   const { lang } = useI18n();
@@ -125,12 +127,13 @@ export default function StandingsTable({
     if (tableRef.current) tableRef.current.scrollLeft = 0;
   }, [competition, event.id, sport]);
   const groups = React.useMemo(() => standingsGroups(rows), [rows]);
-  const preferredGroup = preferredStandingsGroup(groups, event);
+  const requestedGroupExists = !event.group || groups.some(g => [g.group, g.label].some(label => String(label).trim().toLowerCase() === String(event.group).trim().toLowerCase()));
+  const preferredGroup = strictGroup && !requestedGroupExists ? "" : preferredStandingsGroup(groups, event);
   const [selectedGroup, setSelectedGroup] = React.useState(preferredGroup);
   React.useEffect(() => setSelectedGroup(preferredGroup), [competition, event.id, preferredGroup]);
   const selected = groups.find(group => group.key === selectedGroup)
     || groups.find(group => group.key === preferredGroup);
-  const visibleRows = selected?.rows || (groups.length === 1 ? rows : []);
+  const visibleRows = selected?.rows || (groups.length === 1 && (!strictGroup || requestedGroupExists) ? rows : []);
   if (!rows.length) return empty || null;
   const sample = visibleRows[0] || {};
   const preferred = PREFERRED[sport] || PREFERRED.football;
@@ -152,10 +155,14 @@ export default function StandingsTable({
 
   return (
     <div className={`standings-grouped standings-responsive ${expanded ? "is-expanded" : "is-compact"}`}>
-      {groups.length > 1 ? (
+      {groups.length > 1 || (strictGroup && !requestedGroupExists) ? (
         <label className="standings-group-control">
           <span>Group</span>
-          <select aria-label="Standings group" value={selected?.key || ""} onChange={e => setSelectedGroup(e.target.value)}>
+          <select aria-label="Standings group" value={selected?.key || ""} onChange={e => {
+            setSelectedGroup(e.target.value);
+            const next = groups.find(g => g.key === e.target.value);
+            onGroupChange?.(next?.group || next?.label || "");
+          }}>
             {!selected ? <option value="">Select a group</option> : null}
             {groups.map(group => <option key={group.key} value={group.key}>{group.label}</option>)}
           </select>

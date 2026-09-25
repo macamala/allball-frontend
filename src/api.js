@@ -255,9 +255,11 @@ export function getSportsDataRecent(params = {}) {
   return cachedGetJSON(sportsDataQueryPath("/sports-data/recent", params), SCORES_LIST_TTL);
 }
 
-export function getStandings(league) {
-  const qs = league ? `?league=${encodeURIComponent(league)}` : "";
-  return getJSON(`/sports-data/standings${qs}`);
+export function getStandings(league, { season } = {}) {
+  const params = new URLSearchParams();
+  if (league) params.set("league", league);
+  if (season) params.set("season", season);
+  return getJSON(`/sports-data/standings${params.size ? `?${params}` : ""}`);
 }
 
 export function matchPath(id) {

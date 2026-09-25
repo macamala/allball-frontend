@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { competitionPresentation } from "../../lib/competitionPresentation.js";
 import { competitionLabel } from "../../labels.js";
-import { eventPath, groupEventsByCompetition } from "../../lib/sportsData.js";
+import { competitionStandingsPath, groupEventsByCompetition } from "../../lib/sportsData.js";
 import { scopedCompetitionId } from "../../config/sports.js";
 import { getRegistrySport } from "../../config/sportsRegistry.js";
 import { flagImageUrl } from "../../lib/identityAssets.js";
@@ -124,7 +124,7 @@ export default function EventList({ events, compact = false }) {
               />
               <div className="score-comp-actions">
                 {group.events.some((item) => item.standings_available) ? (
-                  <Link className="score-comp-standings" to={`${eventPath(group.events[0].id)}#mc-standings`}>
+                  <Link className="score-comp-standings" to={competitionStandingsPath(group.key, { sport: group.sport, group: group.group || "" })}>
                     Table
                   </Link>
                 ) : null}

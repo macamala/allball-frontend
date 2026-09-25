@@ -1,0 +1,28 @@
+.competition-standings-page { width:100%; max-width:1100px; min-width:0; margin:0 auto; padding:24px 16px 40px; box-sizing:border-box; }
+.competition-standings-page .standings-back { display:inline-block; margin-bottom:20px; color:var(--muted,#9eb2c8); text-decoration:none; }
+.competition-standings-hero { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; padding-bottom:22px; }
+.competition-standings-identity { display:flex; align-items:center; gap:16px; min-width:0; }
+.competition-standings-identity > img { object-fit:contain; flex:none; }
+.competition-standings-hero h1 { margin:4px 0 0; font-size:clamp(1.3rem,2.4vw,1.9rem); line-height:1.25; overflow-wrap:anywhere; }
+.standings-eyebrow { display:flex; align-items:center; gap:8px; margin:0; font-size:.78rem; color:var(--muted,#9eb2c8); }
+.standings-eyebrow img { width:20px; height:14px; object-fit:cover; }
+.standings-season { color:var(--muted,#9eb2c8); font-size:.86rem; }
+.standings-season label { display:flex; align-items:center; gap:10px; }
+.standings-season select { max-width:190px; padding:8px; border:1px solid #294665; background:#0b2036; color:inherit; border-radius:6px; }
+.competition-table-card { min-width:0; padding:20px; border:1px solid #294665; border-radius:10px; background:#0a1d31; }
+.competition-table-card .standings-responsive { width:100%; min-width:0; }
+.competition-table-card .standings-table { width:100%; }
+.competition-table-card .standings-table th { background:#102942; }
+.competition-table-card .standings-table td,.competition-table-card .standings-table th { padding:12px 10px; }
+.standings-message,.standings-empty { padding:18px 0; }
+.standings-empty h2 { font-size:1.1rem; margin-top:0; }
+.standings-empty p,.standings-updated { color:var(--muted,#9eb2c8); line-height:1.5; }
+.standings-updated { border-top:1px solid #294665; padding-top:14px; margin-bottom:0; font-size:.75rem; }
+@media(max-width:640px) {
+  .competition-standings-page { padding:18px 12px 30px; }
+  .competition-standings-hero { gap:12px; padding-bottom:16px; }
+  .competition-standings-identity { gap:10px; }
+  .competition-standings-identity > img { width:36px; height:36px; }
+  .competition-table-card { padding:12px 8px; }
+  .competition-table-card .standings-table td,.competition-table-card .standings-table th { padding:10px 6px; }
+}

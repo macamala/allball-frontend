@@ -729,3 +729,12 @@ export function predictionPath(sportSlug, competitionSlug, eventId) {
   if (!eventId) return `/predictions/${sportSlug}/${competitionSlug}`;
   return `/predictions/${sportSlug}/${competitionSlug}/${encodeURIComponent(eventId)}`;
 }
+
+
+/** The league table is a resource of its own, never a link to an arbitrary fixture. */
+export function competitionStandingsPath(competition, { sport = "football", group = "", season = "" } = {}) {
+  const params = new URLSearchParams({ sport });
+  if (group) params.set("group", group);
+  if (season) params.set("season", season);
+  return `/scores/competition/${encodeURIComponent(competition)}/standings?${params}`;
+}

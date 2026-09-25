@@ -5,10 +5,22 @@ export function matchClock(event, now = Date.now()) {
   const stamp = Date.parse(event?.score_observed_at || "");
   const age = Number.isFinite(stamp) ? Math.max(0, (now-stamp)/1000) : null;
   const running = isConfirmedLive(event) && String(event.status).toLowerCase() === "live";
-  const text = String(raw ?? "").trim().replace(/[’']/g, "");
+  const text = String(raw ?? "").replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "").trim().replace(/[’']/g, "");
   const parsed = /^(\d{1,3})(?:\+(\d{1,2}))?$/.exec(text);
-  if (!running || !parsed || age === null || age > 90 || now < stamp-1000) {
+  const precise = /^(\d{1,3}):(\d{2})$/.exec(String(event?.score?.clock || "").trim());
+  const preciseValid = precise && Number(precise[1]) <= 150 && Number(precise[2]) < 60;
+  if (!running || (!parsed && !preciseValid) || age === null || age > 90 || now < stamp-1000) {
     return {label:null, estimated:false, delayed:running && (age === null || age > 90), age};
+  }
+  if (preciseValid) {
+    const sourceMinute = Number(precise[1]);
+    const sourceSeconds = sourceMinute*60 + Number(precise[2]);
+    const addedBase = parsed?.[2] ? Number(parsed[1]) : null;
+    const boundary = sourceMinute < 45 ? 45 : sourceMinute < 90 ? 90 : sourceMinute < 105 ? 105 : 150;
+    const advancing = addedBase == null ? Math.min(sourceSeconds + Math.floor(age), boundary*60) : sourceSeconds + Math.floor(age);
+    const shown = addedBase == null ? advancing : Math.max(0, advancing-addedBase*60);
+    const label = `${addedBase == null ? "" : `${addedBase}+`}${Math.floor(shown/60)}:${String(shown%60).padStart(2,"0")}`;
+    return {label:`≈${label}`, estimated:true, delayed:false, age};
   }
   const minute=Number(parsed[1]), added=Number(parsed[2] || 0);
   if (minute > 120 || added > 30) return {label:null, estimated:false, delayed:false, age};

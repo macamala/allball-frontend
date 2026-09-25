@@ -11,6 +11,7 @@ import PredictionsPage from "./pages/PredictionsPage.jsx";
 import PredictionDetailPage from "./pages/PredictionDetailPage.jsx";
 import MySportsPage from "./pages/MySportsPage.jsx";
 import MatchPage from "./pages/MatchPage.jsx";
+import CompetitionStandingsPage from "./pages/CompetitionStandingsPage.jsx";
 import TeamPage from "./pages/TeamPage.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/live-scores" element={<LiveScoresPage />} />
         <Route path="/data-sources" element={<Navigate to="/" replace />} />
         <Route path="/scores/event/:matchId" element={<MatchPage />} />
+        <Route path="/scores/competition/:competitionKey/standings" element={<CompetitionStandingsPage />} />
         <Route path="/scores" element={<Navigate to="/live-scores" replace />} />
         <Route
           path="/predictions/:sportSlug/:competitionSlug/:eventId"
