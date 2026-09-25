@@ -542,6 +542,20 @@ export function formatEventDateTime(event, locale = "en-GB") {
 
 export function groupEventsByCompetition(events) {
   const groups = new Map();
+  const labelKey = value => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  // Some accepted leaf-competition rows predate group enrichment. Reconcile
+  // only an exact full competition label observed as a group in the SAME key.
+  // An unknown parent-league group must never borrow its first known group.
+  const explicitGroups = new Map();
+  for (const event of events || []) {
+    if (event.sport !== "football" || !labelKey(event.group)) continue;
+    const key = event.competition_key || event.competition || "unknown";
+    const labels = explicitGroups.get(key) || new Map();
+    const normalized = labelKey(event.group);
+    const label = String(event.group).trim();
+    if (!labels.has(normalized) || label.localeCompare(labels.get(normalized)) < 0) labels.set(normalized, label);
+    explicitGroups.set(key, labels);
+  }
   for (const event of events || []) {
     const key = event.competition_key || event.competition || "unknown";
     const sport = event.sport || "unknown";
@@ -553,9 +567,11 @@ export function groupEventsByCompetition(events) {
       displayCompetition.toLowerCase() !== "dota 2 professional"
         ? displayCompetition.toLowerCase().replace(/\s+/g, " ")
         : "";
-    const footballGroup = sport === "football" ? String(event.group || "").trim() : "";
+    const labels = sport === "football" ? explicitGroups.get(key) : null;
+    const footballGroup = labels?.get(labelKey(event.group))
+      || (!labelKey(event.group) ? labels?.get(labelKey(displayCompetition)) : "") || "";
     const identityKey = footballGroup
-      ? `${sport}::${key}::${footballGroup.toLowerCase()}`
+      ? `${sport}::${key}::${labelKey(footballGroup)}`
       : dotaTournamentIdentity
         ? `${sport}::${key}::${dotaTournamentIdentity}`
         : `${sport}::${key}`;
@@ -564,6 +580,9 @@ export function groupEventsByCompetition(events) {
         key,
         identity_key: identityKey,
         group: footballGroup || null,
+        // A canonical leaf already scopes the API table. Repeating its display
+        // label as a parent-group selector can conflict with native prefixes.
+        standings_group: footballGroup && labelKey(footballGroup) !== labelKey(displayCompetition) ? footballGroup : "",
         stage: event.stage || null,
         sport,
         competition: displayCompetition || key,

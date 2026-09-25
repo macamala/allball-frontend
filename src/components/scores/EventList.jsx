@@ -124,7 +124,7 @@ export default function EventList({ events, compact = false }) {
               />
               <div className="score-comp-actions">
                 {group.events.some((item) => item.standings_available) ? (
-                  <Link className="score-comp-standings" to={competitionStandingsPath(group.key, { sport: group.sport, group: group.group || "" })}>
+                  <Link className="score-comp-standings" to={competitionStandingsPath(group.key, { sport: group.sport, group: group.standings_group || "" })}>
                     Table
                   </Link>
                 ) : null}
