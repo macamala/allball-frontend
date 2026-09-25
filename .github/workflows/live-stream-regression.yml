@@ -1,0 +1,55 @@
+name: Canonical live stream regression gate
+on:
+  push:
+    branches: [fix/live-status-screenshots-20260925]
+    paths: ['audit/apply_live_stream.py', '.github/workflows/live-stream-regression.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: python audit/apply_live_stream.py
+      - run: npm ci
+      - run: |
+          mkdir -p /tmp/live-stream-evidence
+          npm test -- --reporter=default --reporter=junit --outputFile=/tmp/live-stream-evidence/tests.xml
+          npm run build
+      - if: always()
+        run: |
+          mkdir -p /tmp/live-stream-evidence
+          git add -N src
+          git diff --binary > /tmp/live-stream-evidence/source.patch
+          sha256sum /tmp/live-stream-evidence/source.patch
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-stream-regression-evidence
+          path: /tmp/live-stream-evidence
+          retention-days: 30
+  publish-tested-source:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - run: |
+          python audit/apply_live_stream.py
+          git add src
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git commit -m 'Reconcile authoritative day snapshots and consume status pages without skipping updates'
+          git push origin HEAD:fix/live-status-screenshots-20260925
+          echo "TESTED_SOURCE_COMMIT=$(git rev-parse HEAD)"
