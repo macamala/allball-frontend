@@ -1,0 +1,16 @@
+diff --git a/src/styles/competitionHub.css b/src/styles/competitionHub.css
+index a1db169..ad8bd71 100644
+--- a/src/styles/competitionHub.css
++++ b/src/styles/competitionHub.css
+@@ -83,3 +83,11 @@ a.hub-fixture-pair:hover { color:#7ce6ed; }
+  .h2h-history-list > li > a,.h2h-history-record { grid-template-columns:66px minmax(0,1fr) 40px; gap:8px; }
+  .history-league { font-size:.65rem; overflow-wrap:anywhere; }
+ }
++
++/* On phones, competition names sit below the pair instead of being squeezed
++   into a narrow third column; recent-form W/D/L keeps its compact badge. */
++@media(max-width:760px) {
++ .h2h-meetings-card .h2h-history-list > li > a,
++ .h2h-meetings-card .h2h-history-record { grid-template-columns:66px minmax(0,1fr); gap:6px 8px; }
++ .h2h-meetings-card .history-league { grid-column:2; font-size:.7rem; overflow-wrap:break-word; word-break:normal; }
++}
