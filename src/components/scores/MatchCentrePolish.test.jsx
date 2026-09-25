@@ -12,7 +12,7 @@ vi.mock('../../context/AuthContext.jsx',()=>({useAuth:()=>({favorites:{},syncFav
 const event={id:'canonical',sport:'football',event_family:'team_match',status:'finished',home:{name:'Home FC'},away:{name:'Away FC'},score:{home:0,away:1},competition_key:'test-league',start_time:'2026-09-19T18:45:00Z'};
 const t=key=>({'match.timeline':'Timeline','match.firstHalf':'First half','match.secondHalf':'Second half'}[key]||key);
 const wrap=ui=>render(<I18nProvider><MemoryRouter>{ui}</MemoryRouter></I18nProvider>);
-beforeEach(()=>{clearPublicCache();global.fetch=vi.fn(()=>Promise.resolve({ok:true,json:async()=>({}),text:async()=>'{}'})));});
+beforeEach(()=>{clearPublicCache();global.fetch=vi.fn(()=>Promise.resolve({ok:true,json:async()=>({}),text:async()=>'{}'}));});
 afterEach(cleanup);
 it('renders the real canonical match behind an old URL, with its rich sections',async()=>{
   const data={connected:true,id:'old',event:{...event,statistics:[{label:'Possession',home:40,away:60}]},header:event};
