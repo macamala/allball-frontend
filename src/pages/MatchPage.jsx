@@ -8,6 +8,7 @@ import { competitionLabel } from "../labels.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
+import { newerMatchEvent } from "../lib/matchClock.js";
 import { matchPayloadMatches } from "../lib/matchDetail.js";
 import MatchCentre from "../components/scores/MatchCentre.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
@@ -63,8 +64,9 @@ function mergeMatchPayload(previous, incoming) {
   const prevEvent = previous.event || previous.header;
   const incomingEvent = incoming.event || incoming.header;
   if (prevEvent || incomingEvent) {
-    const event = preserveRichFields(prevEvent, incomingEvent);
-    event.score = { ...((prevEvent || {}).score || {}), ...((incomingEvent || {}).score || {}) };
+    const acceptedEvent = newerMatchEvent(prevEvent, incomingEvent);
+    const event = preserveRichFields(prevEvent, acceptedEvent);
+    event.score = { ...((prevEvent || {}).score || {}), ...((acceptedEvent || {}).score || {}) };
     event.sport_detail = {
       ...((prevEvent || {}).sport_detail || {}),
       ...((incomingEvent || {}).sport_detail || {}),
@@ -98,6 +100,9 @@ export default function MatchPage() {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const requestSeq = useRef(0);
+  const scoreFlight = useRef(null);
+  const routeId = useRef({id: matchId, generation: 0});
+  if (routeId.current.id !== matchId) routeId.current = {id: matchId, generation: routeId.current.generation + 1};
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +152,19 @@ export default function MatchPage() {
       });
   }, [matchId]);
 
+  const refreshScore = useCallback(() => {
+    const request = routeId.current;
+    if (scoreFlight.current === request) return;
+    scoreFlight.current = request;
+    return getJSON(`${matchPath(matchId)}/score`)
+      .then((payload) => {
+        if (routeId.current !== request || !payload?.event || !matchPayloadMatches(payload, matchId)) return;
+        setData(previous => mergeMatchPayload(previous, payload));
+      })
+      .catch(() => {}) // Retain the last confirmed result; never clear on network failure.
+      .finally(() => { if (scoreFlight.current === request) scoreFlight.current = null; });
+  }, [matchId]);
+
   const event = useMemo(() => {
     const payloadEvent = data?.event || data?.header;
     if (matchPayloadMatches(data, matchId)) {
@@ -162,12 +180,13 @@ export default function MatchPage() {
   const path = eventPath(matchId);
   const matchPollMs = event
     ? isConfirmedLive(event)
-      ? 8000
+      ? 30000
       : isFinishedStatus(event.status)
         ? 0
         : 30000
     : 0;
   useVisiblePoll(refreshMatch, matchPollMs);
+  useVisiblePoll(refreshScore, event && !isFinishedStatus(event.status) ? (isConfirmedLive(event) ? 5000 : 15000) : 0);
 
   useEffect(() => {
     setPageSeo({

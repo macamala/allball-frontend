@@ -317,6 +317,7 @@ export function normalizeEvent(raw) {
     provider: null,
     provider_id: null,
     updated_at: raw.updated_at || null,
+    score_observed_at: raw.score_observed_at || null,
     live,
     event_family: raw.event_family || "",
     event_type: eventShape(raw),

@@ -20,6 +20,7 @@ import {
 import { allRegistrySports, getRegistrySport } from "../config/sportsRegistry.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { competitionLabel } from "../labels.js";
+import { competitionPriority } from "../lib/competitionOrder.js";
 import { competitionPresentation } from "../lib/competitionPresentation.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -276,7 +277,7 @@ export default function LiveScoresPage() {
       countsMap.set(key, current);
     });
     return [...countsMap.entries()]
-      .sort((a, b) => b[1].count - a[1].count)
+      .sort((a, b) => competitionPriority(a[1].event)-competitionPriority(b[1].event) || b[1].count - a[1].count)
       .slice(0, 6)
       .map(([key, value]) => {
         const presented = competitionPresentation(value.event || {});

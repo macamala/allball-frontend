@@ -10,6 +10,7 @@ import { flagImageUrl } from "../../lib/identityAssets.js";
 import CountryFlag from "./CountryFlag.jsx";
 import { normalizeAssetUrl } from "../../lib/assetUrls.js";
 import EventRow from "./EventRow.jsx";
+import { orderCompetitionGroups } from "../../lib/competitionOrder.js";
 import FavoriteButton from "./FavoriteButton.jsx";
 
 function CompetitionIdentity({ logo, flag }) {
@@ -59,23 +60,7 @@ export default function EventList({ events, compact = false }) {
   const [collapsed, setCollapsed] = useState(() => new Set());
 
   const groups = useMemo(() => {
-    const list = groupEventsByCompetition(events);
-    const rank = (group) => {
-      const scoped = scopedCompetitionId(group.sport, group.key);
-      if (followedLeagues.includes(scoped) || followedLeagues.includes(group.key)) return 0;
-      if (group.hasLive) return 1;
-      if (followedSports.includes(group.sport)) return 2;
-      return 3;
-    };
-    return [...list].sort((left, right) => {
-      const diff = rank(left) - rank(right);
-      if (diff) return diff;
-      const leftSportPriority = getRegistrySport(left.sport)?.display_priority ?? 999;
-      const rightSportPriority = getRegistrySport(right.sport)?.display_priority ?? 999;
-      if (leftSportPriority !== rightSportPriority) return leftSportPriority - rightSportPriority;
-      if (left.earliest !== right.earliest) return String(left.earliest).localeCompare(String(right.earliest));
-      return String(left.competition).localeCompare(String(right.competition));
-    });
+    return orderCompetitionGroups(groupEventsByCompetition(events), { leagues: followedLeagues, sports: followedSports });
   }, [events, followedLeagues, followedSports]);
 
   function toggleFollow(group, event) {

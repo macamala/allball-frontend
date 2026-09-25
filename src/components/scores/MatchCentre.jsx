@@ -7,6 +7,7 @@ import FootballShots from "./FootballShots.jsx";
 import { uniqueStatistics, formationBands } from "../../lib/matchDetail.js";
 import MatchSectionTabs from "./MatchSectionTabs.jsx";
 import Crest from "./Crest.jsx";
+import MatchClock from "./MatchClock.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -179,8 +180,7 @@ function PairScoreboard({ event, t, locale, favorite, onParticipantSelect }) {
         <ParticipantBlock side={event.home} event={event} align="home" onSelect={onParticipantSelect} />
         <div className="mc-score">
           <div className="mc-score-value">{score}</div>
-          <div className={`mc-score-status ${live ? "is-live" : ""}`}>{statusLabel(event, t, time)}</div>
-          {clock != null && clock !== "" && live ? <div className="mc-score-status is-live">{String(clock).replace(/'$/, "")}’</div> : null}
+          <MatchClock event={event} t={t} time={time} />
         </div>
         <ParticipantBlock side={event.away} event={event} align="away" onSelect={onParticipantSelect} />
       </div>

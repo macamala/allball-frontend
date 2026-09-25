@@ -1,18 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getPortalHome, getSportsDataEvents, peekPortalHome } from "../api.js";
+import { getPortalHome, peekPortalHome } from "../api.js";
 import { MAIN_SPORTS, leaguePath, sportPath } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
-import { isoDate, localDayUtcBounds, rollingUtcBounds } from "../lib/sportsData.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
 import LatestFeed from "../components/LatestFeed.jsx";
-import LiveScoresRail, { hasLiveUtilityData } from "../components/LiveScoresRail.jsx";
 import MostReadList from "../components/MostReadList.jsx";
 import PortalLayout from "../components/PortalLayout.jsx";
 import SectionHeader from "../components/SectionHeader.jsx";
@@ -22,7 +20,6 @@ import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 export default function HomePage() {
   const cached = peekPortalHome();
   const [data, setData] = useState(cached);
-  const [homeScoreRows, setHomeScoreRows] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!cached);
   const { favorites } = useAuth();
@@ -39,45 +36,6 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const extractRows = (payload) =>
-      Array.isArray(payload?.events)
-        ? payload.events
-        : Array.isArray(payload?.matches)
-          ? payload.matches
-          : [];
-    const sortScoreRows = (rows) => {
-      const liveRank = (row) =>
-        row?.live || ["live", "halftime", "break"].includes(String(row?.status || "").toLowerCase())
-          ? 0
-          : 1;
-      return [...rows].sort((left, right) => {
-        const rankDiff = liveRank(left) - liveRank(right);
-        if (rankDiff) return rankDiff;
-        return String(left?.start_time || "").localeCompare(String(right?.start_time || ""));
-      });
-    };
-    const loadHomeScores = async () => {
-      const todayKey = isoDate(new Date());
-      try {
-        const primary = await getSportsDataEvents(localDayUtcBounds(todayKey));
-        const rows = extractRows(primary);
-        if (rows.length) return rows;
-      } catch {
-        // Fall through to a rolling instant-based window. This prevents one
-        // browser's timezone/date setting or a transient empty day response
-        // from removing Live Scores from the home page entirely.
-      }
-      try {
-        const fallback = await getSportsDataEvents(rollingUtcBounds(new Date(), 12, 36));
-        return extractRows(fallback);
-      } catch {
-        return [];
-      }
-    };
-    loadHomeScores().then((rows) => {
-      if (!cancelled) setHomeScoreRows(sortScoreRows(rows));
-    });
-
     const cachedHome = peekPortalHome();
     if (cachedHome) {
       setData(cachedHome);
@@ -123,17 +81,11 @@ export default function HomePage() {
   }
 
   const modules = composeHomeModules(data || {});
-  const scores = data?.sports_data;
-  const liveRail = homeScoreRows.length
-    ? <LiveScoresRail rows={homeScoreRows} title={t("liveScores")} />
-    : hasLiveUtilityData(scores)
-      ? <LiveScoresRail scores={scores} />
-      : null;
 
   return (
     <div className="page-home">
       <BreakingBar articles={modules.breaking} />
-      <PortalLayout right={liveRail}>
+      <PortalLayout>
         {modules.featured.length > 0 ? (
           <section className="section top-stories" aria-labelledby="top-stories-heading">
             <SectionHeader

@@ -5179,3 +5179,19 @@ select {
   .page-match .mc-roster-player-button > .mc-bench-rating { grid-column: 4; }
   .page-match .mc-player .score-crest { width: 40px; height: 40px; }
 }
+
+/* Player facts and a transparent source-anchored match clock. */
+.mc-clock-note { display:block; font-size:.65rem; color:var(--muted,#8ba3bf); font-weight:400; margin-top:3px; }
+.mc-clock-note.is-delayed { color:#efbd73; }
+.player-club-link { display:flex; align-items:center; gap:8px; margin:8px 0 0; }
+.player-club-link img { object-fit:contain; }
+.player-value-card > strong { display:block; padding:14px 16px 0; font-size:1.9rem; }
+.player-value-card > p { padding:0 16px 16px; font-size:.8rem; color:var(--muted,#8ba3bf); }
+.player-season-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:16px; padding:16px; margin:0; }
+.player-season-grid dt { font-size:.75rem; color:var(--muted,#8ba3bf); }
+.player-season-grid dd { margin:5px 0 0; font-size:1.3rem; font-weight:700; }
+.player-career { list-style:none; margin:0; padding:0 16px; }
+.player-career li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border,#243c56); }
+.player-career small { display:block; margin-top:5px; color:var(--muted,#8ba3bf); font-size:.75rem; }
+.player-career li > span { font-size:.75rem; color:var(--muted,#8ba3bf); text-align:right; }
+@media(max-width:640px) { .player-career li { align-items:flex-start; flex-direction:column; gap:6px; } .player-club-link { flex-wrap:wrap; } }

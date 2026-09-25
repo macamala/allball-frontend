@@ -9,6 +9,7 @@ import {
   participantName,
   publicEventSafe,
   scoreLine,
+  teamProfilePath,
 } from "../lib/sportsData.js";
 
 function playerImage(player) {
@@ -91,9 +92,16 @@ export default function PlayerPage() {
   }
 
   const fields = [
+    ["Date of birth", player.birth_date],
+    ["Age", player.age],
+    ["Height", player.height_cm != null ? `${player.height_cm} cm` : null],
+    ["Preferred foot", player.preferred_foot],
+    ["Contract until", player.contract_end],
     ["Number", player.number ?? player.jerseyNumber],
     ["Position", player.position],
-    ["Nationality", player.country_id || player.country || player.nationality],
+    ["Nationality", player.nationality || player.country || player.country_id],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const matchFields = [
     ["Rating", player.rating],
     ["Minutes", player.minutes],
     ["Goals", player.goals],
@@ -112,12 +120,39 @@ export default function PlayerPage() {
         <div>
           <p className="kicker">Player</p>
           <h1>{name}</h1>
+          {player.current_club ? <Link className="player-club-link" to={teamProfilePath(player.current_club,{sport:"football"})}>
+            <img src={player.current_club.logo} width="24" height="24" alt="" />{player.current_club.name}{player.current_club.on_loan ? " · On loan" : ""}
+          </Link> : null}
           {player.captain ? <span className="entity-badge">Captain</span> : null}
         </div>
       </header>
       <div className="entity-grid">
-        <div><AppearanceList rows={data.appearances} /></div>
+        <div>
+          {player.season_summary?.stats?.length ? <section className="entity-card">
+            <div className="entity-card-head"><h2>{player.season_summary.competition} · {player.season_summary.season}</h2></div>
+            <dl className="player-season-grid">{player.season_summary.stats.map(row=><div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>
+          </section> : null}
+          <AppearanceList rows={data.appearances} />
+          {player.career?.length ? <section className="entity-card">
+            <div className="entity-card-head"><h2>Career & club moves</h2></div>
+            <ol className="player-career">{player.career.map((row,index)=><li key={`${row.team_id}-${row.start}-${index}`}>
+              <div><Link to={teamProfilePath({id:row.team_id,name:row.team},{sport:"football"})}>{row.team}</Link>
+                <small>{row.start || "—"} – {row.active ? "Present" : row.end || "—"}{row.transfer_type ? ` · ${row.transfer_type}` : ""}{row.uncertain ? " · Provisional data" : ""}</small></div>
+              <span>{row.appearances != null ? `${row.appearances} appearances` : ""}{row.goals != null ? ` · ${row.goals} goals` : ""}</span>
+            </li>)}</ol>
+          </section> : null}
+        </div>
         <aside>
+          {player.market_value?.currency && Number.isFinite(player.market_value?.amount) ? <section className="entity-card player-value-card">
+            <div className="entity-card-head"><h2>Estimated market value</h2></div>
+            <strong>{new Intl.NumberFormat("en",{style:"currency",currency:player.market_value.currency,notation:"compact",maximumFractionDigits:1}).format(player.market_value.amount)}</strong>
+            <p>{player.market_value.as_of ? `Valuation date: ${player.market_value.as_of}. ` : ""}An estimate, not a transfer fee.</p>
+          </section> : null}
+          {matchFields.length ? <section className="entity-card">
+            <div className="entity-card-head"><h2>Recorded match performance</h2></div>
+            <p>From an available match record, not season totals.</p>
+            <dl className="entity-facts">{matchFields.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{String(value)}</dd></div>)}</dl>
+          </section> : null}
           {fields.length ? (
             <section className="entity-card">
               <div className="entity-card-head"><h2>Player details</h2></div>
