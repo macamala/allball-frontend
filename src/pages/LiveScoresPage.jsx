@@ -263,11 +263,11 @@ export default function LiveScoresPage() {
     return rolled;
   }, [dayEvents]);
 
-  const liveCount = useMemo(() => dayEvents.filter((event) => isConfirmedLive(event)).length, [dayEvents]);
+  const liveCount = useMemo(() => sportFiltered.filter((event) => isConfirmedLive(event)).length, [sportFiltered]);
 
   const topComps = useMemo(() => {
     const countsMap = new Map();
-    dayEvents.forEach((event) => {
+    sportFiltered.forEach((event) => {
       const key = event.competition_key || event.competition;
       if (!key) return;
       const current = countsMap.get(key) || { count: 0, event };
@@ -287,11 +287,11 @@ export default function LiveScoresPage() {
           label: presented.kicker ? `${presented.kicker} · ${name}` : name,
         };
       });
-  }, [dayEvents]);
+  }, [sportFiltered]);
 
   const primaryItems = [
     { id: "all", label: t("live.allSports"), icon: "◎", count: dayEvents.length },
-    { id: "mine", label: t("live.mySports"), icon: "★", count: 0 },
+    { id: "mine", label: t("live.mySports"), icon: "★", count: dayEvents.filter((event) => eventMatchesFavorite(event, favorites)).length },
     ...PRIMARY_SPORTS.map((slug) => {
       const row = sports.find((item) => item.slug === slug) || getRegistrySport(slug);
       return {
@@ -313,7 +313,7 @@ export default function LiveScoresPage() {
     }))
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
 
-  const sidebarLive = dayEvents.filter((item) => isConfirmedLive(item)).slice(0, 6);
+  const sidebarLive = sportFiltered.filter((item) => isConfirmedLive(item)).slice(0, 6);
   const payloadReady = board.key === requestKey && board.payload;
   const showSidebar = Boolean(
     payloadReady && (sidebarLive.length || topComps.length || (favorites?.sports || []).length)

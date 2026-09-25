@@ -25,7 +25,7 @@ function SideLine({ side, event, score, winner, align, periods = [] }) {
   return (
     <div className={`score-line is-${align} ${winner ? "is-winner" : ""}`}>
       <Crest side={side} fallbackCountry={event.scope_type !== "DOMESTIC" ? name : ""} />
-      <span className="score-name">{name}</span>
+      <span className="score-name" title={name}>{name}</span>
       {periods.length ? (
         <span className="score-sets" aria-label="Period scores">
           {periods.map((value, index) => (
@@ -38,9 +38,9 @@ function SideLine({ side, event, score, winner, align, periods = [] }) {
   );
 }
 
-function PairBody({ event, left, right }) {
+function PairBody({ event, left, right, compact = false }) {
   const winner = winningSide(event);
-  const periods = usesPeriodGrid(event) ? periodRows(event) : [];
+  const periods = !compact && usesPeriodGrid(event) ? periodRows(event) : [];
   const homePeriods = periods.map((item) => item.home);
   const awayPeriods = periods.map((item) => item.away);
   const cricket = event.sport === "cricket";
@@ -107,7 +107,7 @@ function MetaBody({ event, extra }) {
   );
 }
 
-function EventBody({ event, t, locale }) {
+function EventBody({ event, t, locale, compact = false }) {
   const kind = rendererForEvent(event);
   const left = event.participant_a?.name ? event.participant_a : event.home;
   const right = event.participant_b?.name ? event.participant_b : event.away;
@@ -123,14 +123,14 @@ function EventBody({ event, t, locale }) {
         />
       ) : kind === "MEET" || kind === "MULTI_EVENT_MEET" || kind === "TOURNAMENT" ? (
         participantName(event.home) && participantName(event.away) ? (
-          <PairBody event={event} left={left} right={right} />
+          <PairBody event={event} left={left} right={right} compact={compact} />
         ) : (
           <MetaBody event={event} extra={[event.round, event.stage].filter(Boolean).join(" · ")} />
         )
       ) : kind === "UNKNOWN" ? (
         <MetaBody event={event} extra="" />
       ) : (
-        <PairBody event={event} left={left} right={right} />
+        <PairBody event={event} left={left} right={right} compact={compact} />
       )}
     </>
   );
@@ -179,7 +179,7 @@ function EventRowInner({ event, compact = false }) {
           onClick={toggleFav}
         />
         <Link className="score-row-link" to={eventPath(event.id)} state={{ event }}>
-          <EventBody event={event} t={t} locale={dateLocale} />
+          <EventBody event={event} t={t} locale={dateLocale} compact={compact} />
           <span className="score-chevron" aria-hidden="true">›</span>
         </Link>
       </div>

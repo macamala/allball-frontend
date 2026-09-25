@@ -5061,3 +5061,40 @@ select {
 .standings-group-control select { min-width: 0; max-width: 100%; padding: .5rem; flex: 1; }
 .standings-group-heading { font-size: 1rem; margin: .5rem 0; }
 .standings-grouped .table-wrap { max-width: 100%; overflow-x: auto; }
+
+/* Sidebar uses a full-width pair below status; never squeeze names between
+   a full status column and per-period scores. Main board keeps all periods. */
+.page-scores .score-row.is-compact .score-row-frame {
+  grid-template-columns: 24px minmax(0, 1fr);
+}
+.page-scores .score-row.is-compact .score-star {
+  width: 24px;
+  min-width: 24px;
+}
+.page-scores .score-row.is-compact .score-row-link {
+  grid-template-columns: minmax(0, 1fr) 10px;
+  gap: 4px;
+  padding: 6px 4px;
+}
+.page-scores .score-row.is-compact .score-status-col {
+  grid-column: 1 / -1;
+}
+.page-scores .score-row.is-compact .score-pair-stack,
+.page-scores .score-row.is-compact .score-meta-main {
+  grid-column: 1;
+}
+.page-scores .score-row.is-compact .score-chevron {
+  grid-column: 2;
+  grid-row: 2;
+}
+.page-scores .score-row.is-compact .score-line {
+  grid-template-columns: 20px minmax(0, 1fr) 24px;
+  gap: 5px;
+}
+.page-scores .score-row.is-compact .score-name {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: 0.78rem;
+}
