@@ -1,0 +1,104 @@
+name: Checkpoint 7 production acceptance
+on:
+  push:
+    branches: [audit/checkpoint7-production-20260925]
+permissions:
+  contents: read
+jobs:
+  public-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      MOBILE_QA_SITE: https://ninkosports.com
+      MOBILE_QA_OUT: /tmp/checkpoint7-browser
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - run: python audit/mobile_standings_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkpoint7-production-browser
+          path: /tmp/checkpoint7-browser
+          retention-days: 14
+  artwork-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Read public source metadata and bounded logo candidates only
+        run: |
+          mkdir -p /tmp/checkpoint7-assets
+          python - <<'PY'
+          import json, hashlib, urllib.request, urllib.error
+          from pathlib import Path
+          from datetime import datetime, timezone
+          from concurrent.futures import ThreadPoolExecutor
+          out = Path('/tmp/checkpoint7-assets')
+          bad = {914609,943993,943368,943880,943881,943883,938187,915708,897724,897723,943878,943882,941122,946196,941120}
+          report = {'checked_at':datetime.now(timezone.utc).isoformat(),'boards':[],'leagues':[]}
+          def get(url, limit=2_000_000):
+              req = urllib.request.Request(url, headers={'User-Agent':'NinkoSports/1.0 read-only asset verification','Accept':'*/*'})
+              try:
+                  with urllib.request.urlopen(req, timeout=10) as response:
+                      return response.status, response.headers.get('Content-Type',''), response.read(limit)
+              except urllib.error.HTTPError as error:
+                  return error.code, error.headers.get('Content-Type',''), b''
+              except Exception as error:
+                  return None, str(error), b''
+          def walk(node):
+              if isinstance(node,list):
+                  for item in node: yield from walk(item)
+              elif isinstance(node,dict):
+                  if 'matches' in node and ('id' in node or 'primaryId' in node):
+                      yield {k:v for k,v in node.items() if k not in ('matches','Matches')}
+                  else:
+                      for value in node.values():
+                          if isinstance(value,(dict,list)): yield from walk(value)
+          for date in ('20260924','20260925'):
+              url=f'https://www.fotmob.com/api/data/matches?date={date}'
+              status,ctype,body=get(url,5_000_000)
+              report['boards'].append({'url':url,'status':status,'content_type':ctype})
+              if status != 200: continue
+              try: payload=json.loads(body)
+              except ValueError: continue
+              for node in walk(payload):
+                  ids={str(node.get(k)) for k in ('id','primaryId','parentLeagueId')}
+                  if ids & {str(v) for v in bad}:
+                      report['leagues'].append({'date':date,**node})
+          ids=set(bad)
+          for node in report['leagues']:
+              for key in ('primaryId','parentLeagueId','logoId','id'):
+                  value=str(node.get(key,''))
+                  if value.isdigit(): ids.add(int(value))
+          candidates=sorted(ids)[:48]
+          def probe(league_id):
+              url=f'https://images.fotmob.com/image_resources/logo/leaguelogo/{league_id}.png'
+              status,ctype,body=get(url)
+              row={'id':league_id,'url':url,'status':status,'content_type':ctype,'bytes':len(body)}
+              if body:
+                  row['sha256']=hashlib.sha256(body).hexdigest()
+              if body.startswith(b'\x89PNG\r\n\x1a\n'):
+                  (out/f'logo-{league_id}.png').write_bytes(body)
+                  row['png']=True
+              return row
+          with ThreadPoolExecutor(max_workers=4) as pool:
+              report['logos']=list(pool.map(probe,candidates))
+          (out/'report.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkpoint7-artwork-diagnostics
+          path: /tmp/checkpoint7-assets
+          retention-days: 14
