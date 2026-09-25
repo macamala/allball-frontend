@@ -1,4 +1,6 @@
 import React from "react";
+import { useI18n } from "../context/I18nContext.jsx";
+import "./standingsResponsive.css";
 import { Link } from "react-router-dom";
 import { teamProfilePath } from "../lib/sportsData.js";
 import { standingsGroups, preferredStandingsGroup } from "../lib/standingsGroups.js";
@@ -12,6 +14,27 @@ const PREFERRED = {
   volleyball: ["position", "team", "played", "wins", "losses", "sets_for", "sets_against", "points"],
   "table-tennis": ["position", "team", "played", "wins", "losses", "sets_for", "sets_against", "points"],
   "australian-rules": ["position", "team", "played", "wins", "losses", "draws", "percentage", "points"],
+};
+
+// Compact is a mobile presentation only. Full source columns remain available.
+const COMPACT = {
+  football: ["position", "team", "played", "goal_difference", "points"],
+  basketball: ["position", "team", "played", "wins", "losses", "win_pct", "pct"],
+  "ice-hockey": ["position", "team", "played", "wins", "losses", "points"],
+  baseball: ["position", "team", "wins", "losses", "pct"],
+  rugby: ["position", "team", "played", "wins", "points"],
+  volleyball: ["position", "team", "played", "wins", "losses", "points"],
+  "table-tennis": ["position", "team", "played", "wins", "losses", "points"],
+  "australian-rules": ["position", "team", "played", "percentage", "points"],
+};
+const TABLE_UI = {
+  en: ["Full table", "Compact table", "Swipe sideways for all columns. Team names stay visible.", "Standings table"],
+  sr: ["Cela tabela", "Sažeta tabela", "Prevuci levo/desno za sve kolone. Imena timova ostaju vidljiva.", "Tabela takmičenja"],
+  es: ["Tabla completa", "Tabla compacta", "Desliza para ver todas las columnas. Los equipos siguen visibles.", "Clasificación"],
+  de: ["Vollständige Tabelle", "Kompakte Tabelle", "Seitlich wischen für alle Spalten. Teamnamen bleiben sichtbar.", "Tabelle"],
+  fr: ["Tableau complet", "Tableau compact", "Balayez pour voir toutes les colonnes. Les équipes restent visibles.", "Classement"],
+  it: ["Tabella completa", "Tabella compatta", "Scorri per tutte le colonne. Le squadre restano visibili.", "Classifica"],
+  pt: ["Tabela completa", "Tabela compacta", "Deslize para ver todas as colunas. As equipes continuam visíveis.", "Classificação"],
 };
 
 function TeamCell({ row, sport, competition, competitionCountry }) {
@@ -92,6 +115,15 @@ export default function StandingsTable({
   event = {},
   empty,
 }) {
+  const { lang } = useI18n();
+  const ui = TABLE_UI[lang] || TABLE_UI.en;
+  const [expanded, setExpanded] = React.useState(false);
+  const tableRef = React.useRef(null);
+  const tableId = React.useId();
+  React.useEffect(() => {
+    setExpanded(false);
+    if (tableRef.current) tableRef.current.scrollLeft = 0;
+  }, [competition, event.id, sport]);
   const groups = React.useMemo(() => standingsGroups(rows), [rows]);
   const preferredGroup = preferredStandingsGroup(groups, event);
   const [selectedGroup, setSelectedGroup] = React.useState(preferredGroup);
@@ -110,9 +142,16 @@ export default function StandingsTable({
       rows.some((row) => row[key] != null && row[key] !== "")
   );
   const all = columns.length ? columns : ["position", "team", ...extras];
+  const compact = COMPACT[sport] || COMPACT.football;
+  const hasMoreColumns = all.some(col => !compact.includes(col));
+  const columnClass = col => `standings-col-${col} ${compact.includes(col) ? "is-summary" : "is-detail"}`;
+  const toggleExpanded = () => {
+    setExpanded(value => !value);
+    if (tableRef.current) tableRef.current.scrollLeft = 0;
+  };
 
   return (
-    <div className="standings-grouped">
+    <div className={`standings-grouped standings-responsive ${expanded ? "is-expanded" : "is-compact"}`}>
       {groups.length > 1 ? (
         <label className="standings-group-control">
           <span>Group</span>
@@ -123,12 +162,20 @@ export default function StandingsTable({
         </label>
       ) : null}
       {selected && groups.length > 1 ? <h3 className="standings-group-heading">{selected.label}</h3> : null}
-      <div className="table-wrap">
+      {hasMoreColumns ? (
+        <div className="standings-mobile-tools">
+          <button type="button" className="standings-view-toggle" aria-expanded={expanded} aria-controls={tableId} onClick={toggleExpanded}>
+            {expanded ? ui[1] : ui[0]}
+          </button>
+          {expanded ? <span className="standings-scroll-hint" id={`${tableId}-hint`}>{ui[2]}</span> : null}
+        </div>
+      ) : null}
+      <div className="table-wrap standings-viewport" id={tableId} ref={tableRef} role="region" aria-label={ui[3]} aria-describedby={expanded && hasMoreColumns ? `${tableId}-hint` : undefined} tabIndex={0}>
       <table className="standings-table">
         <thead>
           <tr>
             {all.map((col) => (
-              <th key={col} scope="col">
+              <th key={col} scope="col" className={columnClass(col)} data-column={col}>
                 {LABELS[col] || col}
               </th>
             ))}
@@ -138,7 +185,7 @@ export default function StandingsTable({
           {visibleRows.map((row, index) => (
             <tr key={row.team_slug || row.team || index}>
               {all.map((col) => (
-                <td key={col}>
+                <td key={col} className={columnClass(col)} data-column={col}>
                   {col === "team" ? (
                     <TeamCell
                       row={row}

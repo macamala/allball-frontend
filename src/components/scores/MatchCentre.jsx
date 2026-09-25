@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { matchSectionFromHash } from "../../lib/standingsGroups.js";
 import StandingsTable from "../StandingsTable.jsx";
+import MatchSectionTabs from "./MatchSectionTabs.jsx";
 import Crest from "./Crest.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
 import { useI18n } from "../../context/I18nContext.jsx";
@@ -841,26 +842,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
       )}
       {detailPending ? <p className="mc-when">{t("match.loadingDetails")}</p> : null}
       {sections.length > 1 ? (
-        <div className="mc-tabs" role="tablist" aria-label={t("match.center")}>
-          {sections.map((item) => {
-            const selected = currentSection === item.id;
-            return (
-              <button
-                key={item.id}
-                id={`mc-tab-${item.id}`}
-                className={`mc-tab ${selected ? "is-active" : ""}`}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-controls={`mc-panel-${item.id}`}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => setActiveSection(item.id)}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
+        <MatchSectionTabs sections={sections} currentSection={currentSection} onSelect={setActiveSection} label={t("match.center")} />
       ) : null}
       <div className="mc-body">
         <div
