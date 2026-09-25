@@ -1,0 +1,204 @@
+diff --git a/src/components/scores/EventRow.jsx b/src/components/scores/EventRow.jsx
+index 1b5bbc2..ac3f3da 100644
+--- a/src/components/scores/EventRow.jsx
++++ b/src/components/scores/EventRow.jsx
+@@ -25,7 +25,7 @@ function SideLine({ side, event, score, winner, align, periods = [] }) {
+   return (
+     <div className={`score-line is-${align} ${winner ? "is-winner" : ""}`}>
+       <Crest side={side} fallbackCountry={event.scope_type !== "DOMESTIC" ? name : ""} />
+-      <span className="score-name">{name}</span>
++      <span className="score-name" title={name}>{name}</span>
+       {periods.length ? (
+         <span className="score-sets" aria-label="Period scores">
+           {periods.map((value, index) => (
+@@ -38,9 +38,9 @@ function SideLine({ side, event, score, winner, align, periods = [] }) {
+   );
+ }
+ 
+-function PairBody({ event, left, right }) {
++function PairBody({ event, left, right, compact = false }) {
+   const winner = winningSide(event);
+-  const periods = usesPeriodGrid(event) ? periodRows(event) : [];
++  const periods = !compact && usesPeriodGrid(event) ? periodRows(event) : [];
+   const homePeriods = periods.map((item) => item.home);
+   const awayPeriods = periods.map((item) => item.away);
+   const cricket = event.sport === "cricket";
+@@ -107,7 +107,7 @@ function MetaBody({ event, extra }) {
+   );
+ }
+ 
+-function EventBody({ event, t, locale }) {
++function EventBody({ event, t, locale, compact = false }) {
+   const kind = rendererForEvent(event);
+   const left = event.participant_a?.name ? event.participant_a : event.home;
+   const right = event.participant_b?.name ? event.participant_b : event.away;
+@@ -123,14 +123,14 @@ function EventBody({ event, t, locale }) {
+         />
+       ) : kind === "MEET" || kind === "MULTI_EVENT_MEET" || kind === "TOURNAMENT" ? (
+         participantName(event.home) && participantName(event.away) ? (
+-          <PairBody event={event} left={left} right={right} />
++          <PairBody event={event} left={left} right={right} compact={compact} />
+         ) : (
+           <MetaBody event={event} extra={[event.round, event.stage].filter(Boolean).join(" · ")} />
+         )
+       ) : kind === "UNKNOWN" ? (
+         <MetaBody event={event} extra="" />
+       ) : (
+-        <PairBody event={event} left={left} right={right} />
++        <PairBody event={event} left={left} right={right} compact={compact} />
+       )}
+     </>
+   );
+@@ -179,7 +179,7 @@ function EventRowInner({ event, compact = false }) {
+           onClick={toggleFav}
+         />
+         <Link className="score-row-link" to={eventPath(event.id)} state={{ event }}>
+-          <EventBody event={event} t={t} locale={dateLocale} />
++          <EventBody event={event} t={t} locale={dateLocale} compact={compact} />
+           <span className="score-chevron" aria-hidden="true">›</span>
+         </Link>
+       </div>
+diff --git a/src/pages/LiveScoresPage.jsx b/src/pages/LiveScoresPage.jsx
+index 6a137ec..9371cca 100644
+--- a/src/pages/LiveScoresPage.jsx
++++ b/src/pages/LiveScoresPage.jsx
+@@ -263,11 +263,11 @@ export default function LiveScoresPage() {
+     return rolled;
+   }, [dayEvents]);
+ 
+-  const liveCount = useMemo(() => dayEvents.filter((event) => isConfirmedLive(event)).length, [dayEvents]);
++  const liveCount = useMemo(() => sportFiltered.filter((event) => isConfirmedLive(event)).length, [sportFiltered]);
+ 
+   const topComps = useMemo(() => {
+     const countsMap = new Map();
+-    dayEvents.forEach((event) => {
++    sportFiltered.forEach((event) => {
+       const key = event.competition_key || event.competition;
+       if (!key) return;
+       const current = countsMap.get(key) || { count: 0, event };
+@@ -287,11 +287,11 @@ export default function LiveScoresPage() {
+           label: presented.kicker ? `${presented.kicker} · ${name}` : name,
+         };
+       });
+-  }, [dayEvents]);
++  }, [sportFiltered]);
+ 
+   const primaryItems = [
+     { id: "all", label: t("live.allSports"), icon: "◎", count: dayEvents.length },
+-    { id: "mine", label: t("live.mySports"), icon: "★", count: 0 },
++    { id: "mine", label: t("live.mySports"), icon: "★", count: dayEvents.filter((event) => eventMatchesFavorite(event, favorites)).length },
+     ...PRIMARY_SPORTS.map((slug) => {
+       const row = sports.find((item) => item.slug === slug) || getRegistrySport(slug);
+       return {
+@@ -313,7 +313,7 @@ export default function LiveScoresPage() {
+     }))
+     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+ 
+-  const sidebarLive = dayEvents.filter((item) => isConfirmedLive(item)).slice(0, 6);
++  const sidebarLive = sportFiltered.filter((item) => isConfirmedLive(item)).slice(0, 6);
+   const payloadReady = board.key === requestKey && board.payload;
+   const showSidebar = Boolean(
+     payloadReady && (sidebarLive.length || topComps.length || (favorites?.sports || []).length)
+diff --git a/src/pages/LiveScoresPage.test.jsx b/src/pages/LiveScoresPage.test.jsx
+new file mode 100644
+index 0000000..8ed07aa
+--- /dev/null
++++ b/src/pages/LiveScoresPage.test.jsx
+@@ -0,0 +1,52 @@
++import React from 'react';
++import {render,screen,waitFor,cleanup} from '@testing-library/react';
++import {MemoryRouter} from 'react-router-dom';
++import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest';
++import {I18nProvider} from '../context/I18nContext.jsx';
++import {clearPublicCache} from '../api.js';
++import LiveScoresPage from './LiveScoresPage.jsx';
++import EventRow from '../components/scores/EventRow.jsx';
++vi.mock('../hooks/useVisiblePoll.js',()=>({default:()=>{}}));
++vi.mock('../context/AuthContext.jsx',()=>({useAuth:()=>({favorites:{sports:['tennis'],teams:[],competitions:[]},syncFavorites:vi.fn()})}));
++const at=new Date(Date.now()-600000).toISOString();
++const match=(id,sport,home,away)=>({id,sport,home:{name:home},away:{name:away},status:'live',live:true,live_class:'CONFIRMED_LIVE',source_fetch_time:new Date().toISOString(),start_time:at,event_family:sport==='tennis'?'individual_match':'team_match',competition_key:sport==='tennis'?'wta-tour':'england-premier-league',competition:sport==='tennis'?'WTA Tour':'Premier League',score:{home:1,away:0},periods:[{home:6,away:4},{home:2,away:1}]});
++const football=match('football-one','football','Everton CD','Universidad de Chile');
++const tennis=match('tennis-one','tennis','Alexandra Verylongname / Partner One','Caroline Verylongname / Partner Two');
++const cs2=match('esport-one','cs2','Esports Alpha','Esports Beta');
++const data={connected:true,events:[football,tennis,cs2]};
++function page(sport){return render(<I18nProvider><MemoryRouter initialEntries={[`/live-scores?sport=${sport}`]}><LiveScoresPage/></MemoryRouter></I18nProvider>);}
++beforeEach(()=>{clearPublicCache();global.fetch=vi.fn(()=>Promise.resolve({ok:true,status:200,json:async()=>data,text:async()=>JSON.stringify(data)}));});
++afterEach(cleanup);
++describe('live board follows the selected sport everywhere',()=>{
++  it.each(['football','tennis','mine'])('sidebar and live count use %s scope',async sport=>{
++    const {container}=page(sport);
++    await waitFor(()=>expect(container.querySelector('.score-centre-aside .score-row')).toBeTruthy());
++    const aside=container.querySelector('.score-centre-aside');
++    const isFootball=sport==='football';
++    expect(aside.textContent).toContain(isFootball?'Universidad de Chile':'Alexandra Verylongname');
++    expect(aside.textContent).not.toContain(isFootball?'Alexandra Verylongname':'Universidad de Chile');
++    expect(aside.textContent).not.toContain('Esports Alpha');
++    expect(container.querySelector('.score-live-global').textContent).toMatch(/1/);
++    expect(aside.textContent).toContain(isFootball?'Premier League':'WTA Tour');
++    expect(aside.textContent).not.toContain(isFootball?'WTA Tour':'Premier League');
++  });
++  it('all sports continues to include every live sport',async()=>{
++    const {container}=page('all');
++    await waitFor(()=>expect(container.querySelectorAll('.score-centre-aside .score-row').length).toBe(3));
++    expect(container.querySelector('.score-live-global').textContent).toMatch(/3/);
++  });
++  it('esports includes child disciplines without leaking football or tennis',async()=>{
++    const {container}=page('esports');
++    await waitFor(()=>expect(container.querySelector('.score-centre-aside .score-row')).toBeTruthy());
++    const aside=container.querySelector('.score-centre-aside');
++    expect(aside.textContent).toContain('Esports Alpha');expect(aside.textContent).not.toContain('Universidad de Chile');
++  });
++});
++describe('compact sidebar keeps names readable without taking away main-board sets',()=>{
++  it.each([true,false])('compact=%s only hides redundant per-period columns',compact=>{
++    const {container}=render(<I18nProvider><MemoryRouter><div className="page-scores"><ul><EventRow event={tennis} compact={compact}/></ul></div></MemoryRouter></I18nProvider>);
++    expect(container.querySelectorAll('.score-sets').length).toBe(compact?0:2);
++    expect(screen.getByTitle(tennis.home.name)).toBeTruthy();expect(screen.getByTitle(tennis.away.name)).toBeTruthy();
++    expect(container.querySelectorAll('.score-mid')[0].textContent).toBe('1');
++  });
++});
+diff --git a/src/styles.css b/src/styles.css
+index 2435e79..e9a6eee 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -5061,3 +5061,40 @@ select {
+ .standings-group-control select { min-width: 0; max-width: 100%; padding: .5rem; flex: 1; }
+ .standings-group-heading { font-size: 1rem; margin: .5rem 0; }
+ .standings-grouped .table-wrap { max-width: 100%; overflow-x: auto; }
++
++/* Sidebar uses a full-width pair below status; never squeeze names between
++   a full status column and per-period scores. Main board keeps all periods. */
++.page-scores .score-row.is-compact .score-row-frame {
++  grid-template-columns: 24px minmax(0, 1fr);
++}
++.page-scores .score-row.is-compact .score-star {
++  width: 24px;
++  min-width: 24px;
++}
++.page-scores .score-row.is-compact .score-row-link {
++  grid-template-columns: minmax(0, 1fr) 10px;
++  gap: 4px;
++  padding: 6px 4px;
++}
++.page-scores .score-row.is-compact .score-status-col {
++  grid-column: 1 / -1;
++}
++.page-scores .score-row.is-compact .score-pair-stack,
++.page-scores .score-row.is-compact .score-meta-main {
++  grid-column: 1;
++}
++.page-scores .score-row.is-compact .score-chevron {
++  grid-column: 2;
++  grid-row: 2;
++}
++.page-scores .score-row.is-compact .score-line {
++  grid-template-columns: 20px minmax(0, 1fr) 24px;
++  gap: 5px;
++}
++.page-scores .score-row.is-compact .score-name {
++  white-space: normal;
++  overflow: visible;
++  overflow-wrap: anywhere;
++  text-overflow: clip;
++  font-size: 0.78rem;
++}
