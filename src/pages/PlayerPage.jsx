@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { getPlayerProfile } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
 import {
@@ -52,9 +52,12 @@ function AppearanceList({ rows }) {
 
 export default function PlayerPage() {
   const { playerKey = "" } = useParams();
+  const location = useLocation();
   const [search] = useSearchParams();
   const requestedName = search.get("name") || "";
   const eventId = search.get("event_id") || "";
+  const returnTo = location.state?.matchReturnTo;
+  const backPath = typeof returnTo === "string" && returnTo.startsWith("/scores/event/") ? returnTo : eventId ? eventPath(eventId) : "/live-scores";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -84,7 +87,7 @@ export default function PlayerPage() {
 
   if (loading) return <div className="entity-page"><div className="entity-card entity-loading">Loading player…</div></div>;
   if (error || !data?.available) {
-    return <div className="entity-page"><Link className="entity-back" to={eventId ? eventPath(eventId) : "/live-scores"}>← Back</Link><section className="entity-card"><h1>{name || "Player"}</h1><p>Player data is not available yet.</p></section></div>;
+    return <div className="entity-page"><Link className="entity-back" to={backPath}>← Back</Link><section className="entity-card"><h1>{name || "Player"}</h1><p>Player data is not available yet.</p></section></div>;
   }
 
   const fields = [
@@ -103,7 +106,7 @@ export default function PlayerPage() {
 
   return (
     <div className="entity-page">
-      <Link className="entity-back" to={eventId ? eventPath(eventId) : "/live-scores"}>← Back</Link>
+      <Link className="entity-back" to={backPath}>← Back</Link>
       <header className="entity-hero">
         <PlayerAvatar player={player} name={name} />
         <div>

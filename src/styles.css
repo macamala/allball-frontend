@@ -5098,3 +5098,41 @@ select {
   text-overflow: clip;
   font-size: 0.78rem;
 }
+
+/* Match Centre: coherent, scoped detail components. No changes to the score hub. */
+.match-centre .mc-control-group { display:flex; gap:4px; flex-wrap:wrap; }
+.match-centre .mc-control-group button, .match-centre .mc-toggle { padding:7px 11px; border:1px solid var(--border,#274762); border-radius:7px; color:var(--muted,#9eafc5); background:transparent; font:inherit; font-size:.78rem; cursor:pointer; }
+.match-centre .mc-control-group button[aria-pressed="true"], .match-centre .mc-toggle[aria-pressed="true"] { background:#173b57; border-color:#42bcb8; color:#e7f8f5; }
+.match-centre .mc-event-person { padding:0; border:0; color:inherit; background:none; font:inherit; font-weight:650; text-align:inherit; cursor:pointer; }
+.match-centre .mc-event-person:hover { text-decoration:underline; text-underline-offset:3px; }
+.match-centre button:focus-visible { outline:2px solid #59cfc5; outline-offset:3px; }
+.match-centre .mc-timeline-copy { display:flex; flex-direction:column; gap:3px; line-height:1.45; overflow-wrap:anywhere; min-width:0; }
+.match-centre .mc-timeline-copy small, .match-centre .mc-sub-out { color:#99adc4; font-size:.75rem; }
+.match-centre .mc-sub-in { color:#86daca; }
+.match-centre .mc-card-title-row { gap:12px; flex-wrap:wrap; }
+.match-centre .mc-timeline-label { border-top:1px solid #263e58; padding-top:12px; letter-spacing:.04em; }
+.match-centre .mc-muted { color:#9aafc5; font-size:.82rem; line-height:1.6; }
+.match-centre .mc-shot-heading, .match-centre .mc-shot-list li { display:grid; grid-template-columns:50px minmax(0,1fr) 45px; align-items:center; gap:12px; padding:12px 2px; }
+.match-centre .mc-shot-heading { margin-top:12px; font-size:.72rem; color:#9aafc5; border-bottom:1px solid #29435c; }
+.match-centre .mc-shot-list { padding:0; list-style:none; margin:0; }
+.match-centre .mc-shot-list li { border-bottom:1px solid #20394f; }
+.match-centre .mc-shot-list small { display:block; color:#9aafc5; font-size:.75rem; margin-top:4px; }
+.match-centre .mc-shot-list time { font-variant-numeric:tabular-nums; color:#9aafc5; font-size:.8rem; }
+.match-centre .mc-shot-list li > span:last-child, .match-centre .mc-shot-heading > span:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+.match-centre .mc-shot-list .is-goal { border-left:3px solid #45c3aa; padding-left:9px; }
+.match-centre .mc-shots-card h2 small { color:#9aafc5; font-size:.8rem; margin-left:6px; }
+.match-centre .mc-footnote { margin-top:16px; padding-top:10px; border-top:1px solid #29435c; }
+@media (min-width:1000px) {
+  .match-centre #mc-panel-overview:not([hidden]):has(.mc-match-story) { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
+  .match-centre #mc-panel-overview > .mc-match-story { grid-column:1; grid-row:1 / span 4; }
+  .match-centre #mc-panel-overview:has(.mc-match-story) > :not(.mc-match-story) { grid-column:2; min-width:0; }
+  .match-centre .mc-match-facts .mc-dl > div { grid-template-columns:1fr; gap:3px; }
+  .match-centre .mc-match-facts dd { text-align:left; }
+}
+@media (max-width:480px) {
+  .match-centre .mc-timeline-item { grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr); gap:5px; }
+  .match-centre .mc-timeline-event { flex-wrap:wrap; gap:5px; }
+  .match-centre .mc-timeline-copy { font-size:.75rem; }
+  .match-centre .mc-minute { font-size:.72rem; }
+  .match-centre .mc-shot-heading, .match-centre .mc-shot-list li { grid-template-columns:40px minmax(0,1fr) 36px; gap:8px; }
+}

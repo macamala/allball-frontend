@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { matchSectionFromHash } from "../../lib/standingsGroups.js";
 import StandingsTable from "../StandingsTable.jsx";
+import FootballTimeline from "./FootballTimeline.jsx";
+import FootballShots from "./FootballShots.jsx";
+import { uniqueStatistics, formationBands } from "../../lib/matchDetail.js";
 import MatchSectionTabs from "./MatchSectionTabs.jsx";
 import Crest from "./Crest.jsx";
 import FavoriteButton from "./FavoriteButton.jsx";
@@ -116,16 +119,7 @@ function timelineItems(event, data) {
 }
 
 function statisticsRows(event, data) {
-  const raw = data?.statistics || event.statistics;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((row) => {
-    if (!row) return false;
-    if (usefulNumber(row.home) || usefulNumber(row.away)) {
-      if (row.home === 0 && row.away === 0 && row.unknown) return false;
-      return true;
-    }
-    return row.value != null && row.value !== "";
-  });
+  return uniqueStatistics(data?.statistics?.length ? data.statistics : event.statistics);
 }
 
 function lineupsShape(event, data) {
@@ -258,7 +252,7 @@ function InfoRows({ event, t }) {
   ].filter(Boolean);
   if (!rows.length) return null;
   return (
-    <section className="mc-card">
+    <section className="mc-card mc-match-facts">
       <h2>{t("match.details")}</h2>
       <dl className="mc-dl">
         {rows.map(([label, value]) => (
@@ -416,12 +410,12 @@ function StatCompare({ rows, t, sport, periods = {}, eventId }) {
 
   if (!rows.length) return null;
   const options = [
-    ["all", "Match", Array.isArray(periods?.all) && periods.all.length ? periods.all : rows],
+    ["all", "Match", Array.isArray(periods?.all) && periods.all.length ? uniqueStatistics(periods.all) : rows],
     ["first_half", t("match.firstHalf"), Array.isArray(periods?.first_half) ? periods.first_half : []],
     ["second_half", t("match.secondHalf"), Array.isArray(periods?.second_half) ? periods.second_half : []],
   ].filter(([, , values]) => values.length);
   const selected = options.find(([key]) => key === activePeriod) || options[0];
-  const activeRows = selected?.[2] || rows;
+  const activeRows = uniqueStatistics(selected?.[2] || rows);
   const groups = statisticGroups(activeRows, sport);
 
   return (
@@ -474,6 +468,7 @@ function playerInitials(name) {
 function PlayerAvatar({ player, compact = false }) {
   const [failed, setFailed] = useState(false);
   const src = playerImage(player);
+  useEffect(() => setFailed(false), [src]);
   const number = player?.number != null && player?.number !== "" ? String(player.number) : "";
   return (
     <span className={`mc-player-avatar ${compact ? "is-compact" : ""}`}>
@@ -486,30 +481,7 @@ function PlayerAvatar({ player, compact = false }) {
   );
 }
 
-function formationRows(side) {
-  const starters = Array.isArray(side?.start) ? side.start.filter((row) => row?.name) : [];
-  if (!starters.length) return [];
-  const counts = String(side?.formation || "")
-    .match(/\d+/g)
-    ?.map(Number)
-    .filter((value) => value > 0);
-  let bands = counts && counts.reduce((sum, value) => sum + value, 0) === starters.length - 1 ? [1, ...counts] : null;
-  if (!bands) {
-    if (starters.length >= 11) bands = [1, 4, 4, starters.length - 9];
-    else if (starters.length >= 8) bands = [1, 3, 3, starters.length - 7];
-    else if (starters.length >= 5) bands = [1, 2, starters.length - 3];
-    else bands = [1, Math.max(1, starters.length - 1)];
-  }
-  const rows = [];
-  let cursor = 0;
-  bands.forEach((count) => {
-    const row = starters.slice(cursor, cursor + count);
-    if (row.length) rows.push(row);
-    cursor += count;
-  });
-  if (cursor < starters.length) rows.push(starters.slice(cursor));
-  return rows;
-}
+function formationRows(side) { return formationBands(side); }
 
 function teamAverageRating(side) {
   const values = (side?.start || [])
@@ -709,7 +681,7 @@ function Lineups({ shape, event, t, onPlayerSelect }) {
   return (
     <section className="mc-card mc-lineup-card">
       <h2>{t("match.lineups")}</h2>
-      {event.sport === "football" && (home.start || []).length >= 7 && (away.start || []).length >= 7 ? (
+      {event.sport === "football" && formationRows(home).length > 0 && formationRows(away).length > 0 ? (
         <FootballLineups home={home} away={away} event={event} t={t} confirmed={Boolean(shape.confirmed)} onPlayerSelect={onPlayerSelect} />
       ) : (
         <RosterLineups home={home} away={away} event={event} t={t} onPlayerSelect={onPlayerSelect} />
@@ -768,7 +740,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
   const openPlayerProfile = (player) => {
     const entity = player?.entity || player;
     const name = player?.name || player?.display_name || participantName(entity);
-    navigate(playerProfilePath(entity, event, name || ""));
+    navigate(playerProfilePath(entity, event, name || ""), { state: { matchReturnTo: location.pathname + location.search + location.hash } });
   };
 
   const openParticipantProfile = (selected) => {
@@ -844,7 +816,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
       )}
       {detailPending ? <p className="mc-when">{t("match.loadingDetails")}</p> : null}
       {sections.length > 1 ? (
-        <MatchSectionTabs sections={sections} currentSection={currentSection} onSelect={setActiveSection} label={t("match.center")} />
+        <MatchSectionTabs sections={sections} currentSection={currentSection} onSelect={(section) => { setActiveSection(section); navigate({ pathname: location.pathname, search: location.search, hash: `#mc-${section}` }, { replace: true, state: location.state }); }} label={t("match.center")} />
       ) : null}
       <div className="mc-body">
         <div
@@ -901,7 +873,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
               </div>
             </section>
           ) : null}
-          {incidents.length ? <Timeline items={incidents} t={t} /> : null}
+          {incidents.length ? (event.sport === "football" ? <FootballTimeline key={event.id} items={incidents} t={t} onPlayerSelect={openPlayerProfile} /> : <Timeline items={incidents} t={t} />) : null}
           {hits || errors ? (
             <section className="mc-card">
               <h2>{t("match.box")}</h2>
@@ -989,7 +961,7 @@ export default function MatchCentre({ event, data, standings, articles = [], det
             aria-labelledby="mc-tab-shots"
             hidden={currentSection !== "shots"}
           >
-            <ShotList shots={shots} />
+            {event.sport === "football" ? <FootballShots key={event.id} shots={shots} event={event} onPlayerSelect={openPlayerProfile} /> : <ShotList shots={shots} />}
           </div>
         ) : null}
 

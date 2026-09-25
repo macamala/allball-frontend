@@ -8,11 +8,12 @@ import { competitionLabel } from "../labels.js";
 import ProviderPending from "../components/ProviderPending.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
+import { matchPayloadMatches } from "../lib/matchDetail.js";
 import MatchCentre from "../components/scores/MatchCentre.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
 
 function payloadEventId(payload) {
-  return payload?.event?.id || payload?.header?.id || payload?.id || "";
+  return payload?.id || payload?.event?.id || payload?.header?.id || "";
 }
 
 
@@ -110,8 +111,7 @@ export default function MatchPage() {
     getMatch(matchId, controller ? { signal: controller.signal } : {})
       .then((payload) => {
         if (cancelled || seq !== requestSeq.current) return;
-        const payloadId = payloadEventId(payload);
-        if (payloadId && payloadId !== matchId) return;
+        if (!matchPayloadMatches(payload, matchId)) return;
         setData(payload);
         setError(false);
       })
@@ -134,8 +134,7 @@ export default function MatchPage() {
     getJSON(matchPath(matchId))
       .then((payload) => {
         if (seq !== requestSeq.current) return;
-        const payloadId = payloadEventId(payload);
-        if (payloadId && payloadId !== matchId) return;
+        if (!matchPayloadMatches(payload, matchId)) return;
         setData((previous) => mergeMatchPayload(previous, payload));
         setError(false);
       })
@@ -150,7 +149,7 @@ export default function MatchPage() {
 
   const event = useMemo(() => {
     const payloadEvent = data?.event || data?.header;
-    if (payloadEvent && (payloadEvent.id === matchId || data?.id === matchId)) {
+    if (matchPayloadMatches(data, matchId)) {
       return normalizeEvent(publicEventSafe(payloadEvent));
     }
     if (preview) return normalizeEvent(publicEventSafe(preview));
