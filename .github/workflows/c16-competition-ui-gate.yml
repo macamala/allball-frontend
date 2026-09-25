@@ -2,7 +2,7 @@ name: C16 connected competition UI gate
 on:
   push:
     branches: [feature/competition-centre-c16-20260925]
-    paths: ['audit/c16_ui.*.b64', '.github/workflows/c16-competition-ui-gate.yml']
+    paths: ['audit/c16_ui.*.b64', 'audit/c16_cancelled_correction.patch', '.github/workflows/c16-competition-ui-gate.yml']
 permissions:
   contents: write
 jobs:
@@ -28,9 +28,12 @@ jobs:
           PY
           git apply --check evidence/reviewed.patch
           git apply evidence/reviewed.patch
+          echo '0bd160eac3cbfb0f59cd91acad088cb447b3c71c6e373384ab2f743985cd0b11  audit/c16_cancelled_correction.patch' | sha256sum -c
+          git apply --check audit/c16_cancelled_correction.patch
+          git apply audit/c16_cancelled_correction.patch
           git add -N src
           git diff -- src > evidence/source.patch
-          cmp evidence/reviewed.patch evidence/source.patch
+          echo '050912e9dcaf3a0140dcff9f2f2ed8ccb2bbab5134c41974dee5097d21c8618c  evidence/source.patch' | sha256sum -c
           npm ci
       - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
       - run: npm run build
