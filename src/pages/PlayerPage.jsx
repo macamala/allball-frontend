@@ -1,3 +1,4 @@
+import "../styles/entityProfiles.css";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { getPlayerProfile } from "../api.js";
@@ -86,9 +87,9 @@ export default function PlayerPage() {
     });
   }, [name, data?.available]);
 
-  if (loading) return <div className="entity-page"><div className="entity-card entity-loading">Loading player…</div></div>;
+  if (loading) return <div className="entity-page player-profile"><div className="entity-card entity-loading">Loading player…</div></div>;
   if (error || !data?.available) {
-    return <div className="entity-page"><Link className="entity-back" to={backPath}>← Back</Link><section className="entity-card"><h1>{name || "Player"}</h1><p>Player data is not available yet.</p></section></div>;
+    return <div className="entity-page player-profile"><Link className="entity-back" to={backPath}>← Back</Link><section className="entity-card"><h1>{name || "Player"}</h1><p>Player data is not available yet.</p></section></div>;
   }
 
   const fields = [
@@ -113,8 +114,9 @@ export default function PlayerPage() {
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
 
   return (
-    <div className="entity-page">
+    <div className="entity-page player-profile">
       <Link className="entity-back" to={backPath}>← Back</Link>
+      <div className="player-summary">
       <header className="entity-hero">
         <PlayerAvatar player={player} name={name} />
         <div>
@@ -126,6 +128,12 @@ export default function PlayerPage() {
           {player.captain ? <span className="entity-badge">Captain</span> : null}
         </div>
       </header>
+          {player.market_value?.currency && Number.isFinite(player.market_value?.amount) ? <section className="entity-card player-value-card">
+            <div className="entity-card-head"><h2>Estimated market value</h2></div>
+            <strong>{new Intl.NumberFormat("en",{style:"currency",currency:player.market_value.currency,notation:"compact",maximumFractionDigits:1}).format(player.market_value.amount)}</strong>
+            <p>{player.market_value.as_of ? `Valuation date: ${player.market_value.as_of}. ` : ""}An estimate, not a transfer fee.</p>
+          </section> : null}
+      </div>
       <div className="entity-grid">
         <div>
           {player.season_summary?.stats?.length ? <section className="entity-card">
@@ -143,16 +151,6 @@ export default function PlayerPage() {
           </section> : null}
         </div>
         <aside>
-          {player.market_value?.currency && Number.isFinite(player.market_value?.amount) ? <section className="entity-card player-value-card">
-            <div className="entity-card-head"><h2>Estimated market value</h2></div>
-            <strong>{new Intl.NumberFormat("en",{style:"currency",currency:player.market_value.currency,notation:"compact",maximumFractionDigits:1}).format(player.market_value.amount)}</strong>
-            <p>{player.market_value.as_of ? `Valuation date: ${player.market_value.as_of}. ` : ""}An estimate, not a transfer fee.</p>
-          </section> : null}
-          {matchFields.length ? <section className="entity-card">
-            <div className="entity-card-head"><h2>Recorded match performance</h2></div>
-            <p>From an available match record, not season totals.</p>
-            <dl className="entity-facts">{matchFields.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{String(value)}</dd></div>)}</dl>
-          </section> : null}
           {fields.length ? (
             <section className="entity-card">
               <div className="entity-card-head"><h2>Player details</h2></div>
@@ -161,6 +159,11 @@ export default function PlayerPage() {
               </dl>
             </section>
           ) : null}
+          {matchFields.length ? <section className="entity-card">
+            <div className="entity-card-head"><h2>Recorded match performance</h2></div>
+            <p>From an available match record, not season totals.</p>
+            <dl className="entity-facts">{matchFields.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{String(value)}</dd></div>)}</dl>
+          </section> : null}
         </aside>
       </div>
     </div>

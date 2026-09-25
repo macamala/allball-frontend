@@ -1,3 +1,4 @@
+import "../styles/entityProfiles.css";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { getTeamProfile } from "../api.js";
