@@ -31,12 +31,8 @@ import useVisiblePoll from "../hooks/useVisiblePoll.js";
 import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
 
 const BOARD_SNAPSHOT_PREFIX = "ninkosports.live-scores.snapshot.v2:";
-const BOARD_SHRINK_FLOOR = 20;
-const BOARD_SHRINK_RATIO = 0.75;
 
-function rawPayloadRows(data) {
-  return data?.events?.length ? data.events : data?.matches || [];
-}
+import { rawPayloadRows, stabilizeDayPayload } from "../lib/liveBoardState.js";
 
 function restoreBoardSnapshot(key) {
   if (typeof window === "undefined" || !key) return null;
@@ -63,28 +59,6 @@ function persistBoardSnapshot(key, payload) {
   } catch {
     // Storage is best-effort. The live board must keep working without it.
   }
-}
-
-function stabilizeDayPayload(previousPayload, incomingPayload) {
-  if (!incomingPayload) return { payload: previousPayload, protectedShrink: Boolean(previousPayload) };
-  if (!previousPayload) return { payload: incomingPayload, protectedShrink: false };
-
-  const previousCount = rawPayloadRows(previousPayload).length;
-  const incomingRows = rawPayloadRows(incomingPayload);
-  const incomingCount = incomingRows.length;
-  const suspiciousShrink =
-    previousCount >= BOARD_SHRINK_FLOOR &&
-    incomingCount < Math.floor(previousCount * BOARD_SHRINK_RATIO);
-
-  if (!suspiciousShrink) {
-    return { payload: incomingPayload, protectedShrink: false };
-  }
-
-  const merged = mergeEventPayload(previousPayload, incomingRows);
-  return {
-    payload: { ...previousPayload, ...incomingPayload, events: merged.events },
-    protectedShrink: true,
-  };
 }
 
 const STATUSES = [
@@ -137,6 +111,7 @@ export default function LiveScoresPage() {
   const [error, setError] = useState(false);
   const requestSeq = useRef(0);
   const sinceRef = useRef(new Date().toISOString());
+  const deltaCursorRef = useRef(null);
 
   const requestKey = `${date}|${competition}`;
 
@@ -186,6 +161,7 @@ export default function LiveScoresPage() {
             return { key, payload: stable.payload };
           });
           sinceRef.current = requestedAt;
+          deltaCursorRef.current = null;
           setError(protectedShrink);
         })
         .catch(() => {
@@ -224,12 +200,19 @@ export default function LiveScoresPage() {
     liveRequest.current = true;
     const requestedAt = new Date(Date.now() - 5000).toISOString();
     const boardKey = requestKey;
+    const snapshotSequence = requestSeq.current;
     Promise.all([
       getSportsDataLive({}),
-      getSportsDataStatusDelta({ since: sinceRef.current }),
+      getSportsDataStatusDelta({ since: sinceRef.current, cursor: deltaCursorRef.current }),
     ])
       .then(([live, delta]) => {
-        sinceRef.current = delta?.next_since || requestedAt;
+        if (snapshotSequence !== requestSeq.current) return;
+        if (delta?.has_more && delta?.next_cursor) {
+          deltaCursorRef.current = delta.next_cursor;
+        } else {
+          sinceRef.current = delta?.next_since || requestedAt;
+          deltaCursorRef.current = null;
+        }
         setBoard((prev) => {
           if (!prev.payload || prev.key !== boardKey) return prev;
           return {
