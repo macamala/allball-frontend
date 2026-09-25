@@ -1,0 +1,54 @@
+name: C15 standalone standings gate
+on:
+  push:
+    branches: [fix/competition-standings-c15-20260925]
+    paths: ['.github/workflows/c15-standings.yml', 'audit/c15-parts/**']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact reviewed patch before source changes
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          import gzip,base64,hashlib
+          parts=sorted(Path('audit/c15-parts').glob('*.b64'))
+          assert len(parts)==4
+          patch=gzip.decompress(base64.b64decode(''.join(p.read_text().strip() for p in parts),validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='8a455718bf66f78a38c7ea09449a50f9aa5e261962fa99f6b67ef117ed7de0ec'
+          Path('/tmp/c15.patch').write_bytes(patch)
+          PY
+          git apply --check /tmp/c15.patch
+          git apply /tmp/c15.patch
+          git add -N src/pages/CompetitionStandingsPage.jsx src/pages/CompetitionStandingsPage.test.jsx src/styles/competitionStandings.css
+          git diff 5e65eca2a43939859e010182ba187f68ea74e3bc -- src > evidence/source.patch
+          cmp /tmp/c15.patch evidence/source.patch
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+      - name: Publish verified runtime only to isolated branch
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src
+          git commit -m 'Open league and group standings independently of matches and render supplied elapsed football clock'
+          git push origin HEAD:refs/heads/fix/competition-standings-c15-20260925
+          git rev-parse HEAD > evidence/candidate.txt
+          git diff-tree --no-commit-id --name-only -r HEAD | xargs sha256sum > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c15-frontend-gate
+          path: evidence
+          retention-days: 30
