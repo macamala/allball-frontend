@@ -12,6 +12,8 @@ import { newerMatchEvent } from "../lib/matchClock.js";
 import { matchPayloadMatches } from "../lib/matchDetail.js";
 import MatchCentre from "../components/scores/MatchCentre.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
+import { matchDetailPollMs } from "../lib/matchRefresh.js";
+import { createMatchRequestGate } from "../lib/matchRequestGate.js";
 
 function payloadEventId(payload) {
   return payload?.id || payload?.event?.id || payload?.header?.id || "";
@@ -101,11 +103,17 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true);
   const requestSeq = useRef(0);
   const scoreFlight = useRef(null);
+  const detailGate = useRef(null);
+  const lastPollEvent = useRef(null);
+  if (!detailGate.current) detailGate.current = createMatchRequestGate();
   const routeId = useRef({id: matchId, generation: 0});
   if (routeId.current.id !== matchId) routeId.current = {id: matchId, generation: routeId.current.generation + 1};
 
   useEffect(() => {
     let cancelled = false;
+    const request = routeId.current;
+    const flight = detailGate.current.begin(request);
+    if (!flight) return undefined;
     const seq = ++requestSeq.current;
     const controller = typeof AbortController === "function" ? new AbortController() : null;
     setData((prev) => (payloadEventId(prev) === matchId ? prev : null));
@@ -126,19 +134,27 @@ export default function MatchPage() {
         setData({ connected: false, id: matchId });
       })
       .finally(() => {
+        detailGate.current.finish(flight);
         if (!cancelled && seq === requestSeq.current) setLoading(false);
       });
     return () => {
       cancelled = true;
       controller?.abort();
+      detailGate.current.finish(flight);
     };
   }, [matchId]);
 
   const refreshMatch = useCallback(() => {
+    const request = routeId.current;
+    // Re-evaluate the deadline at the tick itself. Repeated transport failures
+    // may not cause a render, so a previously scheduled interval can outlive FT.
+    if (lastPollEvent.current?.id === matchId && matchDetailPollMs(lastPollEvent.current) === 0) return;
+    const flight = detailGate.current.begin(request);
+    if (!flight) return;
     const seq = ++requestSeq.current;
-    getJSON(matchPath(matchId))
+    return getJSON(matchPath(matchId))
       .then((payload) => {
-        if (seq !== requestSeq.current) return;
+        if (routeId.current !== request || seq !== requestSeq.current) return;
         if (!matchPayloadMatches(payload, matchId)) return;
         setData((previous) => mergeMatchPayload(previous, payload));
         setError(false);
@@ -148,7 +164,8 @@ export default function MatchPage() {
         // backend restart or network failure. The next visible poll retries.
       })
       .finally(() => {
-        if (seq === requestSeq.current) setLoading(false);
+        detailGate.current.finish(flight);
+        if (routeId.current === request && seq === requestSeq.current) setLoading(false);
       });
   }, [matchId]);
 
@@ -173,18 +190,15 @@ export default function MatchPage() {
     if (preview) return normalizeEvent(publicEventSafe(preview));
     return null;
   }, [data, preview, matchId]);
+  lastPollEvent.current = event;
   const home = participantName(event?.home);
   const away = participantName(event?.away);
   const title =
     home && away ? `${home} vs ${away}` : event?.tournament || t("match.center");
   const path = eventPath(matchId);
-  const matchPollMs = event
-    ? isConfirmedLive(event)
-      ? 30000
-      : isFinishedStatus(event.status)
-        ? 0
-        : 30000
-    : 0;
+  // FT stops the fast score clock, not late-arriving lineups/statistics.
+  // Visibility gating stays in useVisiblePoll; one detail request at a time.
+  const matchPollMs = matchDetailPollMs(event);
   useVisiblePoll(refreshMatch, matchPollMs);
   useVisiblePoll(refreshScore, event && !isFinishedStatus(event.status) ? (isConfirmedLive(event) ? 5000 : 15000) : 0);
 
