@@ -5195,3 +5195,10 @@ select {
 .player-career small { display:block; margin-top:5px; color:var(--muted,#8ba3bf); font-size:.75rem; }
 .player-career li > span { font-size:.75rem; color:var(--muted,#8ba3bf); text-align:right; }
 @media(max-width:640px) { .player-career li { align-items:flex-start; flex-direction:column; gap:6px; } .player-club-link { flex-wrap:wrap; } }
+
+/* Football category controls do not change the canonical date snapshot. */
+.page-scores .football-category-filter { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 4px; }
+.page-scores .football-category-filter button { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border,#2b4e6f); border-radius:6px; padding:8px 12px; background:transparent; color:inherit; font:inherit; font-size:.8rem; cursor:pointer; min-height:36px; }
+.page-scores .football-category-filter button[aria-pressed="true"] { background:var(--accent,#3478f6); border-color:var(--accent,#3478f6); color:white; }
+.page-scores .football-category-filter button span { font-size:.72rem; opacity:.85; }
+.football-category-badge { display:inline-block; margin-left:8px; font-size:.68rem; line-height:1.4; font-weight:600; border:1px solid currentColor; border-radius:4px; padding:1px 5px; opacity:.85; vertical-align:middle; }

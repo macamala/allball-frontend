@@ -91,3 +91,17 @@ a.hub-fixture-pair:hover { color:#7ce6ed; }
  .h2h-meetings-card .h2h-history-record { grid-template-columns:66px minmax(0,1fr); gap:6px 8px; }
  .h2h-meetings-card .history-league { grid-column:2; font-size:.7rem; overflow-wrap:break-word; word-break:normal; }
 }
+
+.scorer-team-filter { max-width:320px; margin:12px 0 18px; }
+.scorer-list { list-style:none; padding:0; margin:0; }
+.scorer-row { display:grid; grid-template-columns:28px 44px minmax(0,1fr) 55px; align-items:center; gap:12px; padding:14px 2px; border-bottom:1px solid var(--border,#29445d); }
+.scorer-rank { color:var(--muted,#b4c6d9); text-align:center; }
+.scorer-photo { width:44px; height:44px; object-fit:contain; border-radius:50%; }
+.scorer-identity { display:flex; flex-direction:column; min-width:0; gap:5px; }
+.scorer-identity > a:first-child { font-weight:700; overflow-wrap:anywhere; }
+.scorer-team { display:flex; gap:6px; align-items:center; font-size:.8rem; }
+.scorer-team img { width:18px; height:18px; object-fit:contain; }
+.scorer-identity small,.scorer-goals small { color:var(--muted,#b4c6d9); font-size:.72rem; }
+.scorer-goals { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.scorer-goals strong { font-size:1.3rem; }
+@media(max-width:600px) { .scorer-row { grid-template-columns:20px 32px minmax(0,1fr) 40px; gap:8px; } .scorer-photo { width:32px; height:32px; } }

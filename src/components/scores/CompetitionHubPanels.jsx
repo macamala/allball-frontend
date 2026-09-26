@@ -7,8 +7,9 @@ import { eventPath, isConfirmedLive } from '../../lib/sportsData.js';
 import { normalizeAssetUrl } from '../../lib/assetUrls.js';
 import StandingsTable from '../StandingsTable.jsx';
 import HeadToHeadPanel from './HeadToHeadPanel.jsx';
+import TopScorersPanel from './TopScorersPanel.jsx';
 import '../../styles/competitionHub.css';
-const TABS = ['standings', 'fixtures', 'results', 'h2h'];
+const TABS = ['standings', 'fixtures', 'results', 'h2h', 'scorers'];
 function apiPath(key, suffix, values) {
   const query = new URLSearchParams();
   Object.entries(values).forEach(([k, v]) => { if (v) query.set(k, v); });
@@ -50,7 +51,7 @@ export default function CompetitionHubPanels({ competitionKey, sport, group, sea
   const teamOptions = useMemo(() => [...new Set(events.flatMap(e => [e.home?.name, e.away?.name]).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [events]);
   const rounds = useMemo(() => [...new Set(events.map(e => String(e.round || '')).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [events]);
   if (sport !== 'football') return children;
-  const labels = sr ? { standings: 'Tabela', fixtures: 'Raspored', results: 'Rezultati', h2h: 'Međusobni' } : { standings: 'Standings', fixtures: 'Fixtures', results: 'Results', h2h: 'Head-to-head' };
+  const labels = sr ? { standings: 'Tabela', fixtures: 'Raspored', results: 'Rezultati', h2h: 'Međusobni', scorers: 'Strelci' } : { standings: 'Standings', fixtures: 'Fixtures', results: 'Results', h2h: 'Head-to-head', scorers: 'Top scorers' };
   const list = rows => <ul className="hub-fixture-list">{rows.map(event => <FixtureRow key={event.key} event={event} onCompare={compare} sr={sr} />)}</ul>;
   const empty = <p className="hub-empty-message">{resource.loading ? (sr ? 'Učitavanje utakmica…' : 'Loading matches…') : sr ? 'Za ovaj izbor nema potvrđenih utakmica u dostupnim podacima.' : 'No confirmed matches are available for this selection.'}</p>;
   const selected = comparison.data?.event;
@@ -61,7 +62,7 @@ export default function CompetitionHubPanels({ competitionKey, sport, group, sea
       {data?.table_views?.home?.length && data?.table_views?.away?.length ? <div className="hub-venue-toggle" aria-label={sr ? 'Tabela po domaćinstvu' : 'Table venue'}>{['all', 'home', 'away'].map(v => <button key={v} type="button" aria-pressed={venue === v} onClick={() => change({ venue: v === 'all' ? '' : v })}>{sr ? ({ all: 'Ukupno', home: 'Kod kuće', away: 'U gostima' }[v]) : ({ all: 'Overall', home: 'Home', away: 'Away' }[v])}</button>)}</div> : null}
       {venue !== 'all' && data?.table_views?.[venue]?.length ? <section className="competition-table-card"><StandingsTable rows={data.table_views[venue]} sport="football" competition={competitionKey} competitionCountry={meta.country_id} event={{ group }} strictGroup onGroupChange={g => change({ group: g, match: '', team: '', round: '' })} /></section> : children}
       <div className="hub-preview-grid">{[['fixtures', upcoming], ['results', results]].map(([id, records]) => <section className="hub-match-card" key={id}><div className="hub-section-heading"><h2>{sr ? (id === 'fixtures' ? 'Sledeće utakmice' : 'Poslednji rezultati') : (id === 'fixtures' ? 'Next matches' : 'Latest results')}</h2><button className="hub-text-button" onClick={() => change({ tab: id })}>{sr ? 'Sve' : 'View all'} →</button></div>{records.length ? list(records.slice(0, 3)) : empty}</section>)}</div>
-    </div> : tab === 'h2h' ? <div role="tabpanel" id="hub-panel-h2h" aria-labelledby="hub-tab-h2h">
+    </div> : tab === 'scorers' ? <div role="tabpanel" id="hub-panel-scorers" aria-labelledby="hub-tab-scorers"><TopScorersPanel key={`${competitionKey}|${season}|${group}`} competitionKey={competitionKey} season={season} group={group} sr={sr} /></div> : tab === 'h2h' ? <div role="tabpanel" id="hub-panel-h2h" aria-labelledby="hub-tab-h2h">
       <section className="hub-match-card"><label className="hub-control hub-match-picker">{sr ? 'Izaberi duel za poređenje' : 'Select a match to compare'}<select aria-label="Compare match" value={match} onChange={e => change({ match: e.target.value })}><option value="">{sr ? 'Izaberi utakmicu…' : 'Choose a match…'}</option>{[...upcoming, ...results].slice(0, 700).map(e => <option key={e.key} value={e.key}>{e.home?.name} — {e.away?.name} · {new Date(e.start_time).toLocaleDateString(sr ? 'sr-Latn' : 'en-GB')}</option>)}</select></label></section>
       {!match ? <p className="hub-empty-message">{sr ? 'Izaberi utakmicu ili pritisni H2H uz bilo koji par u rasporedu i rezultatima.' : 'Choose a match, or use H2H beside a fixture or result.'}</p> : comparison.loading ? <p role="status" className="hub-empty-message">{sr ? 'Učitavanje prethodnih duela…' : 'Loading previous meetings…'}</p> : comparison.error ? <p role="alert" className="hub-empty-message">{sr ? 'Poređenje trenutno nije dostupno.' : 'Comparison could not be loaded.'} <button onClick={comparison.refresh}>{sr ? 'Pokušaj ponovo' : 'Try again'}</button></p> : selected ? <><HeadToHeadPanel key={match} event={selected} h2h={comparison.data.h2h || []} form={comparison.data.form || {}} />{selected.id ? <Link className="hub-match-detail-link" to={eventPath(selected.id)}>{sr ? 'Otvori detalje izabrane utakmice' : 'Open the selected match details'} →</Link> : null}</> : <p className="hub-empty-message">{sr ? 'Ovaj duel nije potvrđen u izabranoj ligi, grupi ili sezoni.' : 'This match is not verified in the selected competition, group or season.'}</p>}
     </div> : <div role="tabpanel" id={`hub-panel-${tab}`} aria-labelledby={`hub-tab-${tab}`} className="hub-match-card">

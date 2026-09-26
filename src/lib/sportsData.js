@@ -302,6 +302,7 @@ export function normalizeEvent(raw) {
   return {
     id: String(raw.id || ""),
     sport: raw.sport || "",
+    football_gender: ["men", "women"].includes(raw.football_gender) ? raw.football_gender : "unknown",
     competition: raw.competition_name || raw.competition || raw.league || "",
     competition_key: raw.competition_key || raw.league || raw.competition || "",
     competition_name: raw.competition_name || raw.competition || "",
@@ -570,11 +571,12 @@ export function groupEventsByCompetition(events) {
     const labels = sport === "football" ? explicitGroups.get(key) : null;
     const footballGroup = labels?.get(labelKey(event.group))
       || (!labelKey(event.group) ? labels?.get(labelKey(displayCompetition)) : "") || "";
-    const identityKey = footballGroup
+    const categoryKey = sport === 'football' ? `::${event.football_gender || 'unknown'}` : '';
+    const identityKey = (footballGroup
       ? `${sport}::${key}::${labelKey(footballGroup)}`
       : dotaTournamentIdentity
         ? `${sport}::${key}::${dotaTournamentIdentity}`
-        : `${sport}::${key}`;
+        : `${sport}::${key}`) + categoryKey;
     if (!groups.has(identityKey)) {
       groups.set(identityKey, {
         key,
@@ -582,6 +584,7 @@ export function groupEventsByCompetition(events) {
         group: footballGroup || null,
         // A canonical leaf already scopes the API table. Repeating its display
         // label as a parent-group selector can conflict with native prefixes.
+        football_gender: sport === 'football' ? (event.football_gender || 'unknown') : null,
         standings_group: footballGroup && labelKey(footballGroup) !== labelKey(displayCompetition) ? footballGroup : "",
         stage: event.stage || null,
         sport,

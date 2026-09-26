@@ -31,7 +31,7 @@ import DateRail from "../components/scores/DateRail.jsx";
 import useVisiblePoll from "../hooks/useVisiblePoll.js";
 import { ScoreBoardSkeleton } from "../components/Skeleton.jsx";
 
-const BOARD_SNAPSHOT_PREFIX = "ninkosports.live-scores.snapshot.v2:";
+const BOARD_SNAPSHOT_PREFIX = "ninkosports.live-scores.snapshot.v3:";
 
 import { rawPayloadRows, stabilizeDayPayload } from "../lib/liveBoardState.js";
 
@@ -100,7 +100,7 @@ function eventMatchesSport(event, sport) {
 }
 
 export default function LiveScoresPage() {
-  const { t, dateLocale } = useI18n();
+  const { t, dateLocale, lang } = useI18n();
   const { favorites } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const today = isoDate(new Date());
@@ -108,6 +108,7 @@ export default function LiveScoresPage() {
   const date = searchParams.get("date") || today;
   const sport = searchParams.get("sport") || "all";
   const competition = searchParams.get("competition") || "";
+  const category = ['men', 'women', 'unknown'].includes(searchParams.get('category')) ? searchParams.get('category') : 'all';
   const [board, setBoard] = useState({ key: "", payload: null });
   const [error, setError] = useState(false);
   const requestSeq = useRef(0);
@@ -128,12 +129,13 @@ export default function LiveScoresPage() {
   }, [favorites]);
 
   function updateParams(patch) {
-    const next = { status, date, sport, competition, ...patch };
+    const next = { status, date, sport, competition, category, ...patch };
     const params = {};
     if (next.status && next.status !== "all") params.filter = next.status;
     if (next.date && next.date !== today) params.date = next.date;
     if (next.sport && next.sport !== "all") params.sport = next.sport;
     if (next.competition) params.competition = next.competition;
+    if (next.sport === 'football' && next.category !== 'all') params.category = next.category;
     setSearchParams(params);
   }
 
@@ -241,8 +243,11 @@ export default function LiveScoresPage() {
     if (sport === "mine") {
       rows = rows.filter((event) => eventMatchesFavorite(event, favorites));
     }
+    if (sport === 'football' && category !== 'all') {
+      rows = rows.filter(event => (event.football_gender || 'unknown') === category);
+    }
     return rows;
-  }, [dayEvents, favorites, sport]);
+  }, [dayEvents, favorites, sport, category]);
 
   const counts = useMemo(() => statusCounts(sportFiltered), [sportFiltered]);
   const events = useMemo(() => {
@@ -356,6 +361,14 @@ export default function LiveScoresPage() {
         otherItems={otherItems}
         onChange={(id) => updateParams({ sport: id, competition: "" })}
       />
+      {sport === 'football' ? <div className="football-category-filter" role="group" aria-label={lang === 'sr' ? 'Kategorija fudbala' : 'Football category'}>
+        {['all', 'men', 'women', 'unknown'].map(value => {
+          const count = dayEvents.filter(e => e.sport === 'football' && (value === 'all' || (e.football_gender || 'unknown') === value)).length;
+          if (value === 'unknown' && !count && category !== 'unknown') return null;
+          const labels = lang === 'sr' ? {all:'Sav fudbal',men:'Muški',women:'Ženski',unknown:'Nerazvrstano'} : {all:'All football',men:'Men',women:'Women',unknown:'Unclassified'};
+          return <button type="button" key={value} aria-pressed={category === value} onClick={() => updateParams({category:value})}>{labels[value]} <span>{count}</span></button>;
+        })}
+      </div> : null}
       <DateRail
         date={date}
         today={today}

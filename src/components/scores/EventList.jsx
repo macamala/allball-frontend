@@ -111,7 +111,7 @@ export default function EventList({ events, compact = false }) {
               >
                 <div className="score-comp-copy">
                   {meta.kicker ? <p className="score-comp-kicker">{meta.kicker}</p> : null}
-                  <h2 className="score-comp-title">{title}</h2>
+                  <h2 className="score-comp-title">{title}{group.football_gender === 'women' ? <span className="football-category-badge">Women</span> : null}</h2>
                 </div>
                 <span className="score-comp-caret" aria-hidden="true">
                   {isCollapsed ? "›" : "▾"}
