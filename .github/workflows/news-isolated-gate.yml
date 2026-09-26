@@ -1,0 +1,105 @@
+name: Isolated News reader gates - NO DEPLOY
+on:
+  push:
+    branches: [news/isolated-20260926-01]
+    paths:
+      - '.github/workflows/news-isolated-gate.yml'
+      - 'src/pages/ArticlePage.jsx'
+      - 'src/pages/ArticlePage.news.test.jsx'
+      - 'src/lib/newsArticleState.js'
+      - 'src/lib/newsArticleState.test.js'
+      - 'audit/news_public_readonly.py'
+      - 'audit/news_reader_browser.py'
+permissions:
+  contents: read
+concurrency:
+  group: news-isolated-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assert isolation and install locked frontend dependencies
+        run: |
+          test "$GITHUB_REF" = refs/heads/news/isolated-20260926-01
+          mkdir -p evidence
+          git rev-parse HEAD | tee evidence/candidate-sha.txt
+          git diff --check
+          npm ci
+      - name: Reproduce reader failures on unchanged C17 reader
+        run: |
+          cp src/pages/ArticlePage.jsx /tmp/news-candidate-ArticlePage.jsx
+          trap 'cp /tmp/news-candidate-ArticlePage.jsx src/pages/ArticlePage.jsx' EXIT
+          git show 9a9d1cc996f746a63d4716043b849a7b12e57538:src/pages/ArticlePage.jsx > src/pages/ArticlePage.jsx
+          set +e
+          npm test -- src/pages/ArticlePage.news.test.jsx --reporter=default --reporter=junit --outputFile=evidence/baseline-news.xml > evidence/baseline-news.log 2>&1
+          baseline_status=$?
+          set -e
+          test "$baseline_status" -ne 0
+          python - <<'PY'
+          import json, xml.etree.ElementTree as ET
+          tree=ET.parse('evidence/baseline-news.xml')
+          cases=list(tree.iter('testcase'))
+          failed=[case.attrib['name'] for case in cases if case.find('failure') is not None]
+          errors=list(tree.iter('error'))
+          assert len(failed)>=3 and not errors, (failed, errors)
+          print('NEWS_BASELINE_REPRODUCED '+json.dumps({'tests':len(cases),'failures':len(failed),'failed_names':failed}))
+          PY
+      - name: Full retained frontend suite including News regressions
+        run: |
+          git diff --exit-code -- src
+          npm test -- --reporter=default --reporter=junit --outputFile=evidence/frontend-tests.xml
+      - name: Candidate build - local test API only
+        run: npm run build
+        env:
+          VITE_API_URL: http://127.0.0.1:8899
+      - name: Real browser reader journeys on local fixtures
+        run: |
+          python -m pip install playwright==1.51.1
+          python -m playwright install --with-deps chromium
+          npx vite preview --host 127.0.0.1 --port 4173 > evidence/preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          python audit/news_reader_browser.py
+      - name: Record exact evidence and source checksums
+        if: always()
+        run: |
+          sha256sum src/pages/ArticlePage.jsx src/pages/ArticlePage.news.test.jsx src/lib/newsArticleState.js src/lib/newsArticleState.test.js audit/news_reader_browser.py | tee evidence/source-SHA256SUMS
+          python - <<'PY'
+          from pathlib import Path
+          import json,xml.etree.ElementTree as ET
+          p=Path('evidence/frontend-tests.xml')
+          if p.exists():
+            tree=ET.parse(p)
+            cases=list(tree.iter('testcase'))
+            print('NEWS_FULL_SUITE '+json.dumps({'tests':len(cases),'failures':len(list(tree.iter('failure'))),'errors':len(list(tree.iter('error'))),'skipped':len(list(tree.iter('skipped')))}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-isolated-reader-candidate
+          path: evidence
+          retention-days: 30
+  public-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Bounded public News GET sample - no writes
+        run: python audit/news_public_readonly.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-isolated-public-readonly
+          path: evidence/news-public-readonly.json
+          retention-days: 30
