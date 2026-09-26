@@ -9,12 +9,15 @@ const api = vi.hoisted(() => ({
   peekArticle: vi.fn(), recordView: vi.fn(), setPageSeo: vi.fn(),
 }));
 vi.mock("../api.js", () => ({ ...api, articlePath: (slug) => `/articles/${encodeURIComponent(slug)}` }));
-vi.mock("../context/I18nContext.jsx", () => ({
-  useI18n: () => ({ t: (key) => ({
+vi.mock("../context/I18nContext.jsx", () => {
+  // The real provider memoizes its translator. A new function every render
+  // would create an artificial effect loop in the unchanged baseline reader.
+  const t = (key) => ({
     "empty.loadFail": "Could not load article", "empty.articleMissing": "Article not found",
     "empty.backHome": "Back home", "loading.article": "Loading article", "live.retry": "Retry",
-  }[key] || key) }),
-}));
+  }[key] || key);
+  return { useI18n: () => ({ t }) };
+});
 vi.mock("../lib/seo.js", () => ({
   setPageSeo: api.setPageSeo, articleJsonLd: () => ({}), breadcrumbJsonLd: () => ({}),
 }));
