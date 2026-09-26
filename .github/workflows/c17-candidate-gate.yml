@@ -1,0 +1,58 @@
+name: C17 reviewed frontend candidate gate
+on:
+  push:
+    branches: [fix/football-categories-scorers-c17-20260926]
+    paths: ['.github/workflows/c17-candidate-gate.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: 023e73a50ec1244c506a4d3ef2a457c2669722f1
+          path: saved-handoff
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact previously tested frontend draft
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import base64,gzip,hashlib
+          from pathlib import Path
+          p=Path('saved-handoff/audit/c17-handoff')
+          data=gzip.decompress(base64.b64decode(''.join((p/f'frontend.{i}.b64').read_text().strip() for i in range(2)),validate=True))
+          assert hashlib.sha256(data).hexdigest()=='b7f01962d89daefcf4f5657ffc277a94cfd6d8f07f576f5a9f8916dc9d39a67a'
+          Path('evidence/source.patch').write_bytes(data)
+          PY
+          git apply --check evidence/source.patch
+          git apply evidence/source.patch
+          npm ci
+      - run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - run: npm run build
+        env:
+          VITE_API_URL: https://allball-backend-production.up.railway.app
+      - name: Publish only the tested isolated candidate
+        run: |
+          git diff --check
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src
+          git commit -m 'Separate men and women in football boards and add competition top scorers with player and team navigation'
+          git push origin HEAD:refs/heads/fix/football-categories-scorers-c17-20260926
+          git rev-parse HEAD > evidence/candidate.txt
+          git diff --name-only 0b26a18f5a1d0a5b8ccc8adc57b8c9d5d17d2f13 HEAD -- src | xargs sha256sum > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c17-reviewed-frontend-candidate
+          path: evidence
+          retention-days: 30
