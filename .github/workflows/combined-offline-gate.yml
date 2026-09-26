@@ -1,0 +1,93 @@
+name: Combined C18 News frontend gate
+on:
+  push:
+    branches: [integration/c18-news-20260926]
+    paths: ['.github/workflows/combined-offline-gate.yml']
+permissions:
+  contents: write
+concurrency:
+  group: combined-frontend-${{ github.ref }}
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: 0a4cbd967764247db2458a4f17642d99e2e65a22
+          path: saved-handoff
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply exact reviewed C18 patches atop the News01 descendant
+        run: |
+          test "$GITHUB_REF" = refs/heads/integration/c18-news-20260926
+          git merge-base --is-ancestor 808f5133db9945c8036992f3b846bd97a62a6cf8 HEAD
+          mkdir evidence
+          python - <<'PY'
+          import hashlib,subprocess
+          from pathlib import Path
+          root=Path('saved-handoff/audit')
+          for name,path,want in [('original','c18-handoff/frontend.0.txt','7cc9f19ed92bc02786160639f41dbf2adaf814a83611dedf8877965e03730ed8'),('review','c18-review/frontend.patch.txt','d996afedf3ef191daf078a605eec858612ba14c313aa06c7703c0248b7492b71')]:
+            data=(root/path).read_bytes();assert hashlib.sha256(data).hexdigest()==want
+            patch=Path('evidence/'+name+'.patch');patch.write_bytes(data)
+            subprocess.run(['git','apply','--check',str(patch)],check=True)
+            subprocess.run(['git','apply',str(patch)],check=True)
+          PY
+          git add src/lib/matchRefresh.js src/lib/matchRequestGate.js src/pages/MatchPage.jsx src/pages/MatchFinalRecovery.test.jsx audit/c18_match_refresh_policy.mjs audit/c18_request_gate.mjs
+          git diff --cached --check
+          git diff --cached > evidence/c18-applied.patch
+          npm ci
+      - name: Full combined frontend suite and exact polling policy checks
+        run: |
+          npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+          node audit/c18_match_refresh_policy.mjs > evidence/poll-policy.log
+          node audit/c18_request_gate.mjs > evidence/request-gate.log
+          python - <<'PY'
+          import json,xml.etree.ElementTree as E
+          from pathlib import Path
+          root=E.parse('evidence/tests.xml');r={k:len(list(root.iter(v))) for k,v in [('tests','testcase'),('failures','failure'),('errors','error'),('skipped','skipped')]}
+          Path('evidence/test-summary.json').write_text(json.dumps(r));print(r)
+          assert r['tests']>=329 and not any(r[k] for k in ('failures','errors','skipped'))
+          PY
+      - name: Local fixture build for responsive News browser checks
+        run: npm run build
+        env:
+          VITE_API_URL: http://127.0.0.1:8899
+      - name: Real Chromium News journeys with local controlled data only
+        run: |
+          python -m pip install playwright==1.51.0
+          python -m playwright install --with-deps chromium
+          npx vite preview --host 127.0.0.1 --port 4173 > evidence/preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          python audit/news_reader_browser.py
+      - name: Build exact production target without requesting it
+        run: npm run build
+        env:
+          VITE_API_URL: https://allball-backend-production.up.railway.app
+      - name: Save only the tested isolated source candidate
+        run: |
+          git config user.name 'NinkoSports integration gate'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git commit -m 'Integrate C18 finished-match refresh with News01 reader and retained Live Scores'
+          git push origin HEAD:refs/heads/integration/c18-news-20260926
+          git rev-parse HEAD > evidence/candidate-sha.txt
+          git diff 9a9d1cc996f746a63d4716043b849a7b12e57538 HEAD -- src audit > evidence/integrated-source.patch
+          git archive --format=tar.gz HEAD > evidence/tested-source.tar.gz
+          sha256sum dist/assets/* > evidence/build-sha256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: combined-frontend-evidence
+          path: evidence
+          retention-days: 30
