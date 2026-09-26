@@ -370,7 +370,12 @@ export function competitionKind(event) {
 
 export function usesPeriodGrid(event) {
   const sport = event?.sport || "";
-  return SET_SPORTS.has(sport) && periodRows(event).length > 0;
+  const splitScoreSport =
+    SET_SPORTS.has(sport) ||
+    QUARTER_SPORTS.has(sport) ||
+    PERIOD_SPORTS.has(sport) ||
+    sport === "american-football";
+  return splitScoreSport && periodRows(event).length > 0;
 }
 
 export function cricketScoreText(event) {
