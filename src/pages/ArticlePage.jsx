@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { getArticle, getRelated, peekArticle, recordView } from "../api.js";
+import { articlePath, getArticle, getJSON, getRelated, peekArticle, recordView } from "../api.js";
 import { leaguePath, sportPath } from "../config/sports.js";
-import { heroMedia, resolveBlocks } from "../lib/articleBlocks.js";
+import { heroMedia } from "../lib/articleBlocks.js";
+import { hasNewsArticleBody, isNewsArticleForSlug, newsArticleBlocks, newsArticleShell } from "../lib/newsArticleState.js";
 import { articleJsonLd, breadcrumbJsonLd, setPageSeo } from "../lib/seo.js";
 import { competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
@@ -18,16 +19,10 @@ import ArticlePager from "../components/article/ArticlePager.jsx";
 import Comments from "../components/Comments.jsx";
 import RelatedStories from "../components/article/RelatedStories.jsx";
 
-function hasArticleBody(article) {
-  return Array.isArray(article?.blocks) || typeof article?.content === "string";
-}
+export const NEWS_ARTICLE_TIMEOUT_MS = 15000;
 
 function shellFrom(location, slug) {
-  const cached = peekArticle(slug);
-  if (cached) return cached;
-  const preview = location.state?.preview;
-  if (preview?.slug === slug) return preview;
-  return null;
+  return newsArticleShell(peekArticle(slug), location.state?.preview, slug);
 }
 
 function mergeRelated(related, inlineArticle) {
@@ -42,10 +37,24 @@ function mergeRelated(related, inlineArticle) {
   return [inlineArticle, ...rows];
 }
 
-function ArticleInner({ article, related, bodyPending }) {
+function ReaderNotice({ message, onRetry }) {
+  const { t } = useI18n();
+  return (
+    <div className="article-body" role="alert">
+      <p className="info-text">{message}</p>
+      <button type="button" className="btn" onClick={onRetry}>
+        {t("live.retry")}
+      </button>
+    </div>
+  );
+}
+
+function ArticleInner({ article, related, pending, error, onRetry }) {
+  const { t } = useI18n();
   const [commentCount, setCommentCount] = useState(0);
   const hero = heroMedia(article);
-  const blocks = bodyPending ? [] : resolveBlocks(article);
+  const blocks = newsArticleBlocks(article);
+  const bodyAvailable = hasNewsArticleBody(blocks);
   const inlineRelated = blocks.find((block) => block?.type === "related")?.article;
   const relatedBottom = mergeRelated(related, inlineRelated);
 
@@ -59,13 +68,16 @@ function ArticleInner({ article, related, bodyPending }) {
             onComments={() => scrollToComments()}
           />
           <ArticleHero media={hero} article={article} />
-          {bodyPending ? (
-            <ArticleBodySkeleton />
-          ) : (
+          {error && <ReaderNotice message={error} onRetry={onRetry} />}
+          {bodyAvailable ? (
             <ArticleBody blocks={blocks} title={article.title} />
-          )}
+          ) : pending ? (
+            <ArticleBodySkeleton />
+          ) : !error ? (
+            <ReaderNotice message={t("empty.loadFail")} onRetry={onRetry} />
+          ) : null}
           <Comments slug={article.slug} onCount={setCommentCount} />
-          {!bodyPending && (
+          {!pending && bodyAvailable && (
             <ArticlePager previous={article.previous} next={article.next} />
           )}
           <RelatedStories articles={relatedBottom} />
@@ -80,53 +92,88 @@ export default function ArticlePage() {
   const { slug } = useParams();
   const location = useLocation();
   const { t } = useI18n();
-  const initial = shellFrom(location, slug);
-  const [article, setArticle] = useState(initial);
-  const [related, setRelated] = useState([]);
-  const [loading, setLoading] = useState(!initial);
-  const [error, setError] = useState("");
+  const [result, setResult] = useState(() => ({
+    slug, article: shellFrom(location, slug), pending: true, error: "",
+  }));
+  const [relatedResult, setRelatedResult] = useState({ slug, rows: [] });
+  const [retry, setRetry] = useState({ slug, count: 0 });
+  const viewed = useRef({ slug: null, recorded: false });
+  const attempt = retry.slug === slug ? retry.count : 0;
 
   useEffect(() => {
-    let cancelled = false;
+    let active = true;
+    let settled = false;
+    const controller = new AbortController();
     const shell = shellFrom(location, slug);
-    if (shell) {
-      setArticle(shell);
-      setLoading(false);
-    } else {
-      setArticle(null);
-      setLoading(true);
-    }
-    setError("");
-    setRelated([]);
+    if (viewed.current.slug !== slug) viewed.current = { slug, recorded: false };
+    setResult({ slug, article: shell, pending: true, error: "" });
 
-    getArticle(slug)
-      .then((data) => {
-        if (cancelled) return;
-        setArticle(data);
-        setLoading(false);
-        recordView(data.slug);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (!shell) setArticle(null);
-        setError(err.status === 404 ? t("empty.articleMissing") : t("empty.loadFail"));
-        setLoading(false);
+    const fail = (err) => {
+      if (!active || settled) return;
+      settled = true;
+      clearTimeout(timer);
+      controller.abort();
+      const missing = err?.status === 404;
+      setResult({
+        slug, article: missing ? null : shell, pending: false,
+        error: missing ? "missing" : "load",
       });
+    };
+    const timer = setTimeout(() => fail({ status: 408 }), NEWS_ARTICLE_TIMEOUT_MS);
 
-    getRelated(slug, 6)
-      .then((rows) => {
-        if (!cancelled) {
-          setRelated(Array.isArray(rows) ? rows : []);
+    // Normal navigation retains existing prefetch/cache behavior. Explicit retries
+    // bypass only this article's cache/inflight request, never clearing score caches.
+    Promise.resolve()
+      .then(() => attempt
+        ? getJSON(articlePath(slug), { signal: controller.signal })
+        : getArticle(slug))
+      .then((data) => {
+        if (!active || settled) return;
+        if (!isNewsArticleForSlug(data, slug)) throw new Error("Invalid article identity");
+        settled = true;
+        clearTimeout(timer);
+        setResult({ slug, article: data, pending: false, error: "" });
+        if (hasNewsArticleBody(newsArticleBlocks(data)) && !viewed.current.recorded) {
+          viewed.current.recorded = true;
+          recordView(data.slug);
         }
       })
-      .catch(() => {
-        if (!cancelled) setRelated([]);
-      });
+      .catch(fail);
 
     return () => {
-      cancelled = true;
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
     };
-  }, [slug, t, location.state]);
+    // A same-URL preview or UI-language change must not restart the network read.
+    // The preview is captured for this route/attempt, not treated as live authority.
+  }, [slug, attempt]);
+
+  useEffect(() => {
+    let active = true;
+    setRelatedResult({ slug, rows: [] });
+    getRelated(slug, 6)
+      .then((rows) => {
+        if (active) setRelatedResult({ slug, rows: Array.isArray(rows) ? rows : [] });
+      })
+      .catch(() => {
+        if (active) setRelatedResult({ slug, rows: [] });
+      });
+    return () => { active = false; };
+  }, [slug]);
+
+  // Route identity is checked during render, before an effect can clear old state.
+  const current = result.slug === slug
+    ? result
+    : { slug, article: shellFrom(location, slug), pending: true, error: "" };
+  const article = current.article;
+  const related = relatedResult.slug === slug ? relatedResult.rows : [];
+  const error = current.error
+    ? t(current.error === "missing" ? "empty.articleMissing" : "empty.loadFail")
+    : "";
+  const onRetry = () => setRetry((previous) => ({
+    slug, count: previous.slug === slug ? previous.count + 1 : 1,
+  }));
 
   useEffect(() => {
     if (!article) {
@@ -161,19 +208,22 @@ export default function ArticlePage() {
     return undefined;
   }, [article, error, slug, t]);
 
-  if (loading && !article) {
-    return <p className="info-text">{t("loading.article")}</p>;
+  if (current.pending && !article) {
+    return <p className="info-text" role="status">{t("loading.article")}</p>;
   }
 
-  if ((error && !article) || !article) {
+  if (!article) {
     return (
       <EmptyState
         compact
         title={error || t("empty.articleMissing")}
         action={
-          <Link to="/" className="btn">
-            {t("empty.backHome")}
-          </Link>
+          <>
+            {current.error !== "missing" && (
+              <button type="button" className="btn" onClick={onRetry}>{t("live.retry")}</button>
+            )}
+            <Link to="/" className="btn">{t("empty.backHome")}</Link>
+          </>
         }
       />
     );
@@ -191,9 +241,12 @@ export default function ArticlePage() {
   return (
     <article className={`article-page is-${presentation}${mediaClass}`}>
       <ArticleInner
+        key={slug}
         article={article}
         related={related}
-        bodyPending={!hasArticleBody(article)}
+        pending={current.pending}
+        error={error}
+        onRetry={onRetry}
       />
     </article>
   );
