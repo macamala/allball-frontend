@@ -1,0 +1,39 @@
+name: News02 pinned backend source review - NO DEPLOY
+on:
+  push:
+    branches: [news/isolated-20260926-01]
+    paths: ['.github/workflows/news02-source-review.yml']
+permissions:
+  contents: read
+jobs:
+  source-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: cf192f22da637b9b54495cd5fc2ba238abbfbee3
+          persist-credentials: false
+      - name: Archive exact public repository source, not credentials or runtime data
+        run: |
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = cf192f22da637b9b54495cd5fc2ba238abbfbee3
+          git archive --format=tar.gz HEAD > evidence/backend-source.tar.gz
+          git rev-parse HEAD > evidence/source-sha.txt
+          sha256sum evidence/backend-source.tar.gz > evidence/archive-SHA256SUMS
+          python - <<'PY'
+          from pathlib import Path
+          rows=[]
+          for p in sorted(Path('.github/workflows').glob('*.y*ml')):
+              text=p.read_text()
+              head=text.split('jobs:',1)[0]
+              rows.append(str(p)+'\n'+head)
+          Path('evidence/inherited-workflow-headers.txt').write_text('\n\n'.join(rows))
+          print('\n\n'.join(rows))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: news02-pinned-backend-source
+          path: evidence
+          retention-days: 30
