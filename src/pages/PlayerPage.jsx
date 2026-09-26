@@ -58,8 +58,15 @@ export default function PlayerPage() {
   const [search] = useSearchParams();
   const requestedName = search.get("name") || "";
   const eventId = search.get("event_id") || "";
+  const competitionKey = search.get("competition_key") || "";
+  const season = search.get("season") || "";
+  const group = search.get("group") || "";
+  const competitionSearch = new URLSearchParams({sport: "football", tab: "scorers"});
+  if (season) competitionSearch.set("season", season);
+  if (group) competitionSearch.set("group", group);
+  const competitionBack = competitionKey ? `/scores/competition/${encodeURIComponent(competitionKey)}/standings?${competitionSearch}` : "/live-scores";
   const returnTo = location.state?.matchReturnTo;
-  const backPath = typeof returnTo === "string" && returnTo.startsWith("/scores/event/") ? returnTo : eventId ? eventPath(eventId) : "/live-scores";
+  const backPath = typeof returnTo === "string" && returnTo.startsWith("/scores/event/") ? returnTo : eventId ? eventPath(eventId) : competitionBack;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -68,12 +75,13 @@ export default function PlayerPage() {
     let cancelled = false;
     setLoading(true);
     setError(false);
-    getPlayerProfile(playerKey, { name: requestedName, event_id: eventId })
+    const scope = competitionKey ? { competition_key: competitionKey, season, group } : {};
+    getPlayerProfile(playerKey, { name: requestedName, event_id: eventId, ...scope })
       .then((payload) => { if (!cancelled) setData(payload); })
       .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [playerKey, requestedName, eventId]);
+  }, [playerKey, requestedName, eventId, competitionKey, season, group]);
 
   const player = data?.player || {};
   const name = data?.name || player.display_name || player.name || requestedName || playerKey;

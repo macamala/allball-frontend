@@ -672,6 +672,12 @@ export function playerProfilePath(player, event = {}, fallbackName = "") {
   const search = new URLSearchParams();
   if (name) search.set("name", name);
   if (event?.id) search.set("event_id", event.id);
+  const scope = event?.profile_scope;
+  if (scope?.competition_key) {
+    search.set("competition_key", scope.competition_key);
+    if (scope.season) search.set("season", scope.season);
+    if (scope.group) search.set("group", scope.group);
+  }
   const qs = search.toString();
   return `/players/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
 }

@@ -18,3 +18,12 @@ it('does not substitute another league list when a group is unsupported',async()
  mock.get.mockResolvedValue({available:false,rows:[]});render(<MemoryRouter><TopScorersPanel competitionKey="league" group="Group A"/></MemoryRouter>);
  await screen.findByText('A verified scorer list is not yet available for this competition, group and season.');expect(screen.queryByRole('list')).toBeNull();expect(mock.get).toHaveBeenCalledWith('/sports-data/competitions/league/scorers?group=Group+A');
 });
+
+it('passes exact competition and source season in scorer profile navigation',async()=>{
+ render(<MemoryRouter><TopScorersPanel competitionKey="football-nor-toppserien"/></MemoryRouter>);
+ const link=await screen.findByRole('link',{name:'Player A'});
+ const target=new URL(link.getAttribute('href'),'https://ninkosports.com');
+ expect(target.searchParams.get('competition_key')).toBe('football-nor-toppserien');
+ expect(target.searchParams.get('season')).toBe('2026');
+ expect(target.searchParams.get('event_id')).toBeNull();
+});
