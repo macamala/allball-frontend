@@ -1,0 +1,60 @@
+name: C17 production followup frontend gate
+on:
+  push:
+    branches: [fix/football-c17-production-followup]
+    paths: ['.github/workflows/c17-followup-gate.yml']
+permissions:
+  contents: write
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: 0934f992496756deb6c1db5651fc810a0375e4db
+          path: saved-handoff
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact checksum-pinned frontend patch
+        run: |
+          mkdir evidence
+          python - <<'PY'
+          import base64,gzip,hashlib,subprocess
+          from pathlib import Path
+          text=Path('saved-handoff/audit/c17-followup-frontend.b64').read_text().strip()
+          data=gzip.decompress(base64.b64decode(text,validate=True))
+          assert hashlib.sha256(data).hexdigest()=='2e0dc7cbd687819984b70e5092067f158bc9cad0fe18aa26c30b4df1ed38e7f4'
+          Path('evidence/source.patch').write_bytes(data)
+          subprocess.run(['git','apply','--check','evidence/source.patch'],check=True)
+          subprocess.run(['git','apply','evidence/source.patch'],check=True)
+          PY
+          git diff --check
+          npm ci
+      - name: Complete frontend suite
+        run: npm test -- --reporter=default --reporter=junit --outputFile=evidence/tests.xml
+      - name: Production build
+        run: npm run build
+        env:
+          VITE_API_URL: https://allball-backend-production.up.railway.app
+      - name: Publish tested isolated candidate only
+        run: |
+          git config user.name 'NinkoSports regression checks'
+          git config user.email '79318740+macamala@users.noreply.github.com'
+          git add src
+          git commit -m 'Carry verified competition and season context into scorer player profiles and preserve leaderboard return'
+          git push origin HEAD:refs/heads/fix/football-c17-production-followup
+          git rev-parse HEAD > evidence/candidate.txt
+          git diff --name-only 878bcc5dd06baee5cc9a1a2e0f18767ec186686c HEAD -- src | xargs sha256sum > evidence/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c17-followup-frontend-gated
+          path: evidence
+          retention-days: 30
