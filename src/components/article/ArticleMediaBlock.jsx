@@ -8,6 +8,8 @@ export default function ArticleMediaBlock({
   hero = false,
   compact = false,
   alt = "",
+  fallbackSrc,
+  fallbackMediaKind,
 }) {
   if (!item?.url) return null;
   const caption = (item.caption || "").trim();
@@ -27,6 +29,8 @@ export default function ArticleMediaBlock({
         eager={hero}
         variant={hero ? "hero" : "card"}
         mediaKind={kind}
+        fallbackSrc={fallbackSrc}
+        fallbackMediaKind={fallbackMediaKind}
       />
       {!hideCaption && caption ? <figcaption>{caption}</figcaption> : null}
     </figure>
