@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { articlePath, getArticle, getJSON, getRelated, peekArticle, recordView } from "../api.js";
+import { articlePath, getArticle, getArticleTranslation, getJSON, getRelated, peekArticle, recordView } from "../api.js";
 import { leaguePath, sportPath } from "../config/sports.js";
 import { heroMedia } from "../lib/articleBlocks.js";
 import { hasNewsArticleBody, isNewsArticleForSlug, newsArticleBlocks, newsArticleShell } from "../lib/newsArticleState.js";
@@ -23,6 +23,23 @@ export const NEWS_ARTICLE_TIMEOUT_MS = 15000;
 
 function shellFrom(location, slug) {
   return newsArticleShell(peekArticle(slug), location.state?.preview, slug);
+}
+
+function withTranslation(article, translation) {
+  if (!article || !translation?.available || !translation.body) return article;
+  const blocks = String(translation.body)
+    .split(/\n{2,}/)
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .map((text) => ({ type: "paragraph", text }));
+  return {
+    ...article,
+    title: translation.title || article.title,
+    summary: translation.summary || article.summary,
+    content: translation.body,
+    blocks,
+    translation_language: translation.language,
+  };
 }
 
 function mergeRelated(related, inlineArticle) {
@@ -91,11 +108,14 @@ function ArticleInner({ article, related, pending, error, onRetry }) {
 export default function ArticlePage() {
   const { slug } = useParams();
   const location = useLocation();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [result, setResult] = useState(() => ({
     slug, article: shellFrom(location, slug), pending: true, error: "",
   }));
   const [relatedResult, setRelatedResult] = useState({ slug, rows: [] });
+  const [translationResult, setTranslationResult] = useState({
+    slug, lang: "en", data: null,
+  });
   const [retry, setRetry] = useState({ slug, count: 0 });
   const viewed = useRef({ slug: null, recorded: false });
   const attempt = retry.slug === slug ? retry.count : 0;
@@ -162,11 +182,38 @@ export default function ArticlePage() {
     return () => { active = false; };
   }, [slug]);
 
+  useEffect(() => {
+    let active = true;
+    if (!lang || lang === "en") {
+      setTranslationResult({ slug, lang: "en", data: null });
+      return () => { active = false; };
+    }
+    setTranslationResult({ slug, lang, data: null });
+    getArticleTranslation(slug, lang)
+      .then((data) => {
+        if (!active) return;
+        setTranslationResult({
+          slug,
+          lang,
+          data: data?.available ? data : null,
+        });
+      })
+      .catch(() => {
+        if (active) setTranslationResult({ slug, lang, data: null });
+      });
+    return () => { active = false; };
+  }, [slug, lang]);
+
   // Route identity is checked during render, before an effect can clear old state.
   const current = result.slug === slug
     ? result
     : { slug, article: shellFrom(location, slug), pending: true, error: "" };
-  const article = current.article;
+  const baseArticle = current.article;
+  const translation =
+    translationResult.slug === slug && translationResult.lang === lang
+      ? translationResult.data
+      : null;
+  const article = withTranslation(baseArticle, translation);
   const related = relatedResult.slug === slug ? relatedResult.rows : [];
   const error = current.error
     ? t(current.error === "missing" ? "empty.articleMissing" : "empty.loadFail")
