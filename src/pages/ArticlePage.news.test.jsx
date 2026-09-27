@@ -5,8 +5,8 @@ import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import ArticlePage from "./ArticlePage.jsx";
 
 const api = vi.hoisted(() => ({
-  getArticle: vi.fn(), getJSON: vi.fn(), getRelated: vi.fn(),
-  peekArticle: vi.fn(), recordView: vi.fn(), setPageSeo: vi.fn(),
+  getArticle: vi.fn(), getArticleTranslation: vi.fn(), getJSON: vi.fn(), getRelated: vi.fn(),
+  peekArticle: vi.fn(), recordView: vi.fn(), setPageSeo: vi.fn(), lang: "en",
 }));
 vi.mock("../api.js", () => ({ ...api, articlePath: (slug) => `/articles/${encodeURIComponent(slug)}` }));
 vi.mock("../context/I18nContext.jsx", () => {
@@ -16,7 +16,7 @@ vi.mock("../context/I18nContext.jsx", () => {
     "empty.loadFail": "Could not load article", "empty.articleMissing": "Article not found",
     "empty.backHome": "Back home", "loading.article": "Loading article", "live.retry": "Retry",
   }[key] || key);
-  return { useI18n: () => ({ t }) };
+  return { useI18n: () => ({ t, lang: api.lang }) };
 });
 vi.mock("../lib/seo.js", () => ({
   setPageSeo: api.setPageSeo, articleJsonLd: () => ({}), breadcrumbJsonLd: () => ({}),
@@ -66,7 +66,9 @@ async function bodyReady(text = full.content) { return screen.findByText(text); 
 beforeEach(() => {
   vi.clearAllMocks();
   api.peekArticle.mockReturnValue(null);
+  api.lang = "en";
   api.getArticle.mockResolvedValue(full);
+  api.getArticleTranslation.mockResolvedValue({ available: false, status: "missing" });
   api.getJSON.mockResolvedValue(full);
   api.getRelated.mockResolvedValue([]);
   api.recordView.mockResolvedValue(null);
@@ -74,6 +76,43 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("isolated News reader state", () => {
+  it("does not request a translation while the reader language is English", async () => {
+    mount();
+    await bodyReady();
+    expect(api.getArticleTranslation).not.toHaveBeenCalled();
+  });
+
+  it("renders a ready cached Serbian translation without refetching the English article", async () => {
+    api.lang = "sr";
+    api.getArticleTranslation.mockResolvedValue({
+      available: true,
+      language: "sr",
+      status: "ready",
+      title: "Prevedena priča A",
+      summary: "Prevedeni sažetak.",
+      body: "Prvi prevedeni pasus.\n\nDrugi prevedeni pasus.",
+    });
+    mount();
+    await screen.findByRole("heading", { name: "Prevedena priča A" });
+    expect(screen.getByText("Prvi prevedeni pasus.")).toBeTruthy();
+    expect(screen.getByText("Drugi prevedeni pasus.")).toBeTruthy();
+    expect(api.getArticle).toHaveBeenCalledTimes(1);
+    expect(api.getArticleTranslation).toHaveBeenCalledWith("story-a", "sr");
+  });
+
+  it("keeps the English article when the selected-language translation is not ready", async () => {
+    api.lang = "de";
+    api.getArticleTranslation.mockResolvedValue({
+      available: false,
+      language: "de",
+      status: "missing",
+    });
+    mount();
+    await bodyReady();
+    expect(screen.getByRole("heading", { name: "Story A" })).toBeTruthy();
+    expect(api.getArticleTranslation).toHaveBeenCalledWith("story-a", "de");
+  });
+
   it("paints the correct preview immediately then replaces it with the full body", async () => {
     const read = deferred(); api.getArticle.mockReturnValue(read.promise);
     mount({ preview });
