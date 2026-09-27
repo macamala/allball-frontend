@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { isCrestMedia, MEDIA_KINDS } from "../lib/mediaKind.js";
 import { imageUrlForDisplay } from "../lib/mediaUrl.js";
 
@@ -11,18 +11,32 @@ const SIZES = {
 
 export default function ArticleImage({
   src,
+  fallbackSrc,
   alt = "",
   className = "",
   wrapperClassName = "",
   eager = false,
   mediaKind,
+  fallbackMediaKind,
   width,
   height,
   variant = "card",
 }) {
-  const [failed, setFailed] = useState(false);
-  const kind = mediaKind || MEDIA_KINDS.UNKNOWN;
-  const displaySrc = imageUrlForDisplay(src, variant);
+  const primarySrc = imageUrlForDisplay(src, variant);
+  const secondarySrc = imageUrlForDisplay(fallbackSrc, variant);
+  const initialMode = primarySrc ? "primary" : secondarySrc ? "fallback" : "failed";
+  const [sourceMode, setSourceMode] = useState(initialMode);
+
+  useEffect(() => {
+    setSourceMode(primarySrc ? "primary" : secondarySrc ? "fallback" : "failed");
+  }, [primarySrc, secondarySrc]);
+
+  const usingFallback = sourceMode === "fallback";
+  const failed = sourceMode === "failed";
+  const displaySrc = usingFallback ? secondarySrc : primarySrc;
+  const kind = usingFallback
+    ? fallbackMediaKind || mediaKind || MEDIA_KINDS.UNKNOWN
+    : mediaKind || MEDIA_KINDS.UNKNOWN;
   const valid = Boolean(displaySrc) && !failed && kind !== MEDIA_KINDS.MISSING;
   const crest = isCrestMedia(kind);
   const kindClass = crest ? "media-kind-crest" : "";
@@ -51,7 +65,17 @@ export default function ArticleImage({
         decoding="async"
         fetchpriority={priority ? "high" : "auto"}
         sizes={SIZES[variant] || SIZES.card}
-        onError={() => setFailed(true)}
+        onError={() => {
+          if (
+            !usingFallback &&
+            secondarySrc &&
+            secondarySrc !== primarySrc
+          ) {
+            setSourceMode("fallback");
+            return;
+          }
+          setSourceMode("failed");
+        }}
       />
     </div>
   );
