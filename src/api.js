@@ -169,6 +169,16 @@ export function getArticle(slug) {
   return cachedGetJSON(articlePath(slug), ARTICLE_TTL);
 }
 
+export function getArticleTranslation(slug, language) {
+  if (!slug || !language || language === "en") {
+    return Promise.resolve({ available: false, language: language || "en", status: "source" });
+  }
+  return cachedGetJSON(
+    `/articles/${encodeURIComponent(slug)}/translation/${encodeURIComponent(language)}`,
+    ARTICLE_TTL
+  );
+}
+
 export function peekArticle(slug) {
   return peekCached(articlePath(slug));
 }
