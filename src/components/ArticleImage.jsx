@@ -9,6 +9,36 @@ const SIZES = {
   hero: "(max-width: 640px) calc(100vw - 24px), 840px",
 };
 
+function sourceCandidates(src, fallbackSrc, variant, mediaKind, fallbackMediaKind) {
+  const primaryRaw = String(src || "").trim();
+  const fallbackRaw = String(fallbackSrc || "").trim();
+  const rows = [
+    {
+      url: imageUrlForDisplay(primaryRaw, variant),
+      kind: mediaKind || MEDIA_KINDS.UNKNOWN,
+    },
+    {
+      url: primaryRaw,
+      kind: mediaKind || MEDIA_KINDS.UNKNOWN,
+    },
+    {
+      url: imageUrlForDisplay(fallbackRaw, variant),
+      kind: fallbackMediaKind || mediaKind || MEDIA_KINDS.UNKNOWN,
+    },
+    {
+      url: fallbackRaw,
+      kind: fallbackMediaKind || mediaKind || MEDIA_KINDS.UNKNOWN,
+    },
+  ];
+
+  const seen = new Set();
+  return rows.filter((row) => {
+    if (!row.url || row.kind === MEDIA_KINDS.MISSING || seen.has(row.url)) return false;
+    seen.add(row.url);
+    return true;
+  });
+}
+
 export default function ArticleImage({
   src,
   fallbackSrc,
@@ -22,22 +52,23 @@ export default function ArticleImage({
   height,
   variant = "card",
 }) {
-  const primarySrc = imageUrlForDisplay(src, variant);
-  const secondarySrc = imageUrlForDisplay(fallbackSrc, variant);
-  const initialMode = primarySrc ? "primary" : secondarySrc ? "fallback" : "failed";
-  const [sourceMode, setSourceMode] = useState(initialMode);
+  const candidates = sourceCandidates(
+    src,
+    fallbackSrc,
+    variant,
+    mediaKind,
+    fallbackMediaKind
+  );
+  const candidateKey = candidates.map((row) => `${row.url}|${row.kind}`).join("\n");
+  const [sourceIndex, setSourceIndex] = useState(0);
 
   useEffect(() => {
-    setSourceMode(primarySrc ? "primary" : secondarySrc ? "fallback" : "failed");
-  }, [primarySrc, secondarySrc]);
+    setSourceIndex(0);
+  }, [candidateKey]);
 
-  const usingFallback = sourceMode === "fallback";
-  const failed = sourceMode === "failed";
-  const displaySrc = usingFallback ? secondarySrc : primarySrc;
-  const kind = usingFallback
-    ? fallbackMediaKind || mediaKind || MEDIA_KINDS.UNKNOWN
-    : mediaKind || MEDIA_KINDS.UNKNOWN;
-  const valid = Boolean(displaySrc) && !failed && kind !== MEDIA_KINDS.MISSING;
+  const current = candidates[sourceIndex];
+  const valid = Boolean(current?.url);
+  const kind = current?.kind || MEDIA_KINDS.UNKNOWN;
   const crest = isCrestMedia(kind);
   const kindClass = crest ? "media-kind-crest" : "";
   const imgWidth = width || (crest ? 180 : undefined);
@@ -56,7 +87,7 @@ export default function ArticleImage({
   return (
     <div className={`media-frame ${kindClass} ${wrapperClassName}`.trim()}>
       <img
-        src={displaySrc}
+        src={current.url}
         alt={alt}
         className={className}
         width={imgWidth}
@@ -65,17 +96,7 @@ export default function ArticleImage({
         decoding="async"
         fetchpriority={priority ? "high" : "auto"}
         sizes={SIZES[variant] || SIZES.card}
-        onError={() => {
-          if (
-            !usingFallback &&
-            secondarySrc &&
-            secondarySrc !== primarySrc
-          ) {
-            setSourceMode("fallback");
-            return;
-          }
-          setSourceMode("failed");
-        }}
+        onError={() => setSourceIndex((index) => index + 1)}
       />
     </div>
   );
