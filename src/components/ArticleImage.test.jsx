@@ -64,3 +64,20 @@ describe("ArticleImage hero failover", () => {
     });
   });
 });
+
+
+it("falls back to the original CDN URL when an optimized width rewrite fails", () => {
+  render(
+    <ArticleImage
+      src="https://cdn.example/photo.jpg?width=640"
+      alt="Optimized hero"
+      variant="card"
+      mediaKind={MEDIA_KINDS.EDITORIAL_PHOTO}
+    />
+  );
+  const optimized = screen.getByRole("img", { name: "Optimized hero" });
+  expect(optimized.getAttribute("src")).toContain("width=800");
+  fireEvent.error(optimized);
+  expect(screen.getByRole("img", { name: "Optimized hero" }).getAttribute("src"))
+    .toContain("width=640");
+});
