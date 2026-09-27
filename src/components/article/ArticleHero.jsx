@@ -14,6 +14,12 @@ export default function ArticleHero({ media, article }) {
       hero
       compact={crest}
       alt={article?.title || ""}
+      fallbackSrc={
+        article?.image_url && article.image_url !== media.url
+          ? article.image_url
+          : undefined
+      }
+      fallbackMediaKind={article?.hero_media_kind}
     />
   );
 }
