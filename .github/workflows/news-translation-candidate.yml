@@ -1,0 +1,28 @@
+name: News translation candidate
+
+on:
+  pull_request:
+    paths:
+      - "src/api.js"
+      - "src/pages/ArticlePage.jsx"
+      - "src/pages/ArticlePage.news.test.jsx"
+      - ".github/workflows/news-translation-candidate.yml"
+
+jobs:
+  news-translation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Focused News reader translation test
+        run: npm test -- src/pages/ArticlePage.news.test.jsx
+      - name: Full retained frontend suite
+        run: npm test
+      - name: Production build
+        run: npm run build
+        env:
+          VITE_API_URL: https://allball-backend-production.up.railway.app
