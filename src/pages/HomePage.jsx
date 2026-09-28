@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
+import { filterPortalHomeToday } from "../lib/newsFreshness.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -18,7 +19,7 @@ import SportDesk from "../components/SportDesk.jsx";
 import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 
 export default function HomePage() {
-  const cached = peekPortalHome();
+  const cached = filterPortalHomeToday(peekPortalHome());
   const [data, setData] = useState(cached);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!cached);
@@ -36,7 +37,7 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const cachedHome = peekPortalHome();
+    const cachedHome = filterPortalHomeToday(peekPortalHome());
     if (cachedHome) {
       setData(cachedHome);
       setLoading(false);
@@ -46,7 +47,7 @@ export default function HomePage() {
     getPortalHome()
       .then((payload) => {
         if (!cancelled) {
-          setData(payload);
+          setData(filterPortalHomeToday(payload));
           setError("");
         }
       })

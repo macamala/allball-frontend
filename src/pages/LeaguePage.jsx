@@ -16,6 +16,7 @@ import StandingsTable from "../components/StandingsTable.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
+import { filterEditorialToday } from "../lib/newsFreshness.js";
 
 export default function LeaguePage() {
   const { sportSlug, leagueSlug } = useParams();
@@ -71,9 +72,9 @@ export default function LeaguePage() {
     } else if (league.league) {
       params.league = league.league;
     }
-    const cached = peekArticles(params);
-    if (cached) {
-      setArticles(Array.isArray(cached) ? cached : []);
+    const cached = filterEditorialToday(peekArticles(params));
+    if (cached.length) {
+      setArticles(cached);
       setLoading(false);
     } else {
       setLoading(true);
@@ -81,7 +82,7 @@ export default function LeaguePage() {
     getArticles(params)
       .then((rows) => {
         if (!cancelled) {
-          setArticles(Array.isArray(rows) ? rows : []);
+          setArticles(filterEditorialToday(rows));
           setError("");
         }
       })

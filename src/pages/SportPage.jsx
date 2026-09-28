@@ -13,6 +13,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
+import { filterEditorialToday } from "../lib/newsFreshness.js";
 import LatestFeed from "../components/LatestFeed.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -37,10 +38,10 @@ export default function SportPage() {
   const location = useLocation();
   const sport = getSport(sportSlug);
   const apiSport = sportSlug === "other-sports" ? "other" : sport?.slug || sportSlug;
-  const cachedList = peekArticles({ sport: apiSport, limit: 100 });
-  const [articles, setArticles] = useState(
-    Array.isArray(cachedList) ? cachedList : []
+  const cachedList = filterEditorialToday(
+    peekArticles({ sport: apiSport, limit: 100 })
   );
+  const [articles, setArticles] = useState(cachedList);
   const [loading, setLoading] = useState(!cachedList);
   const [error, setError] = useState("");
   const [directory, setDirectory] = useState(mergeDirectory({}));
@@ -67,9 +68,9 @@ export default function SportPage() {
     if (!sport) return undefined;
     let cancelled = false;
     const params = { sport: apiSport, limit: 100 };
-    const cached = peekArticles(params);
-    if (cached) {
-      setArticles(Array.isArray(cached) ? cached : []);
+    const cached = filterEditorialToday(peekArticles(params));
+    if (cached.length) {
+      setArticles(cached);
       setLoading(false);
     } else {
       setLoading(true);
@@ -77,7 +78,7 @@ export default function SportPage() {
     getArticles(params)
       .then((rows) => {
         if (!cancelled) {
-          setArticles(Array.isArray(rows) ? rows : []);
+          setArticles(filterEditorialToday(rows));
           setError("");
         }
       })
