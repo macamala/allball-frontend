@@ -38,11 +38,10 @@ export default function SportPage() {
   const location = useLocation();
   const sport = getSport(sportSlug);
   const apiSport = sportSlug === "other-sports" ? "other" : sport?.slug || sportSlug;
-  const cachedList = filterEditorialToday(
-    peekArticles({ sport: apiSport, limit: 100 })
-  );
+  const rawCachedList = peekArticles({ sport: apiSport, limit: 100 });
+  const cachedList = filterEditorialToday(rawCachedList);
   const [articles, setArticles] = useState(cachedList);
-  const [loading, setLoading] = useState(!cachedList);
+  const [loading, setLoading] = useState(!rawCachedList);
   const [error, setError] = useState("");
   const [directory, setDirectory] = useState(mergeDirectory({}));
   const { favorites, syncFavorites } = useAuth();
