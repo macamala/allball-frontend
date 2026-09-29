@@ -39,3 +39,27 @@ describe("Sydney editorial-day news filtering", () => {
     expect(result.by_league[0].articles).toEqual([today]);
   });
 });
+
+// Run this suite with TZ=Australia/Sydney as well as UTC to catch the original
+// browser-local parsing bug. API timestamps have no timezone suffix.
+describe("UTC timestamps from the News API", () => {
+  const now = new Date("2026-09-29T00:17:45Z");
+  it("keeps a current Sydney story when its source date is still yesterday in UTC", () => {
+    const story = {id: 31, published_at: "2026-09-28T23:58:37"};
+    expect(isEditorialToday(story, now)).toBe(true);
+    expect(filterPortalHomeToday({featured: [], latest: [story]}, now).featured).toEqual([story]);
+  });
+  it("uses the Sydney midnight boundary and preserves explicit offsets", () => {
+    expect(isEditorialToday({published_at: "2026-09-28T13:59:59.999999"}, now)).toBe(false);
+    expect(isEditorialToday({published_at: "2026-09-28T14:00:00"}, now)).toBe(true);
+    expect(isEditorialToday({published_at: "2026-09-29T00:00:00+10:00"}, now)).toBe(true);
+    expect(isEditorialToday({published_at: "2026-09-28T23:59:59+10:00"}, now)).toBe(false);
+  });
+  it("handles Sydney daylight saving and rejects invalid dates", () => {
+    const summer = new Date("2026-10-05T00:00:00Z");
+    expect(isEditorialToday({published_at: "2026-10-04T13:00:00"}, summer)).toBe(true);
+    expect(isEditorialToday({published_at: "2026-10-04T12:59:59"}, summer)).toBe(false);
+    expect(isEditorialToday({published_at: "invalid", created_at: "2026-09-29T00:00:00Z"}, now)).toBe(false);
+    expect(isEditorialToday({created_at: "2026-09-28T21:00:00.123456"}, now)).toBe(true);
+  });
+});
