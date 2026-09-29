@@ -21,6 +21,7 @@ export const DATE_LOCALES = {
 };
 
 const en = {
+  "news.archive": "Search news archive",
   "nav.home": "Home",
   "nav.mySports": "My Sports",
   "nav.search": "Search",
@@ -328,6 +329,7 @@ const en = {
 
 const sr = {
   ...en,
+  "news.archive": "Pretraži arhivu vesti",
   "nav.home": "Početna",
   "nav.mySports": "Moji sportovi",
   "nav.search": "Pretraga",
@@ -512,6 +514,7 @@ const sr = {
 
 const es = {
   ...en,
+  "news.archive": "Buscar en el archivo de noticias",
   "nav.home": "Inicio",
   "nav.mySports": "Mis deportes",
   "nav.search": "Buscar",
@@ -696,6 +699,7 @@ const es = {
 
 const de = {
   ...en,
+  "news.archive": "Nachrichtenarchiv durchsuchen",
   "nav.home": "Start",
   "nav.mySports": "Meine Sportarten",
   "nav.search": "Suche",
@@ -880,6 +884,7 @@ const de = {
 
 const fr = {
   ...en,
+  "news.archive": "Rechercher dans les archives",
   "nav.home": "Accueil",
   "nav.mySports": "Mes sports",
   "nav.search": "Recherche",
@@ -1064,6 +1069,7 @@ const fr = {
 
 const it = {
   ...en,
+  "news.archive": "Cerca nell’archivio notizie",
   "nav.home": "Inizio",
   "nav.mySports": "I miei sport",
   "nav.search": "Cerca",
@@ -1248,6 +1254,7 @@ const it = {
 
 const pt = {
   ...en,
+  "news.archive": "Pesquisar arquivo de notícias",
   "nav.home": "Início",
   "nav.mySports": "Meus esportes",
   "nav.search": "Buscar",

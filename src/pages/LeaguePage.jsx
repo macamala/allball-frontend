@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { getArticles, peekArticles } from "../api.js";
 import { featuredLeagueKeys, getSport, resolveLeague, scopedCompetitionId } from "../config/sports.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -16,7 +16,7 @@ import StandingsTable from "../components/StandingsTable.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
-import { filterEditorialToday } from "../lib/newsFreshness.js";
+import { publishedNewsRows } from "../lib/newsFreshness.js";
 
 export default function LeaguePage() {
   const { sportSlug, leagueSlug } = useParams();
@@ -72,7 +72,7 @@ export default function LeaguePage() {
     } else if (league.league) {
       params.league = league.league;
     }
-    const cached = filterEditorialToday(peekArticles(params));
+    const cached = publishedNewsRows(peekArticles(params));
     if (cached.length) {
       setArticles(cached);
       setLoading(false);
@@ -82,7 +82,7 @@ export default function LeaguePage() {
     getArticles(params)
       .then((rows) => {
         if (!cancelled) {
-          setArticles(filterEditorialToday(rows));
+          setArticles(publishedNewsRows(rows));
           setError("");
         }
       })
@@ -138,6 +138,10 @@ export default function LeaguePage() {
 
       {tab === "news" && (
         <>
+          <p><Link className="btn btn-ghost"
+            to={`/search?sport=${encodeURIComponent(sportSlug)}${!league.catchAll && league.league ? `&league=${encodeURIComponent(league.league)}` : ""}`}>
+            {t("news.archive")}
+          </Link></p>
           {loading && <CardSkeleton count={6} />}
           {error && <EmptyState title={error} />}
           {!loading && !error && isolated.length === 0 && (

@@ -14,3 +14,11 @@ it('home is editorial only even when the portal payload contains live results',a
   await waitFor(()=>expect(screen.getAllByText('Football news story').length).toBeGreaterThan(0));
   expect(screen.queryByText('Unexpected Home Team')).toBeNull();expect(container.querySelector('.portal-rail')).toBeNull();
 });
+it('retains a published older story in the home sport desk and exposes archive search', async()=>{
+  const old = {id:2,slug:'older-football',title:'Previous football report',sport:'football',published_at:'2026-09-01T12:00:00Z'};
+  const current = {id:3,slug:'current-football',title:'Current football report',sport:'football',published_at:new Date().toISOString()};
+  mocks.getPortalHome.mockResolvedValue({featured:[current], latest:[], by_sport:{football:[old]}});
+  render(<I18nProvider><MemoryRouter><HomePage/></MemoryRouter></I18nProvider>);
+  await waitFor(()=>expect(screen.getAllByText('Previous football report').length).toBeGreaterThan(0));
+  expect(screen.getByRole('link',{name:'Search news archive'}).getAttribute('href')).toBe('/search');
+});

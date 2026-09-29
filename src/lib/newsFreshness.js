@@ -70,3 +70,39 @@ export function filterPortalHomeToday(payload, now = new Date()) {
     by_league: byLeague,
   };
 }
+
+// Freshness is an ingestion rule, not an expiry rule for published articles.
+// Retain the original publication time and keep older public News browsable.
+export function publishedNewsRows(rows, now = new Date()) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => {
+      const stamp = row?.published_at || row?.created_at;
+      const millis = stamp ? new Date(newsTimestamp(stamp)).getTime() : NaN;
+      return Number.isFinite(millis) && millis <= now.getTime();
+    })
+    .sort((a, b) => new Date(newsTimestamp(b.published_at || b.created_at))
+      - new Date(newsTimestamp(a.published_at || a.created_at)));
+}
+
+export function preparePortalHomeNews(payload, now = new Date()) {
+  if (!payload || typeof payload !== "object") return payload || null;
+  const featured = publishedNewsRows(payload.featured, now);
+  const latest = publishedNewsRows(payload.latest, now);
+  const todayFeatured = filterEditorialToday(featured, now);
+  const todayLatest = filterEditorialToday(latest, now);
+  return {
+    ...payload,
+    featured: todayFeatured.length ? todayFeatured
+      : todayLatest.length ? todayLatest.slice(0, 5)
+      : featured.length ? featured : latest.slice(0, 5),
+    latest,
+    breaking: filterEditorialToday(payload.breaking, now),
+    most_read: publishedNewsRows(payload.most_read, now),
+    by_sport: Object.fromEntries(Object.entries(payload.by_sport || {})
+      .map(([sport, rows]) => [sport, publishedNewsRows(rows, now)])
+      .filter(([, rows]) => rows.length)),
+    by_league: (payload.by_league || [])
+      .map((group) => ({ ...group, articles: publishedNewsRows(group.articles, now) }))
+      .filter((group) => group.articles.length),
+  };
+}

@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
-import { filterEditorialToday } from "../lib/newsFreshness.js";
+import { publishedNewsRows } from "../lib/newsFreshness.js";
 import LatestFeed from "../components/LatestFeed.jsx";
 import Breadcrumbs from "../components/Breadcrumbs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -39,7 +39,7 @@ export default function SportPage() {
   const sport = getSport(sportSlug);
   const apiSport = sportSlug === "other-sports" ? "other" : sport?.slug || sportSlug;
   const rawCachedList = peekArticles({ sport: apiSport, limit: 100 });
-  const cachedList = filterEditorialToday(rawCachedList);
+  const cachedList = publishedNewsRows(rawCachedList);
   const [articles, setArticles] = useState(cachedList);
   const [loading, setLoading] = useState(!rawCachedList);
   const [error, setError] = useState("");
@@ -67,7 +67,7 @@ export default function SportPage() {
     if (!sport) return undefined;
     let cancelled = false;
     const params = { sport: apiSport, limit: 100 };
-    const cached = filterEditorialToday(peekArticles(params));
+    const cached = publishedNewsRows(peekArticles(params));
     if (cached.length) {
       setArticles(cached);
       setLoading(false);
@@ -77,7 +77,7 @@ export default function SportPage() {
     getArticles(params)
       .then((rows) => {
         if (!cancelled) {
-          setArticles(filterEditorialToday(rows));
+          setArticles(publishedNewsRows(rows));
           setError("");
         }
       })
@@ -157,6 +157,10 @@ export default function SportPage() {
           ))}
         </div>
       )}
+
+      <p><Link className="btn btn-ghost" to={`/search?sport=${encodeURIComponent(apiSport)}`}>
+        {t("news.archive")}
+      </Link></p>
 
       {apiSport === "other" && (
         <section className="other-directory" aria-label={t("other.directory")}>
