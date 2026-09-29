@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { getMeta, searchArticles } from "../api.js";
 import useDebouncedValue from "../hooks/useDebouncedValue.js";
 import { setPageSeo } from "../lib/seo.js";
+import { publishedNewsArchiveRows } from "../lib/newsFreshness.js";
 import { competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
@@ -47,9 +48,9 @@ export default function SearchPage() {
       return undefined;
     }
     setLoading(true);
-    searchArticles(debounced.trim(), { sport, league })
+    searchArticles(debounced.trim(), { sport, league, limit: 50 })
       .then((rows) => {
-        if (!cancelled) setResults(Array.isArray(rows) ? rows : []);
+        if (!cancelled) setResults(publishedNewsArchiveRows(rows));
       })
       .catch(() => {
         if (!cancelled) setResults([]);

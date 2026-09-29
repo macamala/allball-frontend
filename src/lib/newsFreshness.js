@@ -84,6 +84,16 @@ export function publishedNewsRows(rows, now = new Date()) {
       - new Date(newsTimestamp(a.published_at || a.created_at)));
 }
 
+export function publishedNewsArchiveRows(rows, now = new Date()) {
+  // The legacy search endpoint also returns old imported source copies.
+  // Archive retention must not promote those into original NinkoSports News.
+  return publishedNewsRows(rows, now).filter((row) =>
+    row.ai_generated === true && row.quality_ok === true && row.sport_match_ok === true
+    && typeof row.image_url === "string" && row.image_url.trim()
+    && ["EDITORIAL_PHOTO", "UNKNOWN"].includes(row.hero_media_kind)
+  );
+}
+
 export function preparePortalHomeNews(payload, now = new Date()) {
   if (!payload || typeof payload !== "object") return payload || null;
   const featured = publishedNewsRows(payload.featured, now);
