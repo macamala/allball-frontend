@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { getTeamProfile } from "../api.js";
 import { setPageSeo } from "../lib/seo.js";
+import TeamNews from "../components/TeamNews.jsx";
 import {
   eventPath,
   formatEventDateTime,
@@ -123,6 +124,7 @@ export default function TeamPage() {
           {form.length ? <div className="entity-form" aria-label="Recent form">{form.map((result, index) => <span className={`is-${String(result).toLowerCase()}`} key={`${result}-${index}`}>{result}</span>)}</div> : null}
         </div>
       </header>
+      <TeamNews profile={data} />
       <div className="entity-grid">
         <div>
           <MatchList title="Upcoming matches" rows={data.fixtures} />

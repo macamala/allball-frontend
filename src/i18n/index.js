@@ -21,6 +21,10 @@ export const DATE_LOCALES = {
 };
 
 const en = {
+  "news.team": "{name} news",
+  "news.teamEmpty": "No verified news is linked to this team yet.",
+  "news.teamPartial": "Some news could not be loaded.",
+  "news.teamMore": "Show more news",
   "news.archive": "Search news archive",
   "nav.home": "Home",
   "nav.mySports": "My Sports",
@@ -329,6 +333,10 @@ const en = {
 
 const sr = {
   ...en,
+  "news.team": "Vesti: {name}",
+  "news.teamEmpty": "Još nema potvrđenih vesti povezanih sa ovom ekipom.",
+  "news.teamPartial": "Deo vesti nije mogao da se učita.",
+  "news.teamMore": "Prikaži još vesti",
   "news.archive": "Pretraži arhivu vesti",
   "nav.home": "Početna",
   "nav.mySports": "Moji sportovi",
@@ -514,6 +522,10 @@ const sr = {
 
 const es = {
   ...en,
+  "news.team": "Noticias de {name}",
+  "news.teamEmpty": "Todavía no hay noticias verificadas vinculadas a este equipo.",
+  "news.teamPartial": "No se pudieron cargar algunas noticias.",
+  "news.teamMore": "Mostrar más noticias",
   "news.archive": "Buscar en el archivo de noticias",
   "nav.home": "Inicio",
   "nav.mySports": "Mis deportes",
@@ -699,6 +711,10 @@ const es = {
 
 const de = {
   ...en,
+  "news.team": "Nachrichten zu {name}",
+  "news.teamEmpty": "Für dieses Team sind noch keine bestätigten Nachrichten verknüpft.",
+  "news.teamPartial": "Einige Nachrichten konnten nicht geladen werden.",
+  "news.teamMore": "Weitere Nachrichten",
   "news.archive": "Nachrichtenarchiv durchsuchen",
   "nav.home": "Start",
   "nav.mySports": "Meine Sportarten",
@@ -884,6 +900,10 @@ const de = {
 
 const fr = {
   ...en,
+  "news.team": "Actualités de {name}",
+  "news.teamEmpty": "Aucune actualité vérifiée liée à cette équipe pour le moment.",
+  "news.teamPartial": "Certaines actualités n’ont pas pu être chargées.",
+  "news.teamMore": "Afficher plus d’actualités",
   "news.archive": "Rechercher dans les archives",
   "nav.home": "Accueil",
   "nav.mySports": "Mes sports",
@@ -1069,6 +1089,10 @@ const fr = {
 
 const it = {
   ...en,
+  "news.team": "Notizie su {name}",
+  "news.teamEmpty": "Non ci sono ancora notizie verificate collegate a questa squadra.",
+  "news.teamPartial": "Alcune notizie non sono state caricate.",
+  "news.teamMore": "Mostra altre notizie",
   "news.archive": "Cerca nell’archivio notizie",
   "nav.home": "Inizio",
   "nav.mySports": "I miei sport",
@@ -1254,6 +1278,10 @@ const it = {
 
 const pt = {
   ...en,
+  "news.team": "Notícias de {name}",
+  "news.teamEmpty": "Ainda não há notícias verificadas associadas a esta equipa.",
+  "news.teamPartial": "Não foi possível carregar algumas notícias.",
+  "news.teamMore": "Mostrar mais notícias",
   "news.archive": "Pesquisar arquivo de notícias",
   "nav.home": "Início",
   "nav.mySports": "Meus esportes",
