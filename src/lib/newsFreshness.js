@@ -3,7 +3,7 @@ const EDITORIAL_TIME_ZONE = "Australia/Sydney";
 // The News API stores UTC and currently serializes SQL timestamps without an
 // offset. Interpret that documented shape as UTC, independent of reader locale.
 // Preserve explicit offsets and Date objects; never replace publication times.
-function newsTimestamp(value) {
+export function newsTimestamp(value) {
   if (typeof value !== "string") return value;
   const stamp = value.trim();
   if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/.test(stamp)) {

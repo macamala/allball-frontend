@@ -1,3 +1,5 @@
+import { newsTimestamp } from "./lib/newsFreshness.js";
+
 export const SPORT_LABELS = {
   football: "Football",
   basketball: "Basketball",
@@ -99,7 +101,7 @@ export function articleDate(article, locale = "en-GB") {
   const raw = article?.published_at || article?.created_at;
   if (!raw) return "";
   const stamp = String(raw).trim();
-  const d = new Date(stamp);
+  const d = new Date(newsTimestamp(stamp));
   if (Number.isNaN(d.getTime())) return "";
   const looksDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(stamp);
   const looksMidnight = /T00:00(?::00)?(?:\.0+)?(?:Z|[+-]00:00)?$/i.test(stamp);
