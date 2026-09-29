@@ -21,6 +21,15 @@ function hasPhrase(text, phrase) {
   return Boolean(phrase && (` ${text} `).includes(` ${phrase} `));
 }
 
+function announcesNationalSquad(article, alias) {
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Require the country to be the grammatical subject of a team selection
+  // announcement. A player's nationality or an event location is insufficient.
+  const announcement = new RegExp(`^${escaped} (?:announce[sd]?|name[sd]?|select[sd]?|unveil[sd]?) (?:their |its |a |the )?(?:(?:final|preliminary|provisional|expanded|new|national|senior|training|world cup|nations league|olympic|\\d+ player|\\d+ man) ){0,3}(?:squad|team)(?= |$)`);
+  return [article.title, article.summary].flatMap((value) => String(value || "").split(/[.!?]\s+/))
+    .some((sentence) => announcement.test(foldNewsName(sentence)));
+}
+
 function category(text) {
   const value = foldNewsName(text);
   const women = /\b(women|womens|female|ladies|girls|wnba|nwsl|wsl|feminine|femenino|femminile)\b/.test(value);
@@ -115,7 +124,7 @@ export function matchesTeamNews(article, identity) {
       `${alias} mens team`, `${alias} womens team`, `${alias} women`, `${alias} men`,
       `${alias} ${identity.age}`, `${alias}s ${identity.age}`,
     ].filter((phrase) => phrase.trim() !== alias && phrase.trim() !== `${alias}s`)
-      .some((phrase) => hasPhrase(text, phrase.trim())));
+      .some((phrase) => hasPhrase(text, phrase.trim())) || announcesNationalSquad(article, alias));
   }
   return true;
 }

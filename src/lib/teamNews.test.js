@@ -69,6 +69,9 @@ describe("profile-driven News linking", () => {
     for (const sport of ["football", "basketball", "volleyball", "cricket", "ice-hockey", "water-polo", "rugby"]) {
       const identity = teamNewsIdentity(profile(sport, "Serbia"));
       expect(matchesTeamNews(article("Serbia national team announces squad", { sport }), identity)).toBe(true);
+      expect(matchesTeamNews(article("Serbia announce their final 14-player squad", { sport }), identity)).toBe(true);
+      expect(matchesTeamNews(article("Club in Serbia announces a squad", { sport }), identity)).toBe(false);
+      expect(matchesTeamNews(article("Serbia international named in club squad", { sport }), identity)).toBe(false);
       expect(matchesTeamNews(article("Club signs Serbia international", { sport }), identity)).toBe(false);
       expect(matchesTeamNews(article("League conference held in Serbia", { sport }), identity)).toBe(false);
     }
