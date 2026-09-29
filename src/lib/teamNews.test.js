@@ -39,6 +39,32 @@ describe("profile-driven News linking", () => {
     expect(matchesTeamNews(article("Arsenal II appoint coach"), men)).toBe(false);
     expect(matchesTeamNews(article("Arsenal academy appoint coach"), men)).toBe(false);
   });
+  it("matches script and dotted club spellings without broadening the team name", () => {
+    const zvezda = teamNewsIdentity(profile("football", "ФК Црвена Звезда", { football_gender: "men" }));
+    expect(matchesTeamNews(article("Crvena Zvezda appoints a coach"), zvezda)).toBe(true);
+    expect(matchesTeamNews(article("Црвена Звезда appoints a coach"), zvezda)).toBe(true);
+    expect(matchesTeamNews(article("Crvena Zvezdar appoints a coach"), zvezda)).toBe(false);
+    const basel = teamNewsIdentity(profile("football", "F.C. Basel U-21", { football_gender: "men" }));
+    expect(matchesTeamNews(article("Basel under-21 appoints coach"), basel)).toBe(true);
+    expect(matchesTeamNews(article("Basel appoints coach"), basel)).toBe(false);
+  });
+  it("recognizes translated country names only with national-team evidence and the same sport", () => {
+    const serbia = teamNewsIdentity(profile("volleyball", "Србија"));
+    expect(matchesTeamNews(article("Serbia national team announces squad", { sport: "volleyball" }), serbia)).toBe(true);
+    expect(matchesTeamNews(article("Serbia national team announces squad"), serbia)).toBe(false);
+    expect(matchesTeamNews(article("Club signs Serbia international", { sport: "volleyball" }), serbia)).toBe(false);
+    const germany = teamNewsIdentity(profile("basketball", "Deutschland"));
+    expect(matchesTeamNews(article("Germany squad announced", { sport: "basketball" }), germany)).toBe(true);
+    expect(matchesTeamNews(article("Conference in Germany", { sport: "basketball" }), germany)).toBe(false);
+  });
+  it("preserves the original accented name when querying the archive", async () => {
+    const identity = teamNewsIdentity(profile("football", "Atlético Madrid"));
+    const row = article("Atlético Madrid appoints coach", { published_at: "2025-12-29T01:00:00Z" });
+    const api = { searchArticles: vi.fn(async (q) => q === "Atlético Madrid" ? [row] : []), getArticles: vi.fn().mockResolvedValue([]) };
+    expect((await loadTeamNews(identity, api)).rows).toEqual([row]);
+    expect(api.searchArticles.mock.calls[0][0]).toBe("Atlético Madrid");
+    expect(matchesTeamNews(article("Atletico Madrid appoints coach"), identity)).toBe(true);
+  });
   it("requires national-team evidence, not a country location or player nationality", () => {
     for (const sport of ["football", "basketball", "volleyball", "cricket", "ice-hockey", "water-polo", "rugby"]) {
       const identity = teamNewsIdentity(profile(sport, "Serbia"));

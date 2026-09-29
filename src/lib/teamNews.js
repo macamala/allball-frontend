@@ -4,8 +4,17 @@ import { publishedNewsArchiveRows } from "./newsFreshness.js";
 // This resolver is driven by a resolved profile, not a shortlist of teams.
 // Never use a URL-supplied name as identity evidence or infer a club from a player.
 export function foldNewsName(value) {
-  return String(value || "").normalize("NFKD").replace(/\p{M}/gu, "")
+  return latinNewsName(value).normalize("NFKD").replace(/\p{M}/gu, "")
     .toLowerCase().replace(/[’']/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+// Script equivalents are spelling variants, never inferred club nicknames.
+const SERBIAN_LETTERS = Object.fromEntries([..."абвгдђежзијклљмнњопрстћуфхцчџш"].map((letter, i) =>
+  [letter, ["a", "b", "v", "g", "d", "dj", "e", "z", "z", "i", "j", "k", "l", "lj", "m", "n", "nj", "o", "p", "r", "s", "t", "c", "u", "f", "h", "c", "c", "dz", "s"][i]]));
+function latinNewsName(value) {
+  return String(value || "").replace(/[А-Яа-яЂђЈјЉљЊњЋћЏџ]/g, (letter) => SERBIAN_LETTERS[letter.toLowerCase()] || letter)
+    .replace(/[Đđ]/g, "dj")
+    .replace(/\b(F|B|H)\.\s*C\./gi, "$1C");
 }
 
 function hasPhrase(text, phrase) {
@@ -23,18 +32,29 @@ function category(text) {
 
 const AMBIGUOUS_NAMES = new Set(["united", "city", "inter", "milan", "sporting", "racing", "national", "nacional", "athletic", "real", "heat", "storm", "giants", "warriors"]);
 const CLUB_DECORATION = /^(?:(?:fc|fk|kk|bc|ssc|acf|hc|hk|rfc) )| (?:fc|fk|kk|bc|hc|hk|rfc)$/g;
-let countryNames;
-function isCountryName(name) {
-  if (!countryNames) {
-    countryNames = new Set(["england", "scotland", "wales", "northern ireland", "kosovo", "usa"]);
-    // ISO region labels identify countries across all sports without a team list.
-    const display = new Intl.DisplayNames(["en"], { type: "region", fallback: "none" });
+let countryAliases;
+function countrySpellings(name) {
+  if (!countryAliases) {
+    countryAliases = new Map();
+    const displays = ["en", "sr-Latn", "sr", "es", "fr", "de", "it", "pt"].map((locale) =>
+      new Intl.DisplayNames([locale], { type: "region", fallback: "none" }));
     for (let a = 65; a <= 90; a += 1) for (let b = 65; b <= 90; b += 1) {
-      const label = display.of(String.fromCharCode(a, b));
-      if (label) countryNames.add(foldNewsName(label));
+      const code = String.fromCharCode(a, b);
+      const canonicalCode = new Intl.Locale(`und-${code}`).region;
+      const labels = displays.map((display) => display.of(code)).filter(Boolean);
+      for (const label of labels) {
+        const folded = foldNewsName(label);
+        const existing = countryAliases.get(folded);
+        // An ambiguous translated region name must not merge two countries.
+        countryAliases.set(folded, existing && existing.code !== canonicalCode ? { code: "ambiguous", labels: [] } : { code: canonicalCode, labels });
+      }
     }
+    for (const label of ["England", "Scotland", "Wales", "Northern Ireland", "Kosovo"]) {
+      if (!countryAliases.has(foldNewsName(label))) countryAliases.set(foldNewsName(label), { code: label, labels: [label] });
+    }
+    countryAliases.set("usa", countryAliases.get("united states"));
   }
-  return countryNames.has(name);
+  return countryAliases.get(name)?.labels || [];
 }
 
 function withoutCategory(name) {
@@ -51,20 +71,27 @@ export function teamNewsIdentity(profile) {
   const explicitGender = profile.football_gender || team.gender;
   if (explicitGender === "conflict" || scopes.gender === "conflict" || scopes.ages.length > 1) return null;
   if (["men", "women"].includes(explicitGender) && scopes.gender && scopes.gender !== explicitGender) return null;
-  const aliases = [...new Set(names.flatMap((name) => {
+  const baseAliases = [...new Set(names.flatMap((name) => {
     const folded = withoutCategory(foldNewsName(name.replace(/\(W\)$/i, "Women")));
     return [folded, folded.replace(CLUB_DECORATION, "").trim()];
   }))].filter((name) => name.length >= 3 && !AMBIGUOUS_NAMES.has(name) && !/^\d+$/.test(name));
-  if (!aliases.length) return null;
+  if (!baseAliases.length) return null;
+  const nationalNames = baseAliases.flatMap(countrySpellings);
+  const aliases = [...new Set([...baseAliases, ...nationalNames.map(foldNewsName)])];
+  // Keep accented spellings for the API's literal title search. Normalization
+  // belongs to matching, not to the historical database query.
+  const searchTerms = [...new Set([...names.map((name) => name.replace(/\(W\)$/i, "Women")),
+    ...names.map(latinNewsName), ...baseAliases, ...nationalNames])];
   const gender = scopes.gender || (["men", "women"].includes(explicitGender) ? explicitGender : "");
   return {
     key: `${profile.sport}:${profile.entity_key || team.id}:${gender}:${scopes.ages[0] || "senior"}`,
     name: team.display_name || team.name || profile.name,
     sport: profile.sport,
     aliases,
+    searchTerms,
     gender,
     age: scopes.ages[0] || "",
-    national: aliases.some(isCountryName),
+    national: nationalNames.length > 0,
   };
 }
 
@@ -107,7 +134,7 @@ export async function loadTeamNews(identity, { getArticles, searchArticles }, ac
   if (!identity) return { rows: [], partial: false };
   // Search includes the historical archive. The sport feed additionally finds
   // mentions in decks which the legacy title-only search cannot retrieve.
-  const searches = await Promise.allSettled(identity.aliases.slice(0, 4).map((alias) =>
+  const searches = await Promise.allSettled((identity.searchTerms || identity.aliases).slice(0, 4).map((alias) =>
     searchArticles(alias, { sport: identity.sport, limit: 50 })));
   let partial = searches.some((result) => result.status === "rejected");
   const rows = searches.flatMap((result) => result.status === "fulfilled" && Array.isArray(result.value) ? result.value : []);
