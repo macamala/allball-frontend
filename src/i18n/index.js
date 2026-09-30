@@ -1,3 +1,5 @@
+import { SITE_LANGUAGES_ENABLED } from "../config/siteLanguages.js";
+
 const STORAGE_KEY = "ninkosports.lang";
 
 export const LANGUAGES = [
@@ -1526,6 +1528,7 @@ export function missingKeys(lang) {
 }
 
 export function readLanguage() {
+  if (!SITE_LANGUAGES_ENABLED) return "en";
   try {
     const value = localStorage.getItem(STORAGE_KEY);
     if (DICTS[value]) return value;
@@ -1536,6 +1539,7 @@ export function readLanguage() {
 }
 
 export function writeLanguage(code) {
+  if (!SITE_LANGUAGES_ENABLED) return "en";
   const next = DICTS[code] ? code : "en";
   try {
     localStorage.setItem(STORAGE_KEY, next);

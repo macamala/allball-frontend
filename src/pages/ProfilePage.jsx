@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useI18n } from "../context/I18nContext.jsx";
 import { setPageSeo } from "../lib/seo.js";
 import ArticleCard from "../components/ArticleCard.jsx";
+import { SITE_LANGUAGES_ENABLED } from "../config/siteLanguages.js";
 
 export default function ProfilePage() {
   const { user, loading, logout, updateProfile, favorites, saved } = useAuth();
@@ -40,7 +41,8 @@ export default function ProfilePage() {
     event.preventDefault();
     setMessage("");
     try {
-      await updateProfile({ display_name: name, preferred_language: language });
+      await updateProfile({ display_name: name,
+        ...(SITE_LANGUAGES_ENABLED ? { preferred_language: language } : {}) });
       setMessage("Profile saved.");
     } catch (err) {
       setMessage(err.detail || "Could not save profile.");
@@ -69,7 +71,7 @@ export default function ProfilePage() {
           <p>
             {t("profile.created")}: {user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}
           </p>
-          <label htmlFor="profile-language">{t("profile.language")}</label>
+          {SITE_LANGUAGES_ENABLED && <><label htmlFor="profile-language">{t("profile.language")}</label>
           <select
             id="profile-language"
             value={language}
@@ -80,7 +82,7 @@ export default function ProfilePage() {
                 {item.label}
               </option>
             ))}
-          </select>
+          </select></>}
           {message ? <p className="info-text">{message}</p> : null}
           <button type="submit" className="btn">
             {t("profile.save")}
