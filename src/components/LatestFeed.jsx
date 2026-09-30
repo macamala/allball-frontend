@@ -4,8 +4,10 @@ import { articleDate, competitionLabel } from "../labels.js";
 import { sportI18nKey } from "../i18n/index.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import ArticleImage from "./ArticleImage.jsx";
+import { useTranslatedNews } from "../lib/useTranslatedNews.js";
 
 export default function LatestFeed({ articles = [] }) {
+  articles = useTranslatedNews(articles);
   const { t, dateLocale } = useI18n();
   if (!articles.length) return null;
 

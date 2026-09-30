@@ -6,8 +6,10 @@ import { useI18n } from "../context/I18nContext.jsx";
 import { isCrestMedia, publicMediaKind } from "../lib/mediaKind.js";
 import { publicDeck } from "../lib/articleBlocks.js";
 import ArticleImage from "./ArticleImage.jsx";
+import { useTranslatedNews } from "../lib/useTranslatedNews.js";
 
 export default function ArticleCard({ article, variant = "grid" }) {
+  [article] = useTranslatedNews([article]);
   const { t, dateLocale } = useI18n();
   if (!article) return null;
   const sportKey = sportI18nKey(article.sport);

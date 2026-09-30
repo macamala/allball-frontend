@@ -1,7 +1,9 @@
 import React from "react";
 import ArticleLink from "./ArticleLink.jsx";
+import { useTranslatedNews } from "../lib/useTranslatedNews.js";
 
 export default function BreakingBar({ articles = [] }) {
+  articles = useTranslatedNews(articles);
   if (!articles.length) return null;
   return (
     <div className="breaking-bar" role="region" aria-label="Breaking news">

@@ -76,6 +76,17 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("isolated News reader state", () => {
+  it("explains a missing Serbian translation and can load it when ready", async () => {
+    api.lang = "sr";
+    mount();
+    await screen.findByText("Prevod još nije spreman. Prikazan je original na engleskom.");
+    api.getArticleTranslation.mockResolvedValue({ available: true, language: "sr", title: "Srpski članak", body: "Preveden tekst članka." });
+    fireEvent.click(screen.getByRole("button", { name: "Proveri prevod" }));
+    await screen.findByRole("heading", { name: "Srpski članak" });
+    expect(screen.getByText("Preveden tekst članka.")).toBeTruthy();
+    expect(api.getArticleTranslation).toHaveBeenLastCalledWith("story-a", "sr", { refresh: true });
+    expect(api.getArticle).toHaveBeenCalledTimes(1);
+  });
   it("does not request a translation while the reader language is English", async () => {
     mount();
     await bodyReady();

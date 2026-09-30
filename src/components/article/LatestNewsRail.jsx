@@ -1,9 +1,10 @@
 import React from "react";
 import ArticleImage from "../ArticleImage.jsx";
 import ArticleLink from "../ArticleLink.jsx";
+import { useTranslatedNews } from "../../lib/useTranslatedNews.js";
 
 export default function LatestNewsRail({ articles = [], currentSlug }) {
-  const rows = articles.filter((item) => item?.slug && item.slug !== currentSlug).slice(0, 8);
+  const rows = useTranslatedNews(articles.filter((item) => item?.slug && item.slug !== currentSlug).slice(0, 8));
   if (!rows.length) return null;
   return (
     <section className="rail-module" aria-label="Latest news">

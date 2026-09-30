@@ -169,14 +169,34 @@ export function getArticle(slug) {
   return cachedGetJSON(articlePath(slug), ARTICLE_TTL);
 }
 
-export function getArticleTranslation(slug, language) {
+const translationReads = new Map();
+const translationQueue = [];
+let activeTranslationReads = 0;
+function pumpTranslationReads() {
+  while (activeTranslationReads < 4 && translationQueue.length) {
+    const run = translationQueue.shift();
+    activeTranslationReads += 1;
+    run().finally(() => { activeTranslationReads -= 1; pumpTranslationReads(); });
+  }
+}
+
+export function getArticleTranslation(slug, language, { refresh = false, priority = true } = {}) {
   if (!slug || !language || language === "en") {
     return Promise.resolve({ available: false, language: language || "en", status: "source" });
   }
-  return cachedGetJSON(
-    `/articles/${encodeURIComponent(slug)}/translation/${encodeURIComponent(language)}`,
-    ARTICLE_TTL
-  );
+  const path = `/articles/${encodeURIComponent(slug)}/translation/${encodeURIComponent(language)}`;
+  if (refresh) memoryCache.delete(path);
+  const cached = peekCached(path);
+  if (cached) return Promise.resolve(cached);
+  if (translationReads.has(path)) return translationReads.get(path);
+  const pending = new Promise((resolve, reject) => {
+    const run = () => cachedGetJSON(path, ARTICLE_TTL).then(resolve, reject);
+    if (priority) translationQueue.unshift(run);
+    else translationQueue.push(run);
+  }).finally(() => translationReads.delete(path));
+  translationReads.set(path, pending);
+  pumpTranslationReads();
+  return pending;
 }
 
 export function peekArticle(slug) {

@@ -1,8 +1,10 @@
 import React from "react";
 import { useI18n } from "../../context/I18nContext.jsx";
 import ArticleLink from "../ArticleLink.jsx";
+import { useTranslatedNews } from "../../lib/useTranslatedNews.js";
 
 export default function ArticlePager({ previous, next }) {
+  [previous, next] = useTranslatedNews([previous, next]);
   const { t } = useI18n();
   if (!previous && !next) return null;
   const both = Boolean(previous && next);

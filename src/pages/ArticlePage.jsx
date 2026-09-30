@@ -18,6 +18,7 @@ import ArticleHero from "../components/article/ArticleHero.jsx";
 import ArticlePager from "../components/article/ArticlePager.jsx";
 import Comments from "../components/Comments.jsx";
 import RelatedStories from "../components/article/RelatedStories.jsx";
+import { newsTranslationLabels } from "../lib/newsTranslationLabels.js";
 
 export const NEWS_ARTICLE_TIMEOUT_MS = 15000;
 
@@ -116,6 +117,9 @@ export default function ArticlePage() {
   const [translationResult, setTranslationResult] = useState({
     slug, lang: "en", data: null,
   });
+  const [translationRetry, setTranslationRetry] = useState({ key: "", count: 0 });
+  const translationKey = `${slug}|${lang}`;
+  const translationAttempt = translationRetry.key === translationKey ? translationRetry.count : 0;
   const [retry, setRetry] = useState({ slug, count: 0 });
   const viewed = useRef({ slug: null, recorded: false });
   const attempt = retry.slug === slug ? retry.count : 0;
@@ -188,21 +192,25 @@ export default function ArticlePage() {
       setTranslationResult({ slug, lang: "en", data: null });
       return () => { active = false; };
     }
-    setTranslationResult({ slug, lang, data: null });
-    getArticleTranslation(slug, lang)
+    setTranslationResult({ slug, lang, data: null, pending: true });
+    const request = translationAttempt
+      ? getArticleTranslation(slug, lang, { refresh: true })
+      : getArticleTranslation(slug, lang);
+    request
       .then((data) => {
         if (!active) return;
         setTranslationResult({
           slug,
           lang,
           data: data?.available ? data : null,
+          pending: false,
         });
       })
       .catch(() => {
-        if (active) setTranslationResult({ slug, lang, data: null });
+        if (active) setTranslationResult({ slug, lang, data: null, pending: false });
       });
     return () => { active = false; };
-  }, [slug, lang]);
+  }, [slug, lang, translationAttempt]);
 
   // Route identity is checked during render, before an effect can clear old state.
   const current = result.slug === slug
@@ -214,6 +222,8 @@ export default function ArticlePage() {
       ? translationResult.data
       : null;
   const article = withTranslation(baseArticle, translation);
+  const translationPending = translationResult.slug !== slug || translationResult.lang !== lang || translationResult.pending;
+  const translationLabels = newsTranslationLabels(lang);
   const related = relatedResult.slug === slug ? relatedResult.rows : [];
   const error = current.error
     ? t(current.error === "missing" ? "empty.articleMissing" : "empty.loadFail")
@@ -286,7 +296,13 @@ export default function ArticlePage() {
         : "";
 
   return (
-    <article className={`article-page is-${presentation}${mediaClass}`}>
+    <article className={`article-page is-${presentation}${mediaClass}`} lang={article.translation_language || "en"}>
+      {lang && lang !== "en" && !translation?.available && <p className="news-translation-status" role="status" lang={lang}>
+        {translationLabels[translationPending ? 0 : 1]}{" "}
+        {!translationPending && <button type="button" className="btn" onClick={() => setTranslationRetry({ key: translationKey, count: translationAttempt + 1 })}>
+          {translationLabels[2]}
+        </button>}
+      </p>}
       <ArticleInner
         key={slug}
         article={article}
