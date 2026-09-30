@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getArticles, peekArticles } from "../api.js";
 import { featuredLeagueKeys, getSport, resolveLeague, scopedCompetitionId } from "../config/sports.js";
@@ -17,8 +17,15 @@ import NotFoundPage from "./NotFoundPage.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
 import { publishedNewsRows } from "../lib/newsFreshness.js";
+import FootballNewsMenu from "../components/FootballNewsMenu.jsx";
+import { leagueNewsRows } from "../config/newsFootball.js";
 
 export default function LeaguePage() {
+  const { sportSlug, leagueSlug } = useParams();
+  return <LeagueNewsPage key={`${sportSlug}/${leagueSlug}`} />;
+}
+
+function LeagueNewsPage() {
   const { sportSlug, leagueSlug } = useParams();
   const sport = getSport(sportSlug);
   const league = resolveLeague(sportSlug, leagueSlug);
@@ -26,6 +33,12 @@ export default function LeaguePage() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [nextOffset, setNextOffset] = useState(80);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const directory = sportSlug === "football" && league.catchAll;
   const { favorites, syncFavorites } = useAuth();
   const { t } = useI18n();
   const sportLabelText = sport ? t(sportI18nKey(sport.slug) || "sport.label") : t("sport.label");
@@ -65,6 +78,7 @@ export default function LeaguePage() {
   }, [league.label, leagueSlug, sport, sportSlug, sportLabelText, t]);
 
   useEffect(() => {
+    if (directory) { setLoading(false); return undefined; }
     let cancelled = false;
     const params = { sport: sportSlug, limit: 80 };
     if (league.catchAll) {
@@ -72,7 +86,9 @@ export default function LeaguePage() {
     } else if (league.league) {
       params.league = league.league;
     }
-    const cached = publishedNewsRows(peekArticles(params));
+    const forLeague = (rows) => publishedNewsRows(sportSlug === "football" && !league.catchAll
+      ? leagueNewsRows(rows, league.league) : rows);
+    const cached = forLeague(peekArticles(params));
     if (cached.length) {
       setArticles(cached);
       setLoading(false);
@@ -82,7 +98,8 @@ export default function LeaguePage() {
     getArticles(params)
       .then((rows) => {
         if (!cancelled) {
-          setArticles(publishedNewsRows(rows));
+          setArticles(forLeague(rows));
+          setHasMore(rows.length === 80);
           setError("");
         }
       })
@@ -95,7 +112,22 @@ export default function LeaguePage() {
     return () => {
       cancelled = true;
     };
-  }, [league.catchAll, league.league, sportSlug]);
+  }, [league.catchAll, league.league, sportSlug, directory]);
+
+  async function loadMore() {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const rows = await getArticles({ sport: sportSlug, league: league.league, limit: 80, offset: nextOffset });
+      if (!mounted.current) return;
+      const fresh = publishedNewsRows(leagueNewsRows(rows, league.league));
+      setArticles((previous) => [...new Map([...previous, ...fresh].map((row) => [row.id || row.slug, row])).values()]);
+      setHasMore(rows.length === 80);
+      setNextOffset((offset) => offset + 80);
+      setError("");
+    } catch { if (mounted.current) setError(t("empty.competitionFail")); }
+    finally { if (mounted.current) setLoadingMore(false); }
+  }
 
   if (!sport) return <NotFoundPage />;
 
@@ -114,9 +146,9 @@ export default function LeaguePage() {
       <div className="page-heading">
         <div>
           <p className="section-eyebrow">{sportLabelText}</p>
-          <h1>{league.label}</h1>
+          <h1>{directory ? t("otherLeagues") : league.label}</h1>
         </div>
-        {followKey && (
+        {followKey && !directory && (
           <button
             type="button"
             className={followed ? "btn btn-ghost is-on" : "btn btn-ghost"}
@@ -134,9 +166,11 @@ export default function LeaguePage() {
         )}
       </div>
 
-      <LeagueTabs tabs={tabs} active={tab} onChange={setTab} />
+      {directory && <FootballNewsMenu directory />}
+      {sportSlug === "football" && !directory && <FootballNewsMenu current={league.league} />}
+      {!directory && <LeagueTabs tabs={tabs} active={tab} onChange={setTab} />}
 
-      {tab === "news" && (
+      {tab === "news" && !directory && (
         <>
           <p><Link className="btn btn-ghost"
             to={`/search?sport=${encodeURIComponent(sportSlug)}${!league.catchAll && league.league ? `&league=${encodeURIComponent(league.league)}` : ""}`}>
@@ -155,6 +189,8 @@ export default function LeaguePage() {
             <>
               <HeroStories articles={premium.slice(0, 4)} />
               <LatestFeed articles={[...premium.slice(4), ...rest]} />
+              {sportSlug === "football" && hasMore && <button type="button" className="btn btn-ghost"
+                disabled={loadingMore} onClick={loadMore}>{t("news.teamMore")}</button>}
             </>
           )}
         </>

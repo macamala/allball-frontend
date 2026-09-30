@@ -21,6 +21,13 @@ export const DATE_LOCALES = {
 };
 
 const en = {
+  "news.leagues": "Football news by league",
+  "news.chooseLeague": "Choose a league",
+  "news.allLeagues": "All leagues",
+  "news.findLeague": "Search league or country",
+  "news.leagueCount": "{count} competitions",
+  "news.leagueDirectoryBody": "Choose a competition to read its published news.",
+  "news.leaguesNoMatch": "No leagues match this search.",
   "news.team": "{name} news",
   "news.teamEmpty": "No verified news is linked to this team yet.",
   "news.teamPartial": "Some news could not be loaded.",
@@ -332,6 +339,13 @@ const en = {
 };
 
 const sr = {
+  "news.leagues": "Fudbalske vesti po ligama",
+  "news.chooseLeague": "Izaberi ligu",
+  "news.allLeagues": "Sve lige",
+  "news.findLeague": "Pretraži ligu ili zemlju",
+  "news.leagueCount": "Takmičenja: {count}",
+  "news.leagueDirectoryBody": "Izaberi takmičenje da pročitaš njegove objavljene vesti.",
+  "news.leaguesNoMatch": "Nijedna liga ne odgovara pretrazi.",
   ...en,
   "news.team": "Vesti: {name}",
   "news.teamEmpty": "Još nema potvrđenih vesti povezanih sa ovom ekipom.",
@@ -521,6 +535,13 @@ const sr = {
 };
 
 const es = {
+  "news.leagues": "Noticias de fútbol por liga",
+  "news.chooseLeague": "Elige una liga",
+  "news.allLeagues": "Todas las ligas",
+  "news.findLeague": "Buscar liga o país",
+  "news.leagueCount": "{count} competiciones",
+  "news.leagueDirectoryBody": "Elige una competición para leer sus noticias publicadas.",
+  "news.leaguesNoMatch": "No hay ligas que coincidan con la búsqueda.",
   ...en,
   "news.team": "Noticias de {name}",
   "news.teamEmpty": "Todavía no hay noticias verificadas vinculadas a este equipo.",
@@ -710,6 +731,13 @@ const es = {
 };
 
 const de = {
+  "news.leagues": "Fußballnachrichten nach Liga",
+  "news.chooseLeague": "Liga auswählen",
+  "news.allLeagues": "Alle Ligen",
+  "news.findLeague": "Liga oder Land suchen",
+  "news.leagueCount": "{count} Wettbewerbe",
+  "news.leagueDirectoryBody": "Wähle einen Wettbewerb, um seine veröffentlichten Nachrichten zu lesen.",
+  "news.leaguesNoMatch": "Keine Ligen für diese Suche gefunden.",
   ...en,
   "news.team": "Nachrichten zu {name}",
   "news.teamEmpty": "Für dieses Team sind noch keine bestätigten Nachrichten verknüpft.",
@@ -899,6 +927,13 @@ const de = {
 };
 
 const fr = {
+  "news.leagues": "Actualités du football par ligue",
+  "news.chooseLeague": "Choisir une ligue",
+  "news.allLeagues": "Toutes les ligues",
+  "news.findLeague": "Rechercher une ligue ou un pays",
+  "news.leagueCount": "{count} compétitions",
+  "news.leagueDirectoryBody": "Choisissez une compétition pour lire ses actualités publiées.",
+  "news.leaguesNoMatch": "Aucune ligue ne correspond à cette recherche.",
   ...en,
   "news.team": "Actualités de {name}",
   "news.teamEmpty": "Aucune actualité vérifiée liée à cette équipe pour le moment.",
@@ -1088,6 +1123,13 @@ const fr = {
 };
 
 const it = {
+  "news.leagues": "Notizie di calcio per campionato",
+  "news.chooseLeague": "Scegli un campionato",
+  "news.allLeagues": "Tutti i campionati",
+  "news.findLeague": "Cerca campionato o paese",
+  "news.leagueCount": "{count} competizioni",
+  "news.leagueDirectoryBody": "Scegli una competizione per leggere le notizie pubblicate.",
+  "news.leaguesNoMatch": "Nessun campionato corrisponde alla ricerca.",
   ...en,
   "news.team": "Notizie su {name}",
   "news.teamEmpty": "Non ci sono ancora notizie verificate collegate a questa squadra.",
@@ -1277,6 +1319,13 @@ const it = {
 };
 
 const pt = {
+  "news.leagues": "Notícias de futebol por liga",
+  "news.chooseLeague": "Escolher uma liga",
+  "news.allLeagues": "Todas as ligas",
+  "news.findLeague": "Pesquisar liga ou país",
+  "news.leagueCount": "{count} competições",
+  "news.leagueDirectoryBody": "Escolha uma competição para ler as notícias publicadas.",
+  "news.leaguesNoMatch": "Nenhuma liga corresponde à pesquisa.",
   ...en,
   "news.team": "Notícias de {name}",
   "news.teamEmpty": "Ainda não há notícias verificadas associadas a esta equipa.",

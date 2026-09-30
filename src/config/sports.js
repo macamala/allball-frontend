@@ -1,4 +1,5 @@
 import { competitionLabel, sportLabel } from "../labels.js";
+import { footballNewsLeague } from "./newsFootball.js";
 import { sportI18nKey } from "../i18n/index.js";
 import {
   directorySports,
@@ -37,6 +38,8 @@ export const MAIN_SPORTS = [
       { path: "ligue-1", league: "france-ligue-1", label: "Ligue 1" },
       { path: "europa-league", league: "uefa-europa-league", label: "Europa League" },
       { path: "conference-league", league: "uefa-conference-league", label: "Conference League" },
+      { path: "superliga", league: "serbia-superliga", label: "SuperLiga Srbije" },
+      { path: "nations-league", league: "uefa-nations-league", label: "UEFA Nations League" },
       { path: "international", league: "football-international", label: "International" },
       { path: "other-leagues", league: null, label: "Other Leagues", catchAll: true },
     ],
@@ -158,6 +161,10 @@ export function featuredLeagueKeys(sport) {
 }
 
 export function resolveLeague(sportSlug, leagueSlug) {
+  if (sportSlug === "football") {
+    const newsLeague = footballNewsLeague(leagueSlug);
+    if (newsLeague) return { ...newsLeague, catchAll: false };
+  }
   const sport = getSport(sportSlug);
   if (!sport) {
     return {
@@ -199,6 +206,10 @@ export function leaguePath(sportSlug, leagueKey) {
   const parsed = parseScopedCompetition(leagueKey);
   const sport = getSport(sportSlug || parsed.sport);
   const key = parsed.competition || leagueKey;
+  if ((sportSlug || parsed.sport || sport?.slug) === "football") {
+    const newsLeague = footballNewsLeague(key);
+    if (newsLeague) return `/football/${newsLeague.path}`;
+  }
   if (!sport || !key) return sportPath(sportSlug || parsed.sport);
   const match = sport.leagues.find((item) => item.league === key);
   if (match) return `${sport.path}/${match.path}`;
