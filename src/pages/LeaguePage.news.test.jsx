@@ -15,7 +15,7 @@ beforeEach(()=>{api.getArticles.mockReset();localStorage.clear();});
 afterEach(cleanup);
 it('Other leagues is a searchable directory, not a mixed article feed',async()=>{
   page('/football/other-leagues');
-  expect(screen.getByRole('status').textContent).toBe('76 competitions');
+  expect(screen.getByRole('status').textContent).toBe(`${FOOTBALL_NEWS_LEAGUES.length} competitions`);
   expect(api.getArticles).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole('searchbox'),{target:{value:'Japan'}});
   expect(screen.getByRole('link',{name:'J2 League'}).getAttribute('href')).toBe('/football/japan-j2-league');
@@ -29,7 +29,7 @@ it('every directory link resolves to its own canonical filter and label',()=>{
     expect(leaguePath('football',row.league)).toBe('/football/'+row.path);
     paths.add(row.path);
   }
-  expect(paths.size).toBe(76);
+  expect(paths.size).toBe(FOOTBALL_NEWS_LEAGUES.length);
   expect(getPrimaryNav(k=>k).find(n=>n.path==='/live-scores')).toEqual({label:'liveScores',path:'/live-scores'});
 });
 it('shows only the chosen league and clears it immediately on league navigation',async()=>{
