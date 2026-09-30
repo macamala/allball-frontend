@@ -2,8 +2,10 @@ import React from "react";
 import { useI18n } from "../../context/I18nContext.jsx";
 import ArticleImage from "../ArticleImage.jsx";
 import ArticleLink from "../ArticleLink.jsx";
+import { useTranslatedNews } from "../../lib/useTranslatedNews.js";
 
 export default function InlineRelatedStory({ article }) {
+  [article] = useTranslatedNews([article]);
   const { t } = useI18n();
   if (!article?.slug || !article?.title) return null;
   return (

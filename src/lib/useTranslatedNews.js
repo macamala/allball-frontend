@@ -11,15 +11,24 @@ export function useTranslatedNews(articles) {
   useEffect(() => {
     let active = true;
     if (lang === "en") return () => { active = false; };
-    for (const slug of JSON.parse(signature)) {
-      getArticleTranslation(slug, lang, { priority: false }).then((row) => {
-        if (!active || !row?.available) return;
-        setResult((previous) => ({ lang, rows: {
-          ...(previous.lang === lang ? previous.rows : {}), [slug]: row,
-        } }));
-      }).catch(() => {});
-    }
-    return () => { active = false; };
+    const missing = new Set(JSON.parse(signature));
+    let timer;
+    const read = async (refresh = false) => {
+      if (!active) return;
+      if (!document.hidden) await Promise.all([...missing].map(async (slug) => {
+        try {
+          const row = await getArticleTranslation(slug, lang, { priority: false, refresh });
+          if (!active || !row?.available) return;
+          missing.delete(slug);
+          setResult((previous) => ({ lang, rows: {
+            ...(previous.lang === lang ? previous.rows : {}), [slug]: row,
+          } }));
+        } catch { /* The next read can recover a temporary network failure. */ }
+      }));
+      if (active && missing.size) timer = setTimeout(() => read(true), 60000);
+    };
+    read();
+    return () => { active = false; clearTimeout(timer); };
   }, [signature, lang]);
   return articles.map((article) => {
     const row = result.lang === lang && lang !== "en" ? result.rows[article?.slug] : null;

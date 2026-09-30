@@ -1,6 +1,7 @@
 import React from "react";
 import ArticleImage from "./ArticleImage.jsx";
 import ArticleLink from "./ArticleLink.jsx";
+import { useTranslatedNews } from "../lib/useTranslatedNews.js";
 
 export default function RailModule({
   title,
@@ -9,9 +10,9 @@ export default function RailModule({
   ordered = false,
   emptyHidden = true,
 }) {
-  const rows = (articles || [])
+  const rows = useTranslatedNews((articles || [])
     .filter((item) => item?.slug && item.slug !== currentSlug)
-    .slice(0, 8);
+    .slice(0, 8));
   if (!rows.length && emptyHidden) return null;
   const List = ordered ? "ol" : "ul";
   return (

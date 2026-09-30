@@ -76,6 +76,21 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("isolated News reader state", () => {
+  it("automatically displays a translation when the worker finishes, without another click", async () => {
+    vi.useFakeTimers();
+    api.lang = "sr";
+    const view = mount();
+    await act(async () => {});
+    api.getArticleTranslation.mockResolvedValue({ available: true, language: "sr", title: "Srpski članak", body: "Preveden tekst članka." });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(screen.getByRole("heading", { name: "Srpski članak" })).toBeTruthy();
+    expect(screen.getByText("Preveden tekst članka.")).toBeTruthy();
+    expect(api.getArticle).toHaveBeenCalledTimes(1);
+    view.unmount();
+    const reads = api.getArticleTranslation.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+    expect(api.getArticleTranslation).toHaveBeenCalledTimes(reads);
+  });
   it("explains a missing Serbian translation and can load it when ready", async () => {
     api.lang = "sr";
     mount();

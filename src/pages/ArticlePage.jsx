@@ -193,23 +193,26 @@ export default function ArticlePage() {
       return () => { active = false; };
     }
     setTranslationResult({ slug, lang, data: null, pending: true });
-    const request = translationAttempt
-      ? getArticleTranslation(slug, lang, { refresh: true })
-      : getArticleTranslation(slug, lang);
-    request
-      .then((data) => {
-        if (!active) return;
-        setTranslationResult({
-          slug,
-          lang,
-          data: data?.available ? data : null,
-          pending: false,
-        });
-      })
-      .catch(() => {
+    let timer;
+    const read = async (refresh = false) => {
+      if (!active) return;
+      let ready = false;
+      try {
+        if (!document.hidden) {
+          const data = await (refresh
+            ? getArticleTranslation(slug, lang, { refresh: true })
+            : getArticleTranslation(slug, lang));
+          if (!active) return;
+          ready = Boolean(data?.available);
+          setTranslationResult({ slug, lang, data: ready ? data : null, pending: false });
+        }
+      } catch {
         if (active) setTranslationResult({ slug, lang, data: null, pending: false });
-      });
-    return () => { active = false; };
+      }
+      if (active && !ready) timer = setTimeout(() => read(true), 30000);
+    };
+    read(Boolean(translationAttempt));
+    return () => { active = false; clearTimeout(timer); };
   }, [slug, lang, translationAttempt]);
 
   // Route identity is checked during render, before an effect can clear old state.

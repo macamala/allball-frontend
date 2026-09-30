@@ -1,5 +1,5 @@
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import ArticleCard from "./ArticleCard.jsx";
 
@@ -10,7 +10,7 @@ vi.mock("./ArticleImage.jsx", () => ({ default: () => null }));
 vi.mock("./ArticleLink.jsx", () => ({ default: ({ children }) => <a>{children}</a> }));
 const article = { slug: "example", title: "English headline", summary: "English summary", sport: "football" };
 beforeEach(() => { state.lang = "sr"; state.read.mockReset(); });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 it("uses cached Serbian copy on a news card and restores English on language change", async () => {
   state.read.mockResolvedValue({ available: true, language: "sr", title: "Srpski naslov", summary: "Srpski sažetak" });
@@ -28,4 +28,17 @@ it("keeps the real English headline when no translated copy exists", async () =>
   state.read.mockResolvedValue({ available: false });
   render(<ArticleCard article={article} />);
   expect(await screen.findByText("English headline")).toBeTruthy();
+});
+
+it("automatically replaces pending card text once a saved translation arrives", async () => {
+  vi.useFakeTimers();
+  state.read.mockResolvedValue({ available: false });
+  render(<ArticleCard article={article} />);
+  await act(async () => {});
+  state.read.mockResolvedValue({ available: true, language: "sr", title: "Srpski naslov", summary: "Srpski sažetak" });
+  await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+  expect(screen.getByText("Srpski naslov")).toBeTruthy();
+  const reads = state.read.mock.calls.length;
+  await act(async () => { await vi.advanceTimersByTimeAsync(120000); });
+  expect(state.read).toHaveBeenCalledTimes(reads);
 });

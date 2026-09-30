@@ -2,13 +2,15 @@ import React from "react";
 import ArticleImage from "../ArticleImage.jsx";
 import ArticleLink from "../ArticleLink.jsx";
 import { useTranslatedNews } from "../../lib/useTranslatedNews.js";
+import { useI18n } from "../../context/I18nContext.jsx";
 
 export default function LatestNewsRail({ articles = [], currentSlug }) {
+  const { t } = useI18n();
   const rows = useTranslatedNews(articles.filter((item) => item?.slug && item.slug !== currentSlug).slice(0, 8));
   if (!rows.length) return null;
   return (
-    <section className="rail-module" aria-label="Latest news">
-      <h2 className="rail-title">Latest news</h2>
+    <section className="rail-module" aria-label={t("latest")}>
+      <h2 className="rail-title">{t("latest")}</h2>
       <ul className="rail-list">
         {rows.map((article) => (
           <li key={article.id || article.slug}>

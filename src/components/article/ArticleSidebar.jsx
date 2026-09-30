@@ -1,6 +1,8 @@
 import React from "react";
 import ArticleLink from "../ArticleLink.jsx";
 import LatestNewsRail from "./LatestNewsRail.jsx";
+import { useTranslatedNews } from "../../lib/useTranslatedNews.js";
+import { useI18n } from "../../context/I18nContext.jsx";
 
 export default function ArticleSidebar({
   latest = [],
@@ -8,18 +10,19 @@ export default function ArticleSidebar({
   currentSlug,
   scores,
 }) {
+  const { t } = useI18n();
   const live =
     scores?.connected && Array.isArray(scores.matches) && scores.matches.length > 0
       ? scores.matches
       : [];
-  const ranked = (mostRead || []).filter((item) => item?.slug && item.slug !== currentSlug);
+  const ranked = useTranslatedNews((mostRead || []).filter((item) => item?.slug && item.slug !== currentSlug));
 
   return (
     <aside className="article-sidebar">
       <LatestNewsRail articles={latest} currentSlug={currentSlug} />
       {ranked.length > 0 && (
-        <section className="rail-module" aria-label="Most read">
-          <h2 className="rail-title">Most read</h2>
+        <section className="rail-module" aria-label={t("mostRead")}>
+          <h2 className="rail-title">{t("mostRead")}</h2>
           <ol className="rail-list">
             {ranked.slice(0, 6).map((article) => (
               <li key={article.id || article.slug}>
