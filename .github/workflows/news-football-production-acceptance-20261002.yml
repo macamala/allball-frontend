@@ -1,0 +1,114 @@
+name: Football News production acceptance 20261002
+on:
+  push:
+    branches: [audit/news-football-20261002]
+    paths: [.github/workflows/news-football-production-acceptance-20261002.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 03d771d93bc84a519e9b9a2cb4dda42c5f951a52
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Actual public website browser acceptance, no intercepted or mocked data
+        run: |
+          mkdir -p production-evidence/screenshots
+          python - <<'PY'
+          import json,pathlib,time
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('production-evidence'); results=[];failed=[]
+          cases=[('premier-league','Premier League'),('la-liga','La Liga'),('brazil-serie-b','Brazil Serie B'),('japan-j1-league','J1 League'),('nations-league','UEFA Nations League'),('superliga','Superliga')]
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for width,height in [(1440,1000),(390,844),(320,800)]:
+                  context=browser.new_context(viewport={'width':width,'height':height},timezone_id='Australia/Sydney')
+                  page=context.new_page();errors=[];writes=[]
+                  page.on('pageerror',lambda error: errors.append(str(error)))
+                  page.on('request',lambda request: writes.append({'method':request.method,'url':request.url}) if '/sports-data/' in request.url and request.method not in ['GET','HEAD','OPTIONS'] else None)
+                  for slug,label in cases if width==1440 else cases[:3]:
+                      row={'width':width,'slug':slug,'tabs':{}}
+                      try:
+                          response=page.goto('https://ninkosports.com/football/'+slug,wait_until='domcontentloaded',timeout=45000)
+                          row['http']=response.status
+                          page.get_by_role('tab',name='News',exact=True).wait_for(timeout=20000)
+                          row['news_title']=page.locator('h1').inner_text()
+                          row['news_cards']=page.locator('a[href^="/article/"]').count()
+                          for tab in ['Fixtures','Results','Standings']:
+                              page.get_by_role('tab',name=tab,exact=True).click()
+                              panel=page.locator('.news-football-data');panel.wait_for(timeout=20000)
+                              page.wait_for_function("document.querySelector('.news-football-data')?.getAttribute('aria-busy') === 'false'",timeout=45000)
+                              panel.scroll_into_view_if_needed()
+                              text=panel.inner_text()
+                              row['tabs'][tab]={'matches':panel.locator('.news-data-match').count(),'table_rows':panel.locator('tbody tr').count(),'error':panel.locator('[role=alert]').count(),'text':text[:1400]}
+                              horizontal=page.evaluate('({body:document.documentElement.scrollWidth,viewport:innerWidth})')
+                              row['tabs'][tab]['page_width']=horizontal
+                              if horizontal['body']>width+3: failed.append({'width':width,'slug':slug,'tab':tab,'reason':'page_overflow','dimensions':horizontal})
+                              if row['tabs'][tab]['error']: failed.append({'width':width,'slug':slug,'tab':tab,'reason':'data_error','text':text[:300]})
+                              if slug in ['premier-league','la-liga','brazil-serie-b'] and tab=='Standings' and row['tabs'][tab]['table_rows']<10:failed.append({'width':width,'slug':slug,'tab':tab,'reason':'missing_known_table'})
+                              if slug in ['premier-league','la-liga'] and tab=='Results' and not row['tabs'][tab]['matches']:failed.append({'width':width,'slug':slug,'tab':tab,'reason':'missing_known_results'})
+                              if tab=='Standings' or (width==390 and tab=='Fixtures'): page.screenshot(path=str(root/'screenshots'/f'{width}-{slug}-{tab.lower()}.png'),full_page=True)
+                          page.get_by_role('tab',name='News',exact=True).click()
+                          row['returns_to_news']=page.locator('.news-football-data').count()==0
+                          if not row['returns_to_news']:failed.append({'width':width,'slug':slug,'reason':'tab_did_not_unmount'})
+                      except Exception as exc:
+                          row['error']=str(exc)[:500];failed.append({'width':width,'slug':slug,'reason':row['error']})
+                          try:page.screenshot(path=str(root/'screenshots'/f'{width}-{slug}-error.png'),full_page=True)
+                          except Exception:pass
+                      results.append(row)
+                      (root/'browser-results.json').write_text(json.dumps(results,indent=2))
+                  if errors:failed.append({'width':width,'page_errors':errors})
+                  if writes:failed.append({'width':width,'unexpected_sports_writes':writes})
+                  context.close()
+              browser.close()
+          summary={'cases':len(results),'tab_checks':sum(len(r['tabs']) for r in results),'failures':failed,'real_public_website':True,'mocked_requests':False}
+          (root/'browser-summary.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary,indent=2))
+          assert not failed,failed
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-news-production-browser-20261002
+          path: production-evidence/
+          retention-days: 7
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 03d771d93bc84a519e9b9a2cb4dda42c5f951a52
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read all football News menus and their exact data mappings
+        run: |
+          mkdir -p coverage-evidence
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import {readNewsData,FOOTBALL_NEWS_TOPICS} from './src/lib/newsFootballData.js';
+          const catalog=JSON.parse(fs.readFileSync('src/config/newsFootballLeagues.json','utf8'));
+          const base='https://allball-backend-production.up.railway.app',output=[];
+          async function get(path,options={}){const response=await fetch(base+path,{...options,signal:options.signal||AbortSignal.timeout(18000)});if(!response.ok)throw Error('HTTP '+response.status);return response.json();}
+          async function check(row){const out={league:row.league,label:row.label,checked_at:new Date().toISOString()};
+            try{const articles=await get('/articles?'+new URLSearchParams({sport:'football',league:row.league,limit:'3'}));out.articles=articles.map(a=>({id:a.id,slug:a.slug,title:a.title,league:a.league,published_at:a.published_at,created_at:a.created_at,image_url:a.image_url}));out.article_count_sample=articles.length;out.wrong_league=articles.filter(a=>a.league!==row.league).length;out.recent_articles=articles.filter(a=>Date.now()-Date.parse(a.published_at)<86400000).length;}catch(error){out.news_error=String(error);}
+            if(!FOOTBALL_NEWS_TOPICS.has(row.league)){try{const data=await readNewsData(get,row.league,'standings');out.standings={competition:data.competition?.id||data.competition,season:data.season,rows:data.rows?.length||0,stale:data.stale,available:data.available};}catch(error){out.table_error=String(error);}}
+            output.push(out);fs.writeFileSync('coverage-evidence/coverage.json',JSON.stringify(output,null,2));console.log(row.league,'news',out.article_count_sample,'table',out.standings?.rows,out.news_error||out.table_error||'');}
+          const pending=[...catalog];await Promise.all(Array.from({length:3},async()=>{while(pending.length)await check(pending.shift());}));
+          const summary={checked_at:new Date().toISOString(),menus:output.length,nonempty_menus:output.filter(r=>r.article_count_sample>0).length,menus_with_recent_articles:output.filter(r=>r.recent_articles>0).length,tables_with_rows:output.filter(r=>r.standings?.rows>0).length,empty_menus:output.filter(r=>r.article_count_sample===0).map(r=>r.league),errors:output.filter(r=>r.news_error||r.table_error),cross_league_articles:output.reduce((s,r)=>s+(r.wrong_league||0),0)};
+          fs.writeFileSync('coverage-evidence/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-news-production-coverage-20261002
+          path: coverage-evidence/
+          retention-days: 7
