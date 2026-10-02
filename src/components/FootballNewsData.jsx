@@ -6,6 +6,7 @@ import CountryFlag from './scores/CountryFlag.jsx';
 import { normalizeAssetUrl } from '../lib/assetUrls.js';
 import { eventPath } from '../lib/sportsData.js';
 import { FOOTBALL_NEWS_TOPICS, newsDataPath, newsMatches, newsMatchBucket, newsScore, readNewsData } from '../lib/newsFootballData.js';
+import { peekNewsData, rememberNewsData } from '../lib/newsFootballCache.js';
 import '../styles/newsFootballData.css';
 
 function Team({ event, side }) {
@@ -47,26 +48,43 @@ export default function FootballNewsData({ competition, label, view }) {
     if (!path) return undefined;
     const controller = new AbortController();
     let active = true, pending = false;
-    setResource({ path, data: null, loading: true, error: '' });
-    async function load() {
+    const cached = peekNewsData(competition, view, season);
+    function accept(data, savedAt = Date.now()) {
+      setKnownSeasons(previous => [...new Set([...previous, ...(Array.isArray(data.seasons) ? data.seasons : []), data.season, ...(data.events || []).map(row => row.season)].filter(value => typeof value === 'string' && value))].sort().reverse());
+      setResource({ path, data, savedAt, loading: false, refreshing: false, error: '' });
+    }
+    if (cached) accept(cached.data, cached.savedAt);
+    else setResource({ path, data: null, loading: true, refreshing: false, error: '' });
+    async function load(force = false) {
       if (pending || !active) return;
+      // Fixtures and Results share the same verified payload. Switching tabs
+      // should not discard it or send an identical public request immediately.
+      const saved = peekNewsData(competition, view, season);
+      if (!force && saved?.fresh) { accept(saved.data, saved.savedAt); return; }
       pending = true;
+      setResource(previous => ({ ...previous, refreshing: true }));
       try {
         const data = await readNewsData(getJSON, competition, view, { season, signal: controller.signal });
         if (!data || (season && data.season && data.season !== season)) throw new Error('Unverified competition or season scope');
-        if (active) {
-          setKnownSeasons(previous => [...new Set([...previous, ...(Array.isArray(data.seasons) ? data.seasons : []), data.season, ...(data.events || []).map(row => row.season)].filter(value => typeof value === 'string' && value))].sort().reverse());
-          setResource({ path, data, loading: false, error: '' });
+        if (active && !controller.signal.aborted) {
+          rememberNewsData(competition, view, season, data);
+          accept(data);
         }
       } catch (error) {
-        if (active && error.name !== 'AbortError') setResource(previous => ({ path,
-          data: previous.path === path ? previous.data : null, loading: false,
-          error: 'This competition’s data could not be refreshed. Please try again.' }));
+        if (active && error.name !== 'AbortError') {
+          const saved = peekNewsData(competition, view, season);
+          setResource(previous => ({ path,
+            data: saved?.data || (previous.path === path ? previous.data : null),
+            savedAt: saved?.savedAt || previous.savedAt, loading: false, refreshing: false,
+            error: 'This competition’s data could not be refreshed. Please try again.' }));
+        }
       } finally { pending = false; }
     }
-    load();
-    const timer = setInterval(() => { if (document.visibilityState !== 'hidden') load(); }, 60000);
-    return () => { active = false; controller.abort(); clearInterval(timer); };
+    load(retry > 0);
+    const refresh = () => { if (document.visibilityState !== 'hidden') load(true); };
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('online', refresh);
+    return () => { active = false; controller.abort(); clearInterval(timer); window.removeEventListener('online', refresh); };
   }, [path, competition, view, season, retry]);
   const data = resource.path === path ? resource.data : null;
   const loading = resource.path !== path || resource.loading;
@@ -80,16 +98,16 @@ export default function FootballNewsData({ competition, label, view }) {
   const teams = [...new Set(allEvents.flatMap(row => [row.home.name, row.away.name]))].sort();
   const timestamp = view === 'standings' ? data?.updated_at : data?.checked_at;
   const checked = timestamp ? new Date(timestamp) : null;
-  const stale = data?.stale || data?.coverage?.stale;
+  const stale = data?.stale || data?.coverage?.stale || Boolean(resource.error && data);
   const showList = rows => <ul className="news-data-list">{rows.map(event => <Match key={event.key || event.id} event={event} />)}</ul>;
   const resetFilters = () => { setGroup(''); setTeam(''); setVisible(40); };
   if (FOOTBALL_NEWS_TOPICS.has(competition)) return <section className="news-football-data"><h2>{label}</h2><p>This is a news topic covering multiple competitions. Choose an individual competition above for its fixtures, results and standings.</p></section>;
   return <section className="news-football-data" aria-label={`${label} ${view}`} aria-busy={loading}>
     <header className="news-data-heading"><div>{meta.country_id ? <CountryFlag countryId={meta.country_id} /> : null}<h2>{label} · {view[0].toUpperCase() + view.slice(1)}</h2></div>
       <div className="news-data-tools">{seasons.length > 1 ? <label>Season<select aria-label="News data season" value={season} onChange={event => { setSeason(event.target.value); resetFilters(); }}><option value="">Current / available</option>{seasons.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : data?.season ? <span>Season {data.season}</span> : null}
-      <button className="btn btn-ghost" type="button" disabled={loading} onClick={() => setRetry(value => value + 1)}>Refresh data</button></div>
+      <button className="btn btn-ghost" type="button" disabled={loading || resource.refreshing} onClick={() => setRetry(value => value + 1)}>Refresh data</button></div>
     </header>
-    {loading ? <p role="status">Loading {view}…</p> : null}
+    {loading ? <p role="status">Loading {view}…</p> : resource.refreshing ? <p role="status">Refreshing {view}…</p> : null}
     {resource.path === path && resource.error ? <p role="alert">{resource.error} {data ? 'Showing the last successfully loaded records.' : ''}</p> : null}
     {!loading && view === 'standings' && table.length > 0 ? <StandingsTable key={`${competition}:${season}:${group}`} sport="football" competition={competition} competitionCountry={meta.country_id} rows={table} event={{ group }} strictGroup onGroupChange={setGroup} /> : null}
     {!loading && view !== 'standings' && allEvents.length > 0 ? <>
