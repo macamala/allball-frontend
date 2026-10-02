@@ -1,0 +1,90 @@
+name: News football data resilience release 20261002
+on:
+  push:
+    branches: [audit/news-football-20261002]
+    paths: [.github/workflows/news-data-resilience-release-20261002.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Apply exact checksum-pinned News-only patch
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = '804f7b1393de9c0ca9e2e8d6bbe64e7ddc525ab0'
+          mkdir -p ../resilience-evidence
+          python - <<'PY'
+          import pathlib,hashlib,gzip,base64,subprocess,json
+          text=pathlib.Path('../bundle/audit/news-data-resilience-20261002.patch.b64').read_text().strip()
+          text=text.replace('gnhtJJHE','gnhtJHE').replace('DzMvJLlRJXows','DzMvJLlRkLJXows')
+          pathlib.Path('../resilience-evidence/received.b64').write_text(text)
+          patch=gzip.decompress(base64.b64decode(text,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='33200cb6d7e9332584a35370741890be1bbdf82195b31444f3e63dfe096a5cfc'
+          path=pathlib.Path('../resilience-evidence/reviewed.patch');path.write_bytes(patch)
+          subprocess.run(['git','apply','--check',str(path)],check=True)
+          subprocess.run(['git','apply',str(path)],check=True)
+          allowed={'src/lib/newsFootballCache.js','src/lib/newsFootballCache.test.js','src/components/FootballNewsData.jsx','src/components/FootballNewsData.test.jsx'}
+          changes=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changes==allowed,changes
+          pathlib.Path('../resilience-evidence/changed-files.json').write_text(json.dumps(sorted(changes),indent=2))
+          PY
+      - name: All non-App regressions
+        working-directory: source
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../resilience-evidence/tests.json > ../resilience-evidence/tests.txt 2>&1 || { tail -70 ../resilience-evidence/tests.txt; exit 1; }
+      - name: Every existing route in an isolated test process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import concurrent.futures,json,pathlib,re,subprocess
+          root=pathlib.Path('../resilience-evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66 and len(set(cases))==66
+          def test(pair):
+              index,title=pair;output=root/f'app-{index:02d}.json'
+              result=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=90)
+              (root/f'app-{index:02d}.txt').write_text(result.stdout)
+              data=json.loads(output.read_text()) if output.exists() else {}
+              return {'title':title,'passed':result.returncode==0 and data.get('numPassedTests')==1 and data.get('numFailedTests')==0}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:results=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));print(json.dumps({'cases':len(results),'passed':sum(r['passed'] for r in results),'failures':[r for r in results if not r['passed']]},indent=2))
+          assert all(r['passed'] for r in results)
+          PY
+      - name: Production build
+        working-directory: source
+        run: npm run build > ../resilience-evidence/build.txt 2>&1
+      - name: Persist only the tested four-file News change on a clean release branch
+        working-directory: source
+        run: |
+          git add src/lib/newsFootballCache.js src/lib/newsFootballCache.test.js src/components/FootballNewsData.jsx src/components/FootballNewsData.test.jsx
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): retain verified football data across tab navigation and refresh after reconnect'
+          git push origin HEAD:refs/heads/audit/news-football-resilience-release-20261002
+          git rev-parse HEAD > ../resilience-evidence/tested-commit.txt
+          git show --stat --oneline HEAD > ../resilience-evidence/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-news-data-resilience-release-20261002
+          path: resilience-evidence/
+          retention-days: 7
