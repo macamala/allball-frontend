@@ -1,0 +1,108 @@
+name: News deployed reconnect and publication proof 20261002
+on:
+  push:
+    branches: [audit/news-football-20261002]
+    paths: [.github/workflows/news-reconnect-production-proof-20261002.yml]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 43fbf23e08f46ebfd6a2d1a5b11078ba78999e9f
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Real production UI, retained public payload, simulated connection loss only
+        run: |
+          mkdir -p news-proof/screenshots
+          python - <<'PY'
+          import json,pathlib,time,urllib.request,urllib.parse
+          from datetime import datetime,timezone
+          from concurrent.futures import ThreadPoolExecutor
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('news-proof');base='https://allball-backend-production.up.railway.app';rows=[];failures=[]
+          def get(path):
+              for attempt in range(2):
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(base+path,headers={'User-Agent':'NinkoSports-News-ReadAudit/1.0'}),timeout=25) as response:return json.loads(response.read(4000000))
+                  except Exception:
+                      if attempt:raise
+                      time.sleep(1)
+          catalog=json.loads(pathlib.Path('src/config/newsFootballLeagues.json').read_text())
+          def check(row):
+              out={'league':row['league'],'label':row['label']}
+              try:
+                  articles=get('/articles?'+urllib.parse.urlencode({'sport':'football','league':row['league'],'limit':3}))
+                  assert isinstance(articles,list)
+                  out['articles']=[{k:a.get(k) for k in ['id','slug','title','league','published_at','created_at','image_url','image']} for a in articles]
+                  now=datetime.now(timezone.utc)
+                  out['recent']=sum(0 <= (now-datetime.fromisoformat(a['published_at'].replace('Z','+00:00')).replace(tzinfo=timezone.utc)).total_seconds()<86400 for a in articles if a.get('published_at'))
+              except Exception as exc:out['error']=type(exc).__name__+': '+str(exc)[:160]
+              return out
+          with ThreadPoolExecutor(max_workers=2) as pool:coverage=list(pool.map(check,catalog))
+          (root/'news-coverage.json').write_text(json.dumps(coverage,ensure_ascii=False,indent=2))
+          samples=[]
+          for slug in ['daejeon-hana-citizen-players-target-afc-champions-league-qualification-following-recent-fo','mark-duffy-named-southport-manager-after-interim-spell']:
+              try:
+                  article=get('/articles/'+slug);(root/(slug[:25]+'.json')).write_text(json.dumps(article,ensure_ascii=False,indent=2));samples.append({k:article.get(k) for k in ['id','title','league','sport','published_at','created_at','source_url','image_url']})
+              except Exception as exc:samples.append({'slug':slug,'error':str(exc)[:160]})
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for width in [1440,390,320]:
+                  context=browser.new_context(viewport={'width':width,'height':950},timezone_id='Australia/Sydney');page=context.new_page();requests=[];errors=[]
+                  page.on('request',lambda request:requests.append({'method':request.method,'url':request.url}) if '/sports-data/' in request.url else None)
+                  page.on('pageerror',lambda error:errors.append(str(error)))
+                  def settled():
+                      page.wait_for_function("document.querySelector('.news-football-data')?.getAttribute('aria-busy') === 'false'",timeout=45000)
+                  for slug in ['premier-league','la-liga','brazil-serie-b']:
+                      out={'width':width,'slug':slug,'tabs':{}}
+                      try:
+                          page.goto('https://ninkosports.com/football/'+slug,wait_until='domcontentloaded',timeout=45000)
+                          page.get_by_role('tab',name='Fixtures',exact=True).click();settled()
+                          panel=page.locator('.news-football-data')
+                          if panel.locator('[role=alert]').count():
+                              page.get_by_role('button',name='Refresh data',exact=True).click()
+                              page.wait_for_function("!document.querySelector('.news-football-data button')?.disabled",timeout=45000)
+                          assert panel.locator('[role=alert]').count()==0,panel.inner_text()
+                          count=len(requests)
+                          page.get_by_role('tab',name='Results',exact=True).click();settled();page.wait_for_timeout(200)
+                          assert len(requests)==count,'Fixture/Results navigation issued another data request'
+                          for tab in ['Results','Standings']:
+                              page.get_by_role('tab',name=tab,exact=True).click();settled()
+                              text=panel.inner_text();props=panel.evaluate('(el)=>({bg:getComputedStyle(el).backgroundColor,fg:getComputedStyle(el).color,body:document.documentElement.scrollWidth,viewport:innerWidth})')
+                              out['tabs'][tab]={'matches':panel.locator('.news-data-match').count(),'table_rows':panel.locator('tbody tr').count(),'display_text':text[:700],**props}
+                              assert panel.locator('[role=alert]').count()==0,text
+                              assert props['body']<=width+3,props
+                              if tab=='Standings':assert panel.locator('tbody tr').count()>=10,text
+                              panel.scroll_into_view_if_needed();page.screenshot(path=str(root/'screenshots'/f'{width}-{slug}-{tab}.png'),full_page=True)
+                          if slug=='premier-league':
+                              before=panel.locator('tbody').inner_text();context.set_offline(True)
+                              page.get_by_role('button',name='Refresh data',exact=True).click();panel.locator('[role=alert]').wait_for(timeout=45000)
+                              assert before==panel.locator('tbody').inner_text(),'Confirmed table disappeared on failed refresh'
+                              out['simulated_offline_preserved_table']=True
+                              context.set_offline(False)
+                              page.wait_for_function("!document.querySelector('.news-football-data [role=alert]') && !document.querySelector('.news-football-data button')?.disabled",timeout=45000)
+                              out['online_recovery_succeeded']=True
+                          page.get_by_role('tab',name='News',exact=True).click();assert page.locator('.news-football-data').count()==0
+                      except Exception as exc:
+                          out['error']=str(exc)[:800];failures.append({'width':width,'slug':slug,'error':out['error']})
+                          context.set_offline(False)
+                      rows.append(out);(root/'browser.json').write_text(json.dumps(rows,indent=2))
+                  if errors or any(r['method'] not in ['GET','HEAD','OPTIONS'] for r in requests):failures.append({'width':width,'page_errors':errors,'writes':[r for r in requests if r['method'] not in ['GET','HEAD','OPTIONS']]})
+                  context.close()
+              browser.close()
+          summary={'checked_at':datetime.now(timezone.utc).isoformat(),'menus':len(coverage),'news_nonempty':sum(bool(r.get('articles')) for r in coverage),'news_recent':sum(bool(r.get('recent')) for r in coverage),'confirmed_empty':[r['league'] for r in coverage if r.get('articles')==[]],'unknown':[r for r in coverage if r.get('error')],'public_article_samples':samples,'browser_cases':len(rows),'browser_failures':failures,'production_origin':True,'data_responses_mocked':False,'css_injected':False,'offline_test_is_simulated':True}
+          (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2));print(json.dumps(summary,ensure_ascii=False,indent=2));assert not failures
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-deployed-reconnect-and-publication-proof-20261002
+          path: news-proof/
+          retention-days: 7
