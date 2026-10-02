@@ -7,6 +7,11 @@ import { clearPublicCache } from "./api.js";
 import ArticleImage from "./components/ArticleImage.jsx";
 import { sanitizeText } from "./lib/sanitize.js";
 
+// Translation assets remain tested behind their paused rollout switch.
+const languageFlag = vi.hoisted(() => ({ enabled: false }));
+vi.mock("./config/siteLanguages.js", () => ({ get SITE_LANGUAGES_ENABLED() { return languageFlag.enabled; } }));
+beforeEach(() => { languageFlag.enabled = false; console.log("RUN_TEST", expect.getState().currentTestName); });
+
 const sampleArticle = {
   id: 1,
   slug: "villa-win",
@@ -305,14 +310,18 @@ describe("NinkoSports Phase 3 routes", () => {
     });
   });
 
-  it("renders league provider-pending for standings", async () => {
+  it("reads football News standings instead of displaying a permanent placeholder", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn((input, init) => String(input).includes("/sports-data/standings")
+      ? jsonResponse({ competition: { id: "england-premier-league", sport: "football" }, rows: [] })
+      : originalFetch(input, init));
     renderAt("/football/premier-league");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Premier League" })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("tab", { name: "Standings" }));
     expect(
-      screen.getByText(/Standings coming when live data is connected/i)
+      await screen.findByText(/No confirmed standings available for this selection/i)
     ).toBeInTheDocument();
   });
 
@@ -650,7 +659,7 @@ describe("Phase 4 portal and account UX", () => {
       expect(screen.getByText(/Sign in to comment/i)).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: "Menu" }));
-    expect(screen.getAllByLabelText("Language").length).toBeGreaterThan(0);
+    expect(screen.queryAllByLabelText("Language")).toHaveLength(0);
     expect(screen.getAllByText(/My Sports/).length).toBeGreaterThan(0);
   });
 });
@@ -774,6 +783,7 @@ describe("Phase 4.1 taxonomy, i18n and layout", () => {
   });
 
   it("translates Serbian site-owned UI and keeps official competition names", async () => {
+    languageFlag.enabled = true;
     window.localStorage.setItem("ninkosports.lang", "sr");
     renderAt("/");
     await waitFor(() => {
@@ -953,6 +963,7 @@ describe("Phase 4.2 homepage and article editorial", () => {
   });
 
   it("keeps Serbian homepage chrome translated", async () => {
+    languageFlag.enabled = true;
     window.localStorage.setItem("ninkosports.lang", "sr");
     renderAt("/");
     await waitFor(() => {
@@ -1206,6 +1217,7 @@ describe("Phase 4.3 brand, homepage and article presentation", () => {
   });
 
   it("keeps new Phase 4.3 chrome translated in Serbian", async () => {
+    languageFlag.enabled = true;
     window.localStorage.setItem("ninkosports.lang", "sr");
     renderAt("/");
     await waitFor(() => {
@@ -1388,6 +1400,7 @@ describe("Mobile UX V2", () => {
   });
 
   it("uses localized mobile chrome instead of hardcoded English on Serbian", async () => {
+    languageFlag.enabled = true;
     window.localStorage.setItem("ninkosports.lang", "sr");
     renderAt("/");
     await waitFor(() => {
@@ -1526,6 +1539,7 @@ describe("Sports Data V1 predictions foundation", () => {
   });
 
   it("keeps Predictions labels translated in Serbian", async () => {
+    languageFlag.enabled = true;
     window.localStorage.setItem("ninkosports.lang", "sr");
     renderAt("/predictions");
     await waitFor(() => {

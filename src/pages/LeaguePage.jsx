@@ -13,6 +13,7 @@ import LeagueTabs from "../components/LeagueTabs.jsx";
 import ProviderPending from "../components/ProviderPending.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
 import StandingsTable from "../components/StandingsTable.jsx";
+import FootballNewsData from "../components/FootballNewsData.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
@@ -196,13 +197,16 @@ function LeagueNewsPage() {
         </>
       )}
 
-      {tab === "fixtures" && (
+      {sportSlug === "football" && !directory && tab !== "news" && (
+        <FootballNewsData key={`${league.league}:${tab}`} competition={league.league} label={league.label} view={tab} />
+      )}
+      {sportSlug !== "football" && tab === "fixtures" && (
         <ProviderPending title={t("provider.fixtures")} />
       )}
-      {tab === "results" && (
+      {sportSlug !== "football" && tab === "results" && (
         <ProviderPending title={t("provider.results")} />
       )}
-      {tab === "standings" && (
+      {sportSlug !== "football" && tab === "standings" && (
         <StandingsTable
           sport={sportSlug}
           rows={[]}

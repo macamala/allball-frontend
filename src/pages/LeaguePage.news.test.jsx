@@ -7,7 +7,7 @@ import { FOOTBALL_NEWS_LEAGUES } from '../config/newsFootball.js';
 import { resolveLeague, leaguePath, getPrimaryNav } from '../config/sports.js';
 import LeaguePage from './LeaguePage.jsx';
 const api=vi.hoisted(()=>({getArticles:vi.fn()}));
-vi.mock('../api.js',()=>({getArticles:api.getArticles,peekArticles:()=>null}));
+vi.mock('../api.js',()=>({getArticles:api.getArticles,peekArticles:()=>null,getJSON:vi.fn()}));
 vi.mock('../context/AuthContext.jsx',()=>({useAuth:()=>({favorites:{leagues:[]},syncFavorites:vi.fn()})}));
 const article=(id,league,title)=>({id,slug:`story-${id}`,sport:'football',league,title,published_at:'2026-09-29T01:00:00Z',quality_ok:true,sport_match_ok:true});
 function page(path){return render(<I18nProvider><MemoryRouter initialEntries={[path]}><Link to='/football/serie-a'>Switch to Italy</Link><Routes><Route path='/:sportSlug/:leagueSlug' element={<LeaguePage/>}/></Routes></MemoryRouter></I18nProvider>);}
