@@ -1,0 +1,84 @@
+name: Football News tabs full gate 20261002
+on:
+  push:
+    branches: [audit/news-football-20261002]
+    paths: [.github/workflows/news-football-wire-and-test-20261002.yml]
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply exact News-only integration
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/audit/news-football-20261002'
+          python - <<'PY'
+          from pathlib import Path
+          def edit(path, replacements):
+              p=Path(path);s=p.read_text()
+              for old,new in replacements:
+                  if new in s: continue
+                  assert old in s, (path, old)
+                  s=s.replace(old,new)
+              p.write_text(s)
+          edit('src/pages/LeaguePage.jsx', [
+              ('import StandingsTable from "../components/StandingsTable.jsx";', 'import StandingsTable from "../components/StandingsTable.jsx";\nimport FootballNewsData from "../components/FootballNewsData.jsx";'),
+              ('{tab === "fixtures" && (', '{sportSlug === "football" && !directory && tab !== "news" && (\n        <FootballNewsData key={`${league.league}:${tab}`} competition={league.league} label={league.label} view={tab} />\n      )}\n      {sportSlug !== "football" && tab === "fixtures" && ('),
+              ('{tab === "results" && (', '{sportSlug !== "football" && tab === "results" && ('),
+              ('{tab === "standings" && (', '{sportSlug !== "football" && tab === "standings" && ('),
+          ])
+          edit('src/pages/LeaguePage.news.test.jsx', [('getArticles:api.getArticles,peekArticles:()=>null','getArticles:api.getArticles,peekArticles:()=>null,getJSON:vi.fn()')])
+          edit('src/components/FootballNewsData.jsx', [
+              ("const [season, setSeason] = useState('');", "const [season, setSeason] = useState('');\n  const [knownSeasons, setKnownSeasons] = useState([]);"),
+              ("if (!data) throw new Error('Unverified competition scope');", "if (!data || (season && data.season && data.season !== season)) throw new Error('Unverified competition or season scope');"),
+              ("if (active) setResource({ path, data, loading: false, error: '' });", "if (active) {\n          setKnownSeasons(previous => [...new Set([...previous, ...(Array.isArray(data.seasons) ? data.seasons : []), data.season, ...(data.events || []).map(row => row.season)].filter(value => typeof value === 'string' && value))].sort().reverse());\n          setResource({ path, data, loading: false, error: '' });\n        }"),
+              ("}, [path, competition, retry]);", "}, [path, competition, season, retry]);"),
+              ("const seasons = [...new Set([...(Array.isArray(data?.seasons) ? data.seasons : []), data?.season, ...allEvents.map(row => row.season)].filter(value => typeof value === 'string' && value))].sort().reverse();", "const seasons = knownSeasons;"),
+          ])
+          edit('src/components/FootballNewsData.test.jsx', [("expect(await screen.findByText('Arsenal')).toBeTruthy();", "expect(await screen.findByRole('link', { name: 'Open match: Arsenal vs Chelsea' })).toBeTruthy();")])
+          PY
+      - name: Full frontend regressions and production build
+        run: |
+          mkdir -p news-validation
+          npm ci
+          npm test -- --reporter=default > news-validation/tests.txt 2>&1 || { cat news-validation/tests.txt; exit 1; }
+          cat news-validation/tests.txt
+          npm run build > news-validation/build.txt 2>&1 || { cat news-validation/build.txt; exit 1; }
+          cat news-validation/build.txt
+      - name: Persist only tested News integration on the isolated branch
+        run: |
+          python - <<'PY'
+          import subprocess
+          allowed={'src/pages/LeaguePage.jsx','src/pages/LeaguePage.news.test.jsx','src/components/FootballNewsData.jsx','src/components/FootballNewsData.test.jsx'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
+          assert changed <= allowed, changed-allowed
+          PY
+          git add src/pages/LeaguePage.jsx src/pages/LeaguePage.news.test.jsx src/components/FootballNewsData.jsx src/components/FootballNewsData.test.jsx
+          if ! git diff --cached --quiet; then
+            git config user.name 'NinkoSports News validation'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'feat(news): wire tested football league data tabs without modifying Live Scores'
+            git push origin HEAD:refs/heads/audit/news-football-20261002
+          fi
+          git rev-parse HEAD > news-validation/tested-commit.txt
+      - name: Capture reviewed source and offline dependencies
+        if: always()
+        run: |
+          mkdir -p news-validation
+          git diff > news-validation/uncommitted.patch
+          tar -czf news-validation/frontend-working-source.tar.gz --exclude=node_modules --exclude=.git --exclude=news-validation --exclude=dist .
+          if [ -d node_modules ]; then tar -czf news-validation/node-modules.tar.gz node_modules; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-news-frontend-validation-20261002
+          path: news-validation/
+          retention-days: 3
