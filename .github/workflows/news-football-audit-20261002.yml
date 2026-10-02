@@ -1,0 +1,24 @@
+name: News football frontend source baseline 20261002
+on:
+  push:
+    branches: [audit/news-football-20261002]
+    paths: [.github/workflows/news-football-audit-20261002.yml]
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: |
+          mkdir -p audit-export
+          git archive --format=tar HEAD > audit-export/frontend-source.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: news-football-frontend-baseline-20261002
+          path: audit-export/
+          retention-days: 3
+          if-no-files-found: error
