@@ -1,0 +1,100 @@
+name: Football News UI clean release gate 20261002
+on:
+  push:
+    branches: [audit/news-football-20261002]
+    paths: [.github/workflows/news-football-release-20261002.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Verify production parent and checksum-pinned News-only patch
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = 'c2feff9c43631f7c7fc51e2f326f5549fdd70f13'
+          mkdir -p ../release-evidence
+          python - <<'PY'
+          import base64,gzip,hashlib,pathlib,subprocess,json
+          text=pathlib.Path('../bundle/audit/news-football-release-20261002.patch.b64').read_text().strip()
+          pathlib.Path('../release-evidence/received.b64').write_text(text)
+          text=text.replace('DK4JUBB9grUKAExT','DK4JUBB9grUKJExT')
+          patch=gzip.decompress(base64.b64decode(text,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='d7fc166b51190ab45a0c26ee7239910a7495b1e68ee81102d89a00e9869916d1'
+          path=pathlib.Path('../release-evidence/reviewed.patch');path.write_bytes(patch)
+          subprocess.run(['git','apply','--check',str(path)],check=True)
+          subprocess.run(['git','apply',str(path)],check=True)
+          allowed={'src/lib/newsFootballData.js','src/components/FootballNewsData.jsx','src/styles/newsFootballData.css','src/lib/newsFootballData.test.js','src/components/FootballNewsData.test.jsx','src/pages/LeaguePage.jsx','src/pages/LeaguePage.news.test.jsx','src/App.test.jsx'}
+          changes=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changes==allowed,changes^allowed
+          pathlib.Path('../release-evidence/changed-files.json').write_text(json.dumps(sorted(changes),indent=2))
+          PY
+      - name: All non-App regression tests
+        working-directory: source
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../release-evidence/tests.json > ../release-evidence/tests.txt 2>&1 || { cat ../release-evidence/tests.txt; exit 1; }
+          cat ../release-evidence/tests.txt
+      - name: Every existing App route test in an isolated test process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import concurrent.futures,json,pathlib,re,subprocess
+          root=pathlib.Path('../release-evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66,(len(cases),cases)
+          assert len(set(cases))==66,'Route test names must uniquely select one case'
+          def test(pair):
+              index,title=pair;output=root/f'app-{index:02d}.json'
+              cmd=['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)]
+              try:
+                  result=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=90)
+                  (root/f'app-{index:02d}.txt').write_text(result.stdout)
+                  data=json.loads(output.read_text()) if output.exists() else {}
+                  passed=result.returncode==0 and data.get('numPassedTests')==1 and data.get('numFailedTests')==0
+                  return {'title':title,'passed':passed,'code':result.returncode,'tests':data.get('numPassedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:results=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2))
+          print(json.dumps({'cases':len(results),'passed':sum(r['passed'] for r in results),'failed':[r for r in results if not r['passed']]},indent=2))
+          assert all(row['passed'] for row in results)
+          PY
+      - name: Production build
+        working-directory: source
+        run: |
+          npm run build > ../release-evidence/build.txt 2>&1 || { cat ../release-evidence/build.txt; exit 1; }
+          cat ../release-evidence/build.txt
+      - name: Persist tested release to an isolated branch, not production
+        working-directory: source
+        run: |
+          git add src/lib/newsFootballData.js src/components/FootballNewsData.jsx src/styles/newsFootballData.css src/lib/newsFootballData.test.js src/components/FootballNewsData.test.jsx src/pages/LeaguePage.jsx src/pages/LeaguePage.news.test.jsx src/App.test.jsx
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(news): connect football News fixtures results and standings with exact scoped read-only fallback data'
+          git push origin HEAD:refs/heads/audit/news-football-release-20261002
+          git rev-parse HEAD > ../release-evidence/tested-commit.txt
+          git show --stat --oneline HEAD > ../release-evidence/commit.txt
+          cat ../release-evidence/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-news-frontend-clean-release-20261002
+          path: release-evidence/
+          retention-days: 7
