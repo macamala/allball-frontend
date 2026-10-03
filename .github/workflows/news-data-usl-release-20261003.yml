@@ -1,0 +1,92 @@
+name: News verified USL table release 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-usl-release-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a20c5d89a5dd9116a62aec7888c1804567713de9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Add only an exact verified competition equivalence
+        run: |
+          mkdir -p usl-evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/newsFootballData.js');s=p.read_text();old='export const NEWS_DATA_ALIASES = {'
+          assert s.count(old)==1
+          p.write_text(s.replace(old,old+"\n  'usa-usl-championship': ['usa-usl-championship', 'football-usa-usl-championship'],"))
+          Path('src/lib/newsFootballUSL.test.js').write_text('''import {it,expect,vi} from 'vitest';
+          import {newsDataKeys,scopedNewsData,readNewsData} from './newsFootballData.js';
+          const key='usa-usl-championship',alias='football-usa-usl-championship';
+          const data=(id,rows=[])=>({competition:{id,sport:'football',country_id:'us'},season:'2026',rows});
+          it('accepts only the audited country-qualified USL equivalence',()=>{
+            expect(newsDataKeys(key)).toEqual([key,alias]);
+            for(const id of ['football-usl-championship','football-usa-usl-league-one','england-championship','football-sco-championship'])expect(scopedNewsData(data(id),key)).toBeNull();
+          });
+          it('fills the empty News table with actual existing Eastern and Western groups',async()=>{
+            const saved=data(alias,[{team:'Tampa Bay Rowdies',group:'USL Championship Eastern',points:52},{team:'Sacramento Republic',group:'USL Championship Western',points:44}]);
+            const get=vi.fn().mockResolvedValueOnce(data(key)).mockResolvedValueOnce(saved);
+            const result=await readNewsData(get,key,'standings');expect(result).toBe(saved);expect(result.rows.map(r=>r.group)).toEqual(['USL Championship Eastern','USL Championship Western']);
+            expect(get.mock.calls.map(c=>c[0])).toEqual(['/sports-data/standings?league='+key,'/sports-data/standings?league='+alias]);
+            expect(result.rows[0].goals_for).toBeUndefined();
+          });
+          it('never overwrites populated canonical data with an alias',async()=>{
+            const saved=data(key,[{team:'Club',points:1}]);const get=vi.fn().mockResolvedValue(saved);
+            expect(await readNewsData(get,key,'standings')).toBe(saved);expect(get).toHaveBeenCalledTimes(1);
+          });
+          it('rejects a wrong explicit sport despite the matching key',()=>{
+            expect(scopedNewsData({...data(alias),sport:'basketball'},key)).toBeNull();
+          });
+          it('never substitutes the previous season for a requested current table',async()=>{
+            const get=vi.fn().mockResolvedValue({...data(alias,[{team:'Old',points:1}]),season:'2025'});
+            await expect(readNewsData(get,key,'standings',{season:'2026'})).rejects.toThrow();
+          });
+          ''')
+          PY
+      - name: Full non-App regression and production build
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=usl-evidence/tests.json > usl-evidence/tests.txt 2>&1 || { tail -100 usl-evidence/tests.txt; exit 1; }
+          npm run build > usl-evidence/build.txt 2>&1 || { cat usl-evidence/build.txt; exit 1; }
+          git diff --check
+      - name: Actual public table identity and unmodified statistics
+        run: |
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';import {readNewsData} from './src/lib/newsFootballData.js';
+          const reads=[];const get=async path=>{reads.push(path);const r=await fetch('https://allball-backend-production.up.railway.app'+path,{signal:AbortSignal.timeout(18000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();};
+          const data=await readNewsData(get,'usa-usl-championship','standings');
+          const groups=[...new Set(data.rows.map(r=>r.group))];
+          if(data.competition.id!=='football-usa-usl-championship'||data.season!=='2026'||data.rows.length!==25||groups.length!==2||data.stale)throw Error('USL source changed; review needed');
+          fs.writeFileSync('usl-evidence/live-table.json',JSON.stringify(data,null,2));
+          const summary={checked_at:new Date().toISOString(),competition:data.competition,season:data.season,rows:data.rows.length,groups,missing_logos:data.rows.filter(r=>!r.logo).length,reads,news_writes:0,sports_writes:0};
+          fs.writeFileSync('usl-evidence/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));
+          JS
+      - name: Preserve tested News child release
+        run: |
+          git add src/lib/newsFootballData.js src/lib/newsFootballUSL.test.js
+          test "$(git diff --cached --name-only | wc -l)" = 2
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): connect verified USL Championship table and preserve conference groups'
+          git push origin HEAD:refs/heads/audit/news-data-final-release-20261003
+          git rev-parse HEAD > usl-evidence/tested-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-usl-release-20261003
+          path: usl-evidence/
+          retention-days: 7
