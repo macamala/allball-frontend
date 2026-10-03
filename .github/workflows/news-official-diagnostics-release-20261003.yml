@@ -1,0 +1,72 @@
+name: News official source diagnostic gate
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-official-diagnostics-release-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5342c372a35449ace26d23262c1310e1cc5d5124
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Add bounded source diagnostics, no new source requests or weaker access rules
+        run: |
+          mkdir -p diagnostic-evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('server/newsDataServer.cjs');s=p.read_text()
+          old="function officialLoader({fetcher=fetch,clock=Date.now}={})"
+          assert s.count(old)==1;s=s.replace(old,"function officialLoader({fetcher=fetch,clock=Date.now,logger=console.warn}={})")
+          old="throw Error('Official source unavailable');"
+          assert s.count(old)==1;s=s.replace(old,"throw Object.assign(Error('Official source unavailable'),{code:'UPSTREAM_RESPONSE',upstreamStatus:response.status,contentType:(response.headers.get('content-type')||'').split(';')[0].slice(0,60)});")
+          old="  const task=(async()=>{\n   try{const policy=await checkPolicy();"
+          assert s.count(old)==1;s=s.replace(old,"  const task=(async()=>{\n   let stage='robots';\n   try{const policy=await checkPolicy();stage='policy';")
+          old="    const raw=await boundedText(fetcher,ORIGIN+PATHS[view],3000000),data="
+          assert s.count(old)==1;s=s.replace(old,"    stage='article-fetch';const raw=await boundedText(fetcher,ORIGIN+PATHS[view],3000000);stage='parse';const data=")
+          old="   }catch(error){blockedUntil=clock()+120000;"
+          assert s.count(old)==1;s=s.replace(old,"   }catch(error){\n    const code=value=>typeof value==='string'&&/^[A-Z0-9_]{1,60}$/.test(value)?value:null;\n    logger(JSON.stringify({event:'news_official_source_failure',source:'prva-liga',view,stage,name:error.name,code:code(error.code),causeCode:code(error.cause?.code),upstreamStatus:Number.isInteger(error.upstreamStatus)?error.upstreamStatus:null,contentType:error.contentType||null}));\n    blockedUntil=clock()+120000;")
+          p.write_text(s)
+          p=Path('tests/newsDataServer.check.cjs');p.write_text(p.read_text()+'''
+          test('source diagnostics expose only bounded status and never exception secrets',async()=>{
+            const logs=[],load=officialLoader({clock:()=>NOW,logger:s=>logs.push(JSON.parse(s)),fetcher:async()=>{const e=Error('secret_token=never-log-this');e.cause={code:'ENETUNREACH',message:'secret'};throw e;}});
+            await assert.rejects(load('standings'));assert.equal(logs.length,1);assert.equal(logs[0].stage,'robots');assert.equal(logs[0].causeCode,'ENETUNREACH');assert(!JSON.stringify(logs).includes('secret'));
+            await assert.rejects(load('standings'));assert.equal(logs.length,1);
+          });
+          test('an upstream refusal is recorded but remains a refusal',async()=>{
+            const logs=[],load=officialLoader({clock:()=>NOW,logger:s=>logs.push(JSON.parse(s)),fetcher:async()=>response('Access denied',403)});
+            await assert.rejects(load('standings'));assert.equal(logs[0].upstreamStatus,403);assert.equal(logs[0].code,'UPSTREAM_RESPONSE');assert.equal(logs[0].stage,'robots');
+          });
+          ''')
+          PY
+          npm ci
+          node --test tests/newsDataServer.check.cjs > diagnostic-evidence/server-tests.txt 2>&1 || { cat diagnostic-evidence/server-tests.txt; exit 1; }
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=diagnostic-evidence/tests.json > diagnostic-evidence/tests.txt 2>&1 || { tail -80 diagnostic-evidence/tests.txt; exit 1; }
+          npm run build > diagnostic-evidence/build.txt 2>&1
+          git diff --check
+      - name: Preserve tested diagnostic child only
+        run: |
+          git add server/newsDataServer.cjs tests/newsDataServer.check.cjs
+          test "$(git diff --cached --name-only | wc -l)" = 2
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): record bounded official source transport and parser diagnostics'
+          git push origin HEAD:refs/heads/audit/news-official-diagnostics-release-20261003
+          git rev-parse HEAD > diagnostic-evidence/tested-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-official-diagnostics-release-20261003
+          path: diagnostic-evidence/
+          retention-days: 7
