@@ -1,0 +1,52 @@
+name: News source scope and browser access proof
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-complete-source-proof-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Source identity and allowed public access, no anti-bot workarounds
+        run: |
+          mkdir -p source-proof
+          python - <<'PY'
+          import pathlib,json,urllib.request,urllib.error,time
+          from datetime import datetime,timezone
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('source-proof');summary=[]
+          urls={slug:'https://site.web.api.espn.com/apis/v2/sports/soccer/'+slug+'/standings' for slug in ['uefa.euro','fifa.world','fifa.cwc','fifa.wwc','uefa.w.nations','uefa.euro_u21','bel.2','rou.2','cro.2','cze.2','srb.1','uefa.champions','uefa.wchampions','eng.w.1','usa.nwsl','jpn.2']}
+          urls.update({'esp2-board':'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=20260801-20270701&limit=1000','eng2-board':'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.2/scoreboard?dates=20260801-20270701&limit=1000','prva-rest':'https://www.prvaliga.rs/wp-json/wp/v2/pages/33','prva-home-rest':'https://www.prvaliga.rs/wp-json/wp/v2/pages/54'})
+          blocked=set()
+          for name,url in urls.items():
+              host=urllib.request.urlparse(url).hostname if hasattr(urllib.request,'urlparse') else url.split('/')[2]
+              if host in blocked:continue
+              item={'name':name,'url':url}
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'NinkoSports-NewsData/1.0','Origin':'https://ninkosports.com'}),timeout=18) as r:
+                      raw=r.read(6000000);d=json.loads(raw);(root/(name+'.json')).write_bytes(raw)
+                      item.update(status=r.status,cors=r.headers.get('Access-Control-Allow-Origin'),keys=list(d) if isinstance(d,dict) else None)
+                      if isinstance(d,dict):item.update(uid=d.get('uid'),label=d.get('name'),season=d.get('season'),groups=[{'name':g.get('name'),'rows':len((g.get('standings') or {}).get('entries',[]))} for g in d.get('children',[])],events=len(d.get('events',[])),leagues=d.get('leagues'),content_size=len(str(d.get('content',''))))
+              except Exception as e:
+                  item['error']=type(e).__name__+': '+str(e)[:160]
+                  if isinstance(e,urllib.error.HTTPError) and e.code in (401,403,429):blocked.add(host)
+              summary.append(item);time.sleep(.3)
+          with sync_playwright() as p:
+              b=p.chromium.launch();page=b.new_page();page.goto('https://ninkosports.com/football/england-championship',wait_until='domcontentloaded')
+              result=page.evaluate("""async()=>{const urls=['https://site.web.api.espn.com/apis/v2/sports/soccer/eng.2/standings','https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=20260901-20261031&limit=1000','https://www.prvaliga.rs/wp-json/wp/v2/pages/33'];const out=[];for(const url of urls){try{const r=await fetch(url,{credentials:'omit',signal:AbortSignal.timeout(12000)});const d=await r.json();out.push({url,status:r.status,uid:d.uid,rows:d.children?.[0]?.standings?.entries?.length,events:d.events?.length,content_size:JSON.stringify(d.content||'').length});}catch(e){out.push({url,error:String(e)});}}return out;}""")
+              (root/'browser-cors.json').write_text(json.dumps(result,indent=2));b.close()
+          (root/'summary.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary,indent=2));print(json.dumps(result,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-complete-source-proof-20261003
+          path: source-proof/
+          retention-days: 7
