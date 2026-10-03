@@ -20,6 +20,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
 import SportDesk from "../components/SportDesk.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
+import NewsRefreshBar from "../components/NewsRefreshBar.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 
 function mergeDirectory(countsBySlug) {
@@ -40,6 +41,8 @@ export default function SportPage() {
   const apiSport = sportSlug === "other-sports" ? "other" : sport?.slug || sportSlug;
   const rawCachedList = peekArticles({ sport: apiSport, limit: 100 });
   const cachedList = publishedNewsRows(rawCachedList);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [checkedAt, setCheckedAt] = useState(null);
   const [articles, setArticles] = useState(cachedList);
   const [loading, setLoading] = useState(!rawCachedList);
   const [error, setError] = useState("");
@@ -71,13 +74,15 @@ export default function SportPage() {
     if (cached.length) {
       setArticles(cached);
       setLoading(false);
-    } else {
+    } else if (!refreshTick) {
       setLoading(true);
     }
     getArticles(params)
       .then((rows) => {
         if (!cancelled) {
+          if (!Array.isArray(rows)) throw new Error("Invalid News response");
           setArticles(publishedNewsRows(rows));
+          setCheckedAt(new Date().toISOString());
           setError("");
         }
       })
@@ -107,7 +112,7 @@ export default function SportPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiSport, sport, t]);
+  }, [apiSport, sport, t, refreshTick]);
 
   if (!sport) return <NotFoundPage />;
 
@@ -158,6 +163,7 @@ export default function SportPage() {
         </div>
       )}
 
+      {apiSport === "football" && <NewsRefreshBar checkedAt={checkedAt} busy={loading} onRefresh={() => setRefreshTick(value => value + 1)} />}
       <p><Link className="btn btn-ghost" to={`/search?sport=${encodeURIComponent(apiSport)}`}>
         {t("news.archive")}
       </Link></p>

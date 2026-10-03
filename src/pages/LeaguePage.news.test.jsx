@@ -55,3 +55,23 @@ it('loads further pages from the same league and deduplicates overlapping rows',
   expect(screen.getAllByText('Serbia story 80')).toHaveLength(1);
   expect(screen.queryByText('Wrong page story')).toBeNull();
 });
+
+it('refreshes the current league and permits searching already published club stories',async()=>{
+  api.getArticles.mockResolvedValueOnce([article(1,'serbia-superliga','Vojvodina appoints manager'),article(2,'serbia-superliga','Partizan prepares for match')])
+    .mockResolvedValueOnce([article(3,'serbia-superliga','Cukaricki announces squad'),article(1,'serbia-superliga','Vojvodina appoints manager')]);
+  page('/football/superliga');await screen.findByText('Vojvodina appoints manager');
+  fireEvent.change(screen.getByLabelText('Search this league’s published news'),{target:{value:'Vojvodina'}});
+  expect(screen.queryByText('Partizan prepares for match')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Search this league’s published news'),{target:{value:''}});
+  fireEvent.click(screen.getByRole('button',{name:'Refresh news'}));
+  await screen.findByText('Cukaricki announces squad');
+  expect(api.getArticles).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText('Partizan prepares for match')).toBeNull();
+});
+it('does not erase visible published news when its refresh fails',async()=>{
+  api.getArticles.mockResolvedValueOnce([article(1,'serbia-superliga','Vojvodina appoints manager')]).mockRejectedValueOnce(new Error('offline'));
+  page('/football/superliga');await screen.findByText('Vojvodina appoints manager');
+  fireEvent.click(screen.getByRole('button',{name:'Refresh news'}));
+  await waitFor(()=>expect(api.getArticles).toHaveBeenCalledTimes(2));
+  expect(screen.getByText('Vojvodina appoints manager')).toBeTruthy();
+});

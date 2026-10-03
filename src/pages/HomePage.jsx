@@ -8,6 +8,7 @@ import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
 import { preparePortalHomeNews } from "../lib/newsFreshness.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
+import NewsRefreshBar from "../components/NewsRefreshBar.jsx";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
@@ -20,6 +21,8 @@ import { HeroSkeleton, CardSkeleton } from "../components/Skeleton.jsx";
 
 export default function HomePage() {
   const cached = preparePortalHomeNews(peekPortalHome());
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [checkedAt, setCheckedAt] = useState(null);
   const [data, setData] = useState(cached);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!cached);
@@ -41,13 +44,15 @@ export default function HomePage() {
     if (cachedHome) {
       setData(cachedHome);
       setLoading(false);
-    } else {
+    } else if (!refreshTick) {
       setLoading(true);
     }
     getPortalHome()
       .then((payload) => {
         if (!cancelled) {
+          if (!payload || !Array.isArray(payload.featured) || !Array.isArray(payload.latest)) throw new Error("Invalid News response");
           setData(preparePortalHomeNews(payload));
+          setCheckedAt(new Date().toISOString());
           setError("");
         }
       })
@@ -60,7 +65,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, refreshTick]);
 
   const sportOrder = useMemo(() => {
     const slugs = MAIN_SPORTS.map((item) => item.slug);
@@ -77,14 +82,16 @@ export default function HomePage() {
     );
   }
 
-  if (error) {
-    return <EmptyState title={t("empty.loadFail")} body={error} compact />;
+  if (error && !data) {
+    return <><NewsRefreshBar onRefresh={() => setRefreshTick(value => value + 1)} /><EmptyState title={t("empty.loadFail")} body={error} compact /></>;
   }
 
   const modules = composeHomeModules(data || {});
 
   return (
     <div className="page-home">
+      <NewsRefreshBar checkedAt={checkedAt} busy={loading} onRefresh={() => setRefreshTick(value => value + 1)} />
+      {error ? <p role="alert">News could not be refreshed. Showing the last successfully loaded stories.</p> : null}
       <BreakingBar articles={modules.breaking} />
       <PortalLayout>
         {modules.featured.length > 0 ? (
