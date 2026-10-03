@@ -1,0 +1,54 @@
+name: News verified table final gate 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-usl-final-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 05219a92d4c243ccbff45643533bdce03523de25
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: a20c5d89a5dd9116a62aec7888c1804567713de9
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - run: pip install -q PyYAML
+      - name: Run pinned source tests and canonical-first public table verification
+        run: |
+          python - <<'PY'
+          import pathlib,yaml,subprocess
+          workflow=yaml.safe_load(pathlib.Path('bundle/.github/workflows/news-data-usl-release-20261003.yml').read_text())
+          steps=[s for s in workflow['jobs']['gate']['steps'] if 'run' in s]
+          assert len(steps)==4
+          for index,step in enumerate(steps):
+              script=step['run']
+              if index==2:
+                  old="data.competition.id!=='football-usa-usl-championship'"
+                  new="!['usa-usl-championship','football-usa-usl-championship'].includes(data.competition.id)"
+                  assert script.count(old)==1
+                  script=script.replace(old,new)
+                  script=script.replace("const groups=[...new Set(data.rows.map(r=>r.group))];", "const groups=[...new Set(data.rows.map(r=>r.group))];\nconsole.log(JSON.stringify({competition:data.competition,season:data.season,rows:data.rows.length,groups,stale:data.stale,reads}));\nif(data.competition.id==='usa-usl-championship' && reads.length!==1)throw Error('Populated canonical data must win');")
+              subprocess.run(['bash','-e','-c',script],cwd='source',check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-usl-final-20261003
+          path: source/usl-evidence/
+          retention-days: 7
