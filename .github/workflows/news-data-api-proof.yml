@@ -1,0 +1,46 @@
+name: News exact public league data proof
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-data-api-proof.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Request only identified public data and federation directories
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.error,urllib.robotparser,time
+          from urllib.parse import urlsplit
+          root=pathlib.Path('evidence');agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)'
+          urls=[('swiss-seasons','https://origins-webex-orchestrator.origins-digital.com/trpc/seasonsRouter.getSeasonsByCompetition?input=%7B%22competitionProviderIds%22%3A%228v97rcbthsxmzqk4ufxws9mug%22%7D','GET'),('swiss-table','https://origins-widgets-orchestrator.origins-digital.com/api/ranking?competitionId=undefined&tournamentCalendarId=akzt9nsp06yyv03a86lz8kdn8','GET'),('korea-table','https://www.kleague.com/record/teamRank.do?leagueId=2&year=2026&stadium=all&recordType=rank','POST'),('saudi-seasons','https://fdl.sa/api/frontend/seasonslist_active','GET'),('saudi-table','https://fdl.sa/api/frontend/insta/&tpl=32&tournament_id=211&season_id=38&date_start=&date_end=&lang_id=1&format=json','GET'),('saudi-widget','https://widgets.sofascore.com/embed/tournament/47092/season/99452/standings?widgetTheme=light','GET'),('denmark-config','https://lb.tjekscores.dk/c/37fe68fb0155853d3b0a0b6c22d23585/config.js?ver=1.2.30','GET'),('romania','https://www.frfotbal.ro/','GET'),('croatia','https://semafor.hns.family/natjecanja/','GET'),('belgium','https://www.voetbalkrant.com/belgie/challenger-pro-league/klassement','GET')]
+          policies={}
+          def get(url,method='GET',limit=4000000):
+              try:
+                  req=urllib.request.Request(url,data=b'' if method=='POST' else None,method=method,headers={'User-Agent':agent})
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      body=r.read(limit+1);assert len(body)<=limit;enc=r.headers.get_content_charset() or 'utf-8'
+                      return {'url':url,'method':method,'status':r.status,'final_url':r.url,'content_type':r.headers.get('Content-Type'),'text':body.decode(enc,errors='strict')}
+              except urllib.error.HTTPError as e:return {'url':url,'status':e.code,'error':'http'}
+              except Exception as e:return {'url':url,'error':type(e).__name__}
+          for key,url,method in urls:
+              origin='https://'+urlsplit(url).netloc
+              if origin not in policies:policies[origin]=get(origin+'/robots.txt',limit=100000)
+              p=policies[origin];allow=p.get('status') in [404,410]
+              if p.get('status')==200 and '<html' not in p.get('text','').lower():
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(p['text'].splitlines());allow=rp.can_fetch('NinkoSports-NewsData',url)
+                  if rp.crawl_delay('*'):time.sleep(min(rp.crawl_delay('*'),15))
+              d=get(url,method) if allow else {'url':url,'error':'robots_denied_or_unknown'}
+              (root/(key+'.json')).write_text(json.dumps(d,ensure_ascii=False));print(key,d.get('status'),d.get('error'),len(d.get('text','')),flush=True)
+          (root/'policies.json').write_text(json.dumps(policies,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-league-api-proof
+          path: evidence/
+          retention-days: 7
