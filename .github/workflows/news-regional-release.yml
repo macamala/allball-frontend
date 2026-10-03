@@ -1,0 +1,102 @@
+name: News regional table release
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-regional-release.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e814efbdcb6f1755dff411f352e781a718d8d867
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Apply exact reviewed News-only integration
+        working-directory: source
+        run: |
+          mkdir -p ../release-evidence
+          python ../bundle/audit/apply_regional_release.py
+          npm ci
+      - name: All non-App frontend and all old and new server regressions
+        working-directory: source
+        run: |
+          node --test tests/newsDataServer.check.cjs tests/newsRegional.check.cjs > ../release-evidence/server-tests.txt 2>&1 || { tail -100 ../release-evidence/server-tests.txt; exit 1; }
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --maxWorkers=2 --minWorkers=1 --reporter=json --outputFile=../release-evidence/tests.json > ../release-evidence/tests.txt 2>&1 || { tail -100 ../release-evidence/tests.txt; exit 1; }
+          npm run build > ../release-evidence/build.txt 2>&1 || { cat ../release-evidence/build.txt; exit 1; }
+          git diff --check
+      - name: Every existing App route in an isolated process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,json,re,subprocess,concurrent.futures
+          root=pathlib.Path('../release-evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66 and len(set(cases))==66
+          def run(pair):
+              index,title=pair;output=root/f'app-{index}.json'
+              try:
+                  result=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--maxWorkers=1','--minWorkers=1','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=75)
+                  (root/f'app-{index}.txt').write_text(result.stdout)
+                  data=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':result.returncode==0 and data.get('numPassedTests')==1 and not data.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:rows=list(pool.map(run,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(rows,indent=2));print(json.dumps({'count':len(rows),'passed':sum(r['passed'] for r in rows),'failed':[r for r in rows if not r['passed']]},indent=2));assert all(r['passed'] for r in rows)
+          PY
+      - name: Actual source transport, declared encoding and full current table identity
+        working-directory: source
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs');const {regionalLoader}=require('./server/newsRegionalTransport.cjs');const {robotAllows}=require('./server/newsDataServer.cjs');const {SOURCES}=require('./server/newsRegional.cjs');
+          const load=regionalLoader(),out=[];
+          // Supply the same policy checker used by the production server.
+          const reader=regionalLoader({robotAllows});
+          (async()=>{
+            for(const key of Object.keys(SOURCES)){
+              try{const d=await reader(key);fs.writeFileSync('../release-evidence/'+key+'.json',JSON.stringify(d,null,2));out.push({key,rows:d.rows.length,season:d.season,source:d.source,missing_logos:d.rows.filter(r=>!r.logo).length,source_url:d.source_url});}
+              catch(e){out.push({key,error:e.code||e.name});}
+            }
+            const summary={at:new Date().toISOString(),tables:out,AI_requests:0,database_writes:0};fs.writeFileSync('../release-evidence/source-summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));
+            if(out.some(r=>r.error)||out.length!==5)throw Error('Source proof failed');
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          JS
+      - name: Preserve clean tested release, never the audit workflows
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import subprocess,pathlib,json,hashlib
+          allowed={'server/newsRegional.cjs','server/newsRegionalTransport.cjs','server/newsDataServer.cjs','src/lib/newsOfficialData.js','src/lib/newsFootballSupplement.js','src/lib/newsRegionalData.test.js','tests/newsRegional.check.cjs'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed==allowed,changed^allowed
+          pathlib.Path('../release-evidence/files.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in sorted(allowed)},indent=2))
+          subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(news): connect verified regional standings without modifying Live Scores'
+          git push origin HEAD:refs/heads/audit/news-regional-release-20261003
+          git rev-parse HEAD > ../release-evidence/tested-commit.txt
+          git show --stat --oneline HEAD > ../release-evidence/commit.txt
+          git archive --format=tar HEAD > ../release-evidence/source.tar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-regional-release
+          path: release-evidence/
+          retention-days: 7
