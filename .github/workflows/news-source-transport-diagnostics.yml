@@ -1,0 +1,50 @@
+name: News source transport diagnostics
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-source-transport-diagnostics.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e814efbdcb6f1755dff411f352e781a718d8d867
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: cd source && python ../bundle/audit/apply_regional_release.py && npm ci --ignore-scripts
+      - name: Original production transport; no user-agent or access-policy changes
+        working-directory: source
+        run: |
+          mkdir -p ../diagnostic-evidence
+          node - <<'JS'
+          const fs=require('node:fs');const {regionalLoader}=require('./server/newsRegionalTransport.cjs'),{robotAllows}=require('./server/newsDataServer.cjs');
+          const out=[],logs=[];
+          const fetcher=async(url,options)=>{
+            const r=await fetch(url,options);const row={url,method:options.method,status:r.status,type:r.headers.get('content-type'),location:r.headers.get('location')};out.push(row);
+            if(r.status===200&&url.includes('2liga.at')&&!url.includes('robots')){
+              const raw=await r.clone().text();fs.writeFileSync('../diagnostic-evidence/austria-exact.html',raw);
+            }
+            return r;
+          };
+          (async()=>{const load=regionalLoader({fetcher,robotAllows,logger:s=>logs.push(JSON.parse(s))});
+            for(const key of ['south-korea-k-league-2','austria-second-league'])try{const d=await load(key);out.push({key,rows:d.rows.length});}catch(e){out.push({key,error:e.code||e.name});}
+            fs.writeFileSync('../diagnostic-evidence/requests.json',JSON.stringify({out,logs},null,2));console.log(JSON.stringify({out,logs},null,2));
+          })().catch(e=>{console.error(e.name);process.exitCode=1;});
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-source-transport-diagnostics
+          path: diagnostic-evidence/
+          retention-days: 7
