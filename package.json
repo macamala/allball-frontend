@@ -5,14 +5,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "npm run build && npx serve -s dist -l $PORT",
-    "test": "vitest run"
+    "start": "npm run build && node server/newsDataServer.cjs",
+    "test": "vitest run",
+    "test:news-data": "node --test tests/newsDataServer.check.cjs"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
-    "serve": "^14.2.0"
+    "serve": "^14.2.0",
+    "serve-handler": "6.1.7",
+    "parse5": "7.3.0",
+    "compression": "1.8.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

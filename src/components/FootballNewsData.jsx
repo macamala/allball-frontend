@@ -1,3 +1,4 @@
+import { loadNewsSupplement } from '../lib/newsFootballSupplement.js';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getJSON } from '../api.js';
@@ -23,6 +24,7 @@ function Team({ event, side }) {
 }
 
 function Match({ event }) {
+  const displayDate = event.start_precision === 'DATE_ONLY' && event.source_date ? new Date(...event.source_date.split('-').map((v,i)=>Number(v)-(i===1?1:0))) : new Date(event.start_time);
   const at = new Date(event.start_time), bucket = newsMatchBucket(event);
   const label = bucket === 'results' ? 'FT' : bucket === 'other' ? (['live', 'in_progress', 'halftime', 'break'].includes(event.status) ? 'Awaiting confirmation' : String(event.status || 'Awaiting confirmation').replaceAll('_', ' '))
     : ['live', 'in_progress', 'halftime', 'break'].includes(event.status) ? 'In progress'
@@ -30,7 +32,7 @@ function Match({ event }) {
     : at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const teams = <><Team event={event} side="home" /><Team event={event} side="away" /></>;
   return <li className="news-data-match" data-match-key={event.key || event.id}>
-    <div className="news-data-match-time"><time dateTime={event.start_time}>{at.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</time><strong>{label}</strong>{event.round ? <small>{/^(?:round|matchday|week|leg)\b/i.test(String(event.round)) ? event.round : `Round ${event.round}`}</small> : null}{event.group ? <small>{event.group}</small> : null}</div>
+    <div className="news-data-match-time"><time dateTime={event.start_time}>{displayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</time><strong>{label}</strong>{event.round ? <small>{/^(?:round|matchday|week|leg)\b/i.test(String(event.round)) ? event.round : `Round ${event.round}`}</small> : null}{event.group ? <small>{event.group}</small> : null}</div>
     {event.id && event.details_available !== false ? <Link className="news-data-pair" to={eventPath(event.id)} state={{ event }} aria-label={`Open match: ${event.home.name} vs ${event.away.name}`}>{teams}</Link>
       : <div className="news-data-pair">{teams}</div>}
   </li>;
@@ -74,7 +76,7 @@ export default function FootballNewsData({ competition, label, view }) {
       pending = true;
       setResource(previous => ({ ...previous, refreshing: true }));
       try {
-        const data = await readNewsData(getJSON, competition, view, { season, range: view === 'standings' ? null : range, signal: controller.signal });
+        const data = await readNewsData(getJSON, competition, view, { season, range: view === 'standings' ? null : range, signal: controller.signal, supplement: loadNewsSupplement });
         if (!data || (season && data.season && !sameNewsSeason(data.season, season))) throw new Error('Unverified competition or season scope');
         if (data._newsRead?.partial && !(view === 'standings' ? data.rows : data.events)?.length
             && saved?.data && (view === 'standings' ? saved.data.rows : saved.data.events)?.length)
@@ -147,11 +149,13 @@ export default function FootballNewsData({ competition, label, view }) {
       <p className="news-data-date-caption">{range ? `Selected: ${range.dateFrom} to ${range.dateTo}` : 'Showing all available match dates.'} Dates and kick-off times use your local timezone.</p>
     </form> : null}
     {dateError ? <p role="alert">{dateError}</p> : null}
+    {data?._newsRead?.edition ? <p className="news-data-note">Tournament edition: {data.season}. {data._newsRead.currentEditionUnavailable ? 'The current edition is unavailable; showing the verified previous edition. ' : ''}{view === 'standings' ? 'Group-stage standings for this edition; not a live knockout bracket.' : 'Fixtures and results reported for this edition.'}</p> : null}
+    {data?.table_status === 'provisional' ? <p className="news-data-note">Provisional official standings · Season {data.season}</p> : null}
     {notice ? <p className="news-data-notice" role="note">{notice}</p> : null}
     {season && view !== 'standings' ? <p className="news-data-note">Only records explicitly labelled with season {season} are included. Records without a confirmed season remain under All available seasons.</p> : null}
     {loading ? <p role="status">Loading {view}…</p> : resource.refreshing ? <p role="status">Refreshing {view}…</p> : null}
     {resource.path === path && resource.error ? <p role="alert">{resource.error} {data ? 'Showing the last successfully loaded records.' : ''}</p> : null}
-    {!loading && view === 'standings' && table.length > 0 ? <StandingsTable key={`${competition}:${season}:${group}`} sport="football" competition={competition} competitionCountry={meta.country_id} rows={table} event={{ group }} strictGroup onGroupChange={setGroup} /> : null}
+    {!loading && view === 'standings' && table.length > 0 ? <StandingsTable teamLinks={!data?._newsRead?.supplementary} key={`${competition}:${season}:${group}`} sport="football" competition={competition} competitionCountry={meta.country_id} rows={table} event={{ group }} strictGroup onGroupChange={setGroup} /> : null}
     {!loading && view !== 'standings' && allEvents.length > 0 ? <>
       <div className="news-data-filters"><label>Team<select aria-label="News data team" value={team} onChange={event => { setTeam(event.target.value); setVisible(40); }}><option value="">All teams</option>{teams.map(value => <option key={value}>{value}</option>)}</select></label>
       {groups.length > 1 ? <label>Group<select aria-label="News data group" value={group} onChange={event => { setGroup(event.target.value); setVisible(40); }}><option value="">All groups</option>{groups.map(value => <option key={value}>{value}</option>)}</select></label> : null}</div>

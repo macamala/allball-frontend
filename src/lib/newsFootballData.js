@@ -1,4 +1,4 @@
-import { sameNewsSeason, newsTeamName } from './newsFootballView.js';
+import { sameNewsSeason, newsTeamName, localNewsDate } from './newsFootballView.js';
 /** News-only presentation of existing, public football records. No ingestion. */
 export const FOOTBALL_NEWS_TOPICS = new Set([
   'football-international', 'football-youth', 'football-women', 'football-national-teams',
@@ -81,6 +81,7 @@ export function scopedNewsData(payload, competition) {
 
 export function newsMatchBucket(event, now = Date.now()) {
   const status = String(event?.status || '').toLowerCase();
+  if (event?.start_precision === 'DATE_ONLY' && /^\d{4}-\d{2}-\d{2}$/.test(event.source_date || '') && SCHEDULED.has(status)) return event.source_date >= localNewsDate(new Date(now)) ? 'fixtures' : 'other';
   if (FINALS.has(status)) return 'results';
   if (ACTIVE.has(status)) {
     const observed = Date.parse(event?.updated_at || event?.score_observed_at || event?.start_time || '');
@@ -101,7 +102,7 @@ export function newsMatches(payload, competition, { view, season = '', team = ''
     if (!event || event.sport !== 'football' || event.competition_key !== dataKey) continue;
     if (competition === 'uefa-womens-champions-league' && event.football_gender && event.football_gender !== 'women') continue;
     if (!event.home?.name || !event.away?.name || !event.start_time || !Number.isFinite(Date.parse(event.start_time))) continue;
-    if (range && (Date.parse(event.start_time) < range.start || Date.parse(event.start_time) >= range.end)) continue;
+    if (range && (event.start_precision === 'DATE_ONLY' && event.source_date ? (event.source_date < range.dateFrom || event.source_date > range.dateTo) : (Date.parse(event.start_time) < range.start || Date.parse(event.start_time) >= range.end))) continue;
     if (season && !sameNewsSeason(event.season, season)) continue;
     if (group && event.group !== group) continue;
     if (team && ![event.home.name, event.away.name].some(name => newsTeamName(name) === newsTeamName(team))) continue;
@@ -165,7 +166,7 @@ export async function readNewsDateRange(get, competition, range, { season = '', 
   throw lastError || new Error('Competition data is unavailable');
 }
 
-export async function readNewsData(get, competition, view, { season = '', signal, timeoutMs = 12000, now = Date.now(), range = null } = {}) {
+export async function readRetainedNewsData(get, competition, view, { season = '', signal, timeoutMs = 12000, now = Date.now(), range = null } = {}) {
   if (range && view !== 'standings') return readNewsDateRange(get, competition, range, { season, signal, timeoutMs });
   let empty = null, lastError;
   for (const key of newsDataKeys(competition)) {
@@ -208,4 +209,28 @@ export function newsDataPhase(payload, competition) {
   const data = scopedNewsData(payload, competition);
   const key = typeof data?.competition === 'string' ? data.competition : data?.competition?.id;
   return competition === 'mexico-liga-expansion' && key === 'football-mex-liga-de-expansion-mx-apertura' ? 'Apertura' : null;
+}
+
+/** NEWS-only fallback. Keep fresh retained data; never replace it with guesses. */
+export async function readNewsData(get, competition, view, options = {}) {
+  let saved = null, failed;
+  try { saved = await readRetainedNewsData(get, competition, view, options); }
+  catch (error) { if (options.signal?.aborted) throw error; failed = error; }
+  const missing = !(view === 'standings' ? saved?.rows : saved?.events)?.length;
+  if (typeof options.supplement === 'function' && (missing || (view === 'standings' && saved?.stale))) {
+    try {
+      const extra = await options.supplement(competition, view, options);
+      if (extra) {
+        if (!scopedNewsData(extra, competition) || (options.season && !sameNewsSeason(options.season, extra.season)))
+          throw new Error('Unverified supplemental News scope');
+        if ((view === 'standings' ? extra.rows : extra.events)?.length) return extra;
+      }
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      if (missing) throw error;
+      return { ...saved, stale: true, _newsRead: { ...saved._newsRead, supplementUnavailable: true } };
+    }
+  }
+  if (saved) return saved;
+  throw failed || new Error('Competition data is unavailable');
 }

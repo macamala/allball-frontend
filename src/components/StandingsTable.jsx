@@ -37,7 +37,7 @@ const TABLE_UI = {
   pt: ["Tabela completa", "Tabela compacta", "Deslize para ver todas as colunas. As equipes continuam visíveis.", "Classificação"],
 };
 
-function TeamCell({ row, sport, competition, competitionCountry }) {
+function TeamCell({ row, sport, competition, competitionCountry, teamLinks = true }) {
   const [failed, setFailed] = React.useState(false);
   React.useEffect(() => setFailed(false), [row.logo, row.crest, row.badge, row.team_logo, row.teamLogo]);
   const logo = !failed ? (row.logo || row.crest || row.badge || row.team_logo || row.teamLogo || "") : "";
@@ -73,7 +73,7 @@ function TeamCell({ row, sport, competition, competitionCountry }) {
       <span>{name}</span>
     </>
   );
-  return path && path !== "/live-scores" ? (
+  return teamLinks && path && path !== "/live-scores" ? (
     <Link className="standings-team" to={path} style={{ color: "inherit", textDecoration: "none" }}>
       {content}
     </Link>
@@ -115,6 +115,7 @@ export default function StandingsTable({
   event = {},
   onGroupChange,
   strictGroup = false,
+  teamLinks = true,
   empty,
 }) {
   const { lang } = useI18n();
@@ -196,6 +197,7 @@ export default function StandingsTable({
                   {col === "team" ? (
                     <TeamCell
                       row={row}
+                      teamLinks={teamLinks}
                       sport={sport}
                       competition={competition}
                       competitionCountry={competitionCountry}
