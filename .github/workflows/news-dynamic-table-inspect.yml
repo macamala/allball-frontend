@@ -1,0 +1,62 @@
+name: News official dynamic table inspection
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-dynamic-table-inspect.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Inspect normal anonymous page rendering and bounded sports JSON only
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json,pathlib,re
+          from urllib.parse import urlsplit
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('evidence');summary=[]
+          pages=[('swiss2','https://sfl.ch/de/challengeleague-tabelle'),('denmark2','https://1-division.dk/stilling'),('belgium2','https://www.proleague.be/cpl'),('saudi2','https://fdl.sa/yelo'),('korea2','https://www.kleague.com/record/team.do?leagueId=2')]
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for key,url in pages:
+                  context=browser.new_context();page=context.new_page();responses=[]
+                  def receive(r):
+                      parsed=urlsplit(r.url)
+                      if r.request.resource_type not in ['fetch','xhr']:return
+                      if not any(t in parsed.hostname for t in ['origins','sport','league','division','fdl.sa']):return
+                      info={'url':r.url,'method':r.request.method,'status':r.status,'type':r.headers.get('content-type','')}
+                      # Read sports datasets, not authentication/ad payloads or arbitrary scripts.
+                      if r.status==200 and 'json' in info['type'] and not re.search(r'login|token|auth|user|profile|session|cookie|consent|analytics',r.url,re.I):
+                          try:
+                              body=r.text()
+                              if len(body)<2000000 and re.search(r'rank|standing|points|played|gainPoint|winCnt|goal',body,re.I):
+                                  name=key+'-response-'+str(len(responses))+'.json';(root/name).write_text(body);info['body_file']=name
+                          except Exception:pass
+                      responses.append(info)
+                  page.on('response',receive)
+                  record={'key':key,'url':url}
+                  try:
+                      page.goto(url,wait_until='domcontentloaded',timeout=40000)
+                      page.wait_for_timeout(7000)
+                      record['text']=page.locator('body').inner_text()[:10000]
+                      record['tables']=page.locator('table').count()
+                      (root/(key+'-page.html')).write_text(page.content())
+                  except Exception as e:record['error']=type(e).__name__
+                  record['responses']=responses;summary.append(record);context.close()
+              browser.close()
+          (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
+          print(json.dumps([{k:v for k,v in r.items() if k not in ['text','responses']} for r in summary],indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-dynamic-table-inspection
+          path: evidence/
+          retention-days: 7
