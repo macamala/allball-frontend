@@ -1,0 +1,46 @@
+name: News visible final production proof
+on:
+  push:
+    branches: [audit/news-visible-20261003]
+    paths: [.github/workflows/news-visible-final-proof.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8099980a7fe2644e1791330742c5ae34809bf477
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q PyYAML playwright && python -m playwright install --with-deps chromium
+      - name: Unmocked production publication and reader proof
+        run: |
+          python - <<'PY'
+          import pathlib,yaml,subprocess
+          workflow=yaml.safe_load(pathlib.Path('.github/workflows/news-visible-production.yml').read_text())
+          script=next(s['run'] for s in workflow['jobs']['browser']['steps'] if s.get('name','').startswith('Public pages'))
+          old='.hero-stories a[href^="/article/"],.latest-feed a[href^="/article/"]'
+          assert script.count(old)==1
+          script=script.replace(old,'.page-league a[href^="/article/"]')
+          old="page.locator('#football-news-search').fill('England')\n              page.locator('.page-heading').scroll_into_view_if_needed()"
+          new="page.locator('#football-news-search').fill('England')\n              expect(page.locator('.news-directory-preview[data-news-league=\"england-premier-league\"]')).not_to_contain_text('Loading latest published news',timeout=25000)\n              page.locator('.page-heading').scroll_into_view_if_needed()"
+          assert script.count(old)==1;script=script.replace(old,new)
+          old="context.set_offline(True);page.get_by_role('button',name='Refresh news',exact=True).click()\n                  expect(page.get_by_role('alert')).to_contain_text('last successfully loaded stories',timeout=20000)"
+          new="context.set_offline(True)\n                  expect(page.locator('.news-refresh-bar [role=status]')).to_contain_text('Offline — showing saved news',timeout=10000)\n                  expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_disabled()"
+          assert script.count(old)==1;script=script.replace(old,new)
+          old="context.set_offline(False);page.get_by_role('button',name='Refresh news',exact=True).click()\n                  expect(page.get_by_role('alert')).to_have_count(0,timeout=25000)"
+          new="with page.expect_response(lambda r:'/portal/home' in r.url and r.status==200,timeout=25000):\n                      context.set_offline(False)\n                  expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_enabled()\n                  expect(page.locator('.news-refresh-bar')).not_to_contain_text('Offline')\n                  expect(page.get_by_role('alert')).to_have_count(0,timeout=25000)"
+          assert script.count(old)==1;script=script.replace(old,new)
+          subprocess.run(['bash','-e','-c',script],check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-visible-final-proof
+          path: proof/
+          retention-days: 7
