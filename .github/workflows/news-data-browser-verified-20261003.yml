@@ -1,0 +1,41 @@
+name: News data verified production browser 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-browser-verified-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0e997f143b404226afbe2f4675a61b2dd1dab6e9
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q PyYAML playwright && python -m playwright install --with-deps chromium
+      - name: Verify actual public site, matched source records and recovery
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,yaml
+          workflow=yaml.safe_load(pathlib.Path('.github/workflows/news-data-production-20261003.yml').read_text())
+          script=next(step['run'] for step in workflow['jobs']['browser']['steps'] if step.get('name','').startswith('Actual public pages'))
+          old='page.wait_for_function("()=>[...document.querySelectorAll(\'.news-data-list .news-data-match:first-child .news-data-team img\')].every(i=>i.complete&&i.naturalWidth>0)",timeout=20000)'
+          new='page.wait_for_function("el=>{const imgs=[...el.querySelectorAll(\'.news-data-team img\')];return imgs.length===2&&imgs.every(i=>i.complete&&i.naturalWidth>0);}",arg=visible.element_handle(),timeout=20000)'
+          assert script.count(old)==1;script=script.replace(old,new)
+          old="assert 'Standings have not been supplied' in page.locator('.news-football-data').inner_text()"
+          new="assert 'No confirmed standings available for this selection' in page.locator('.news-football-data').inner_text(), page.locator('.news-football-data').inner_text()"
+          assert script.count(old)==1;script=script.replace(old,new)
+          script=script.replace("row['error']=str(e)[:800]", "row['error']=type(e).__name__+': '+str(e)[:800]")
+          subprocess.run(['bash','-e','-c',script],check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-verified-browser-20261003
+          path: browser-evidence/
+          retention-days: 7
