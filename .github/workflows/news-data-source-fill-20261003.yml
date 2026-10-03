@@ -1,0 +1,73 @@
+name: News missing league data source proof
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-source-fill-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: be88be88d69014c1d47da7319ae4f5c761e8cbae
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: |
+          mkdir -p fill-evidence
+          git archive --format=tar HEAD > fill-evidence/frontend.tar
+          npm ci --ignore-scripts
+          tar -czf fill-evidence/node-modules.tar.gz node_modules
+      - name: Bounded public source identity and response checks
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.error,urllib.parse,urllib.robotparser,json,pathlib,time
+          from datetime import datetime,timezone
+          root=pathlib.Path('fill-evidence');out=[];blocked=set();robots={}
+          specs=[('eng.2','england-championship'),('esp.2','spain-la-liga-2'),('ita.2','italy-serie-b'),('gre.1','greece-super-league'),('tur.2','turkey-first-league'),('sui.2','switzerland-challenge-league'),('aut.2','austria-second-league'),('den.2','denmark-first-division'),('arg.2','argentina-primera-nacional'),('jpn.1','japan-j1-league'),('kor.2','south-korea-k-league-2'),('aus.1','australia-a-league-men'),('ksa.2','saudi-first-division'),('uefa.europa','uefa-europa-league'),('uefa.europa.conf','uefa-conference-league'),('conmebol.libertadores','conmebol-libertadores'),('afc.champions','afc-champions-league-elite'),('caf.champions','caf-champions-league'),('srb.2','serbia-prva-liga')]
+          def read(url,name,robotcheck=False):
+              host=urllib.parse.urlsplit(url).hostname
+              if host in blocked:return {'error':'host_access_blocked'}
+              item={'url':url,'checked_at':datetime.now(timezone.utc).isoformat()}
+              try:
+                  headers={'User-Agent':'NinkoSports-NewsData/1.0 (+https://ninkosports.com)','Origin':'https://ninkosports.com'}
+                  if robotcheck:
+                      if host not in robots:
+                          try:
+                              with urllib.request.urlopen(urllib.request.Request('https://'+host+'/robots.txt',headers=headers),timeout=10) as r:text=r.read(200000).decode()
+                              rp=urllib.robotparser.RobotFileParser();rp.parse(text.splitlines());robots[host]=rp
+                          except urllib.error.HTTPError as e:
+                              if e.code not in (404,410):raise
+                              robots[host]=None
+                      if robots[host] and not robots[host].can_fetch(headers['User-Agent'],url):raise ValueError('robots_disallowed')
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=15) as r:
+                      data=r.read(6000001);assert len(data)<=6000000
+                      item.update(status=r.status,type=r.headers.get('Content-Type'),cors=r.headers.get('Access-Control-Allow-Origin'))
+                      (root/name).write_bytes(data)
+                      if 'json' in item['type']:
+                          d=json.loads(data);item['keys']=list(d) if isinstance(d,dict) else None
+                          item['identity']={k:d.get(k) for k in ('id','uid','name','slug','abbreviation','season','seasons')} if isinstance(d,dict) else None
+                          if isinstance(d,dict):item['groups']=[{'id':v.get('id'),'name':v.get('name'),'entries':len((v.get('standings') or {}).get('entries',[]))} for v in d.get('children',[])]
+              except Exception as e:
+                  item['error']=type(e).__name__+': '+str(e)[:180]
+                  if isinstance(e,urllib.error.HTTPError) and e.code in (401,403,429):blocked.add(host)
+              return item
+          for slug,menu in specs:
+              r=read('https://site.web.api.espn.com/apis/v2/sports/soccer/'+slug+'/standings',slug+'.json');r.update(menu=menu,slug=slug);out.append(r)
+              if 'site.web.api.espn.com' in blocked:break
+              time.sleep(.4)
+          for name,url in [('prvaliga','https://www.prvaliga.rs/'),('prvaliga-matches','https://www.prvaliga.rs/sezona/raspored-i-rezultati/'),('superliga','https://www.superliga.rs/'),('efl','https://www.efl.com/competitions/sky-bet-championship/league-table/')]:out.append(read(url,name+'.html',True))
+          with urllib.request.urlopen('https://allball-backend-production.up.railway.app/sports-data/competitions?sport=football',timeout=25) as r:(root/'registry.json').write_bytes(r.read())
+          (root/'summary.json').write_text(json.dumps(out,indent=2));print(json.dumps(out,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-source-fill-20261003
+          path: fill-evidence/
+          retention-days: 7
