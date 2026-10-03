@@ -1,0 +1,179 @@
+name: News football data production acceptance 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-production-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Actual public pages and requests, no mocked data or injected CSS
+        run: |
+          mkdir -p browser-evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,collections
+          from datetime import datetime,timezone
+          from playwright.sync_api import sync_playwright,expect
+          root=pathlib.Path('browser-evidence');checks=[];failures=[];base='https://allball-backend-production.up.railway.app'
+          references={}
+          for key in ['england-premier-league','england-championship','serbia-superliga','uefa-nations-league','usa-usl-championship']:
+              with urllib.request.urlopen(base+'/sports-data/standings?league='+key,timeout=25) as r:references[key]=json.loads(r.read())
+          (root/'table-references.json').write_text(json.dumps(references,indent=2))
+          cases=[('premier-league','england-premier-league'),('england-championship','england-championship'),('superliga','serbia-superliga'),('nations-league','uefa-nations-league'),('usa-usl-championship','usa-usl-championship')]
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for width in [1440,390,320]:
+                  context=browser.new_context(viewport={'width':width,'height':1000},timezone_id='Australia/Sydney')
+                  page=context.new_page();errors=[];writes=[]
+                  page.on('pageerror',lambda e:errors.append(str(e)))
+                  page.on('request',lambda r:writes.append({'method':r.method,'url':r.url}) if '/sports-data/' in r.url and r.method not in ['GET','HEAD','OPTIONS'] else None)
+                  def ready():
+                      page.locator('.news-football-data').wait_for(timeout=25000)
+                      page.wait_for_function("document.querySelector('.news-football-data')?.getAttribute('aria-busy') === 'false'",timeout=45000)
+                      expect(page.get_by_role('button',name='Refresh data',exact=True)).to_be_enabled(timeout=45000)
+                  def layout():
+                      dims=page.evaluate('({width:document.documentElement.scrollWidth,viewport:innerWidth})')
+                      assert dims['width']<=width+3,dims
+                      return dims
+                  def match_ids():return page.locator('.news-data-list:visible > .news-data-match:visible').evaluate_all('(rows)=>rows.map(r=>r.dataset.matchKey)')
+                  for slug,key in cases:
+                      row={'width':width,'league':key,'tabs':{},'groups':[]}
+                      try:
+                          page.goto('https://ninkosports.com/football/'+slug,wait_until='domcontentloaded',timeout=45000)
+                          for tab in ['Fixtures','Results','Standings']:
+                              page.get_by_role('tab',name=tab,exact=True).click();ready();panel=page.locator('.news-football-data')
+                              assert panel.locator('[role=alert]').count()==0,panel.inner_text()
+                              row['tabs'][tab]={'visible_match_rows':len(match_ids()),'table_rows':panel.locator('tbody tr').count(),'layout':layout()}
+                              if tab!='Standings':expect(page.get_by_label('News matches from',exact=True)).to_be_visible()
+                              if tab=='Fixtures' and key=='england-championship':
+                                  visible=panel.locator('.news-data-list:visible > .news-data-match:visible').first
+                                  visible.scroll_into_view_if_needed()
+                                  expect(visible.locator('.news-data-team img')).to_have_count(2)
+                                  page.wait_for_function("()=>[...document.querySelectorAll('.news-data-list .news-data-match:first-child .news-data-team img')].every(i=>i.complete&&i.naturalWidth>0)",timeout=20000)
+                                  row['championship_crest_decode']=True
+                          ref=references[key];expected_rows=ref.get('rows',[])
+                          groups=collections.defaultdict(list)
+                          for tr in expected_rows:groups[(str(tr.get('stage') or ''),str(tr.get('group') or ''))].append(tr)
+                          if len(groups)>1:
+                              select=page.get_by_role('combobox',name='Standings group',exact=True)
+                              options=select.locator('option').evaluate_all('(opts)=>opts.filter(o=>o.value).map(o=>({value:o.value,label:o.textContent}))')
+                              assert len(options)==len(groups),(key,len(options),len(groups))
+                              for option in options:
+                                  stage,group=json.loads(option['value']);expected=groups[(stage,group)]
+                                  select.select_option(option['value'])
+                                  names=sorted(tr['team'] for tr in expected)
+                                  page.wait_for_function("expected=>JSON.stringify([...document.querySelectorAll('.news-football-data tbody .standings-col-team')].map(e=>e.innerText.trim()).sort())===JSON.stringify(expected)",arg=names,timeout=10000)
+                                  actual=page.locator('.news-football-data tbody tr').evaluate_all('(rows)=>rows.map(r=>({team:r.querySelector(".standings-col-team").innerText.trim(),points:r.querySelector(".standings-col-points")?.innerText.trim()}))')
+                                  assert {r['team']:r.get('points') for r in actual}=={r['team']:str(r['points']) for r in expected}
+                                  row['groups'].append({'stage':stage,'group':group,'rows':len(actual),'verified_team_points':True});layout()
+                          elif expected_rows:
+                              expect(page.locator('.news-football-data tbody tr')).to_have_count(len(expected_rows))
+                          else:
+                              expect(page.locator('.news-football-data tbody tr')).to_have_count(0)
+                              assert 'Standings have not been supplied' in page.locator('.news-football-data').inner_text()
+                              row['missing_table_not_fabricated']=True
+                          if key in ['england-premier-league','uefa-nations-league','usa-usl-championship']:
+                              page.locator('.news-data-heading').scroll_into_view_if_needed();page.screenshot(path=str(root/f'{width}-{key}-standings.png'))
+                          if key in ['england-premier-league','england-championship','serbia-superliga']:
+                              page.get_by_role('tab',name='Results',exact=True).click();ready()
+                              page.get_by_label('News matches from',exact=True).fill('2026-09-01')
+                              page.get_by_label('News matches to',exact=True).fill('2026-10-31')
+                              with page.expect_response(lambda r:'/sports-data/events?' in r.url and 'date_from=' in r.url,timeout=45000) as seen:
+                                  page.get_by_role('button',name='Apply dates',exact=True).click()
+                              raw=seen.value.json();ready()
+                              assert raw['snapshot']['complete'] is True
+                              assert raw['snapshot']['date_from']=='2026-08-31T14:00:00.000Z'
+                              assert raw['snapshot']['date_to']=='2026-10-31T12:59:59.999Z'
+                              selected=match_ids();assert selected,(key,'no dated results')
+                              row['date_range']={'from':raw['snapshot']['date_from'],'to':raw['snapshot']['date_to'],'visible_results':len(selected),'stored_records':raw['snapshot']['count']}
+                              page.get_by_role('tab',name='Fixtures',exact=True).click();ready()
+                              assert 'Selected: 2026-09-01 to 2026-10-31' in page.locator('.news-football-data').inner_text()
+                              page.get_by_role('tab',name='Results',exact=True).click();ready()
+                              assert match_ids()==selected
+                              row['range_preserved_across_tabs']=True
+                              page.get_by_label('News matches from',exact=True).fill('2026-11-05')
+                              page.get_by_role('button',name='Apply dates',exact=True).click()
+                              expect(page.get_by_role('alert')).to_contain_text('must not be before')
+                              assert match_ids()==selected
+                              page.get_by_label('News matches from',exact=True).fill('2026-09-01')
+                              page.get_by_role('button',name='Apply dates',exact=True).click();ready()
+                              assert page.get_by_role('alert').count()==0
+                              if key=='england-premier-league':
+                                  before=match_ids();context.set_offline(True)
+                                  page.get_by_role('button',name='Refresh data',exact=True).click()
+                                  expect(page.get_by_role('alert')).to_contain_text('last successfully loaded records',timeout=20000)
+                                  assert match_ids()==before
+                                  context.set_offline(False)
+                                  page.get_by_role('button',name='Refresh data',exact=True).click();ready()
+                                  expect(page.get_by_role('alert')).to_have_count(0)
+                                  row['offline_records_preserved_and_recovered']=True
+                              page.locator('.news-data-heading').scroll_into_view_if_needed();page.screenshot(path=str(root/f'{width}-{key}-dates.png'))
+                          page.get_by_role('tab',name='News',exact=True).click()
+                          expect(page.locator('.news-football-data')).to_have_count(0)
+                          row['passed']=True
+                      except Exception as e:
+                          row['error']=str(e)[:800];failures.append({'width':width,'league':key,'error':row['error']})
+                          context.set_offline(False)
+                          try:page.screenshot(path=str(root/f'{width}-{key}-error.png'))
+                          except Exception:pass
+                      checks.append(row);(root/'checks.json').write_text(json.dumps(checks,indent=2))
+                  if errors:failures.append({'width':width,'page_errors':errors})
+                  if writes:failures.append({'width':width,'sports_write_requests':writes})
+                  context.close()
+              browser.close()
+          result={'checked_at':datetime.now(timezone.utc).isoformat(),'production_origin':True,'mocked_data':False,'injected_css':False,'page_checks':len(checks),'tab_checks':sum(len(r['tabs']) for r in checks),'verified_table_groups':sum(len(r['groups']) for r in checks),'failures':failures}
+          (root/'summary.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2));assert not failures,failures
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-production-browser-20261003
+          path: browser-evidence/
+          retention-days: 7
+  news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: be88be88d69014c1d47da7319ae4f5c761e8cbae
+          persist-credentials: false
+      - name: Read all News menus without generating content
+        run: |
+          mkdir -p news-evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse
+          from datetime import datetime,timezone
+          from concurrent.futures import ThreadPoolExecutor
+          now=datetime.now(timezone.utc);root=pathlib.Path('news-evidence');catalog=json.loads(pathlib.Path('src/config/newsFootballLeagues.json').read_text())
+          def fresh(r):
+              d=datetime.fromisoformat(r['published_at'].replace('Z','+00:00'));d=d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc)
+              return 0<=(now-d).total_seconds()<86400
+          def read(menu):
+              out={'league':menu['league'],'label':menu['label']}
+              try:
+                  query=urllib.parse.urlencode({'sport':'football','league':menu['league'],'limit':3})
+                  with urllib.request.urlopen('https://allball-backend-production.up.railway.app/articles?'+query,timeout=20) as r:rows=json.loads(r.read())
+                  out['articles']=[{k:a.get(k) for k in ['id','title','slug','sport','league','published_at','image_url']} for a in rows]
+                  out['recent']=any(fresh(a) for a in rows)
+                  out['wrong_fields']=sum(a['sport']!='football' or a['league']!=menu['league'] for a in rows)
+              except Exception as e:out['error']=str(e)[:120]
+              return out
+          with ThreadPoolExecutor(max_workers=3) as pool:rows=list(pool.map(read,catalog))
+          summary={'checked_at':now.isoformat(),'menus':len(rows),'populated':sum(bool(r.get('articles')) for r in rows),'recent_24h':sum(r.get('recent',False) for r in rows),'empty':[r['league'] for r in rows if r.get('articles')==[]],'errors':[r for r in rows if r.get('error')],'wrong_fields':sum(r.get('wrong_fields',0) for r in rows),'all_news_complete':False,'AI_requests':0,'content_writes':0}
+          (root/'coverage.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2));(root/'summary.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary,indent=2))
+          assert len(rows)==86 and not summary['errors'] and not summary['wrong_fields']
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-production-news-20261003
+          path: news-evidence/
+          retention-days: 7
