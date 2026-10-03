@@ -7,6 +7,7 @@ export const FOOTBALL_NEWS_TOPICS = new Set([
 // Explicit country-qualified equivalences from the public football registry.
 // Never resolve a league by substring: Serie B, women's and youth events overlap.
 export const NEWS_DATA_ALIASES = {
+  'usa-usl-championship': ['usa-usl-championship', 'football-usa-usl-championship'],
   // Public registry, exact team identities and current seasons verified 2026-10-03.
   // Apertura is a named phase, never merged with a different phase's table.
   'mexico-liga-expansion': ['mexico-liga-expansion', 'football-mex-liga-de-expansion-mx-apertura'],
