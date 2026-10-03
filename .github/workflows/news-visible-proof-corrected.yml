@@ -1,0 +1,65 @@
+name: News visible verified production proof
+on:
+  push:
+    branches: [audit/news-visible-20261003]
+    paths: [.github/workflows/news-visible-proof-corrected.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8099980a7fe2644e1791330742c5ae34809bf477
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q PyYAML playwright && python -m playwright install --with-deps chromium
+      - name: Real published previews, club search, reader and connection recovery
+        run: |
+          python - <<'PY'
+          import pathlib,yaml,subprocess,ast
+          from collections import Counter
+          workflow=yaml.safe_load(pathlib.Path('.github/workflows/news-visible-production.yml').read_text())
+          script=next(s['run'] for s in workflow['jobs']['browser']['steps'] if s.get('name','').startswith('Public pages'))
+          output=[];changes=Counter()
+          for line in script.splitlines():
+              text=line.lstrip();indent=line[:len(line)-len(text)]
+              if '.hero-stories a[href^=' in line:
+                  line=line.replace('.hero-stories ','.hero-grid ');changes['selector']+=1
+              if text=="page.locator('#football-news-search').fill('England')":
+                  output.append(line)
+                  output.append(indent+"expect(page.locator('.news-directory-preview[data-news-league=\"england-premier-league\"]')).not_to_contain_text('Loading latest published news',timeout=25000)")
+                  changes['screenshot_ready']+=1;continue
+              if text=="context.set_offline(True);page.get_by_role('button',name='Refresh news',exact=True).click()":
+                  output.append(indent+'context.set_offline(True)')
+                  output.append(indent+"expect(page.locator('.news-refresh-bar [role=status]')).to_contain_text('Offline — showing saved news',timeout=10000)")
+                  output.append(indent+"expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_disabled()")
+                  changes['offline']+=1;continue
+              if text=="expect(page.get_by_role('alert')).to_contain_text('last successfully loaded stories',timeout=20000)":
+                  changes['offline_status_replacement']+=1;continue
+              if text=="context.set_offline(False);page.get_by_role('button',name='Refresh news',exact=True).click()":
+                  output.append(indent+"with page.expect_response(lambda r:'/portal/home' in r.url and r.status==200,timeout=25000):")
+                  output.append(indent+'    context.set_offline(False)')
+                  output.append(indent+"    expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_enabled()")
+                  output.append(indent+"    page.get_by_role('button',name='Refresh news',exact=True).click()")
+                  output.append(indent+"expect(page.locator('.news-refresh-bar')).not_to_contain_text('Offline')")
+                  changes['online']+=1;continue
+              output.append(line)
+          assert changes=={'selector':1,'screenshot_ready':1,'offline':1,'offline_status_replacement':1,'online':1},changes
+          script='\n'.join(output)+'\n'
+          code=script.split("python - <<'PY'\n",1)[1].rsplit('\nPY',1)[0]
+          ast.parse(code)
+          pathlib.Path('proof').mkdir(exist_ok=True)
+          pathlib.Path('proof/actual-browser-check.py').write_text(code)
+          subprocess.run(['bash','-e','-c',script],check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-visible-verified-production
+          path: proof/
+          retention-days: 7
