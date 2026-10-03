@@ -1,0 +1,33 @@
+name: News official production response diagnosis
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-official-production-network-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import urllib.request,urllib.error,json,pathlib
+          urls=['https://ninkosports.com/news-data/football/serbia-prva-liga/standings','https://ninkosports.com/news-data/football/serbia-prva-liga/matches','https://allball-frontend-production.up.railway.app/news-data/football/serbia-prva-liga/standings','https://www.prvaliga.rs/robots.txt']
+          out=[]
+          for url in urls:
+              row={'url':url}
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'NinkoSports-NewsData-Audit/1.0','Accept':'application/json,text/plain;q=0.9'}),timeout=25) as r:
+                      text=r.read(250000);row.update(status=r.status,type=r.headers.get('content-type'),cache=r.headers.get('cache-control'),age=r.headers.get('age'),server=r.headers.get('server'),body=text.decode('utf-8','replace')[:500])
+              except urllib.error.HTTPError as e:row.update(status=e.code,type=e.headers.get('content-type'),body=e.read(1000).decode('utf-8','replace'))
+              except Exception as e:row['error']=str(e)
+              out.append(row)
+          pathlib.Path('evidence/responses.json').write_text(json.dumps(out,indent=2));print(json.dumps(out,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: news-official-production-network-20261003
+          path: evidence/
+          retention-days: 7
