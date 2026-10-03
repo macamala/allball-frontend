@@ -77,3 +77,26 @@ it('refreshes retained records when the browser reports that the connection is r
   window.dispatchEvent(new Event('online'));
   await screen.findByText('3'); expect(api.getJSON).toHaveBeenCalledTimes(2);
 });
+it('requests the chosen date window and keeps it when switching Fixtures and Results', async () => {
+  api.getJSON.mockImplementation(async path => {
+    if(path.includes('/events?')){const q=new URLSearchParams(path.split('?')[1]);return {sport:'football',competition:key,connected:true,
+      snapshot:{complete:true,count:1,date_from:q.get('date_from'),date_to:q.get('date_to')},events:[game('dated')]};}
+    return board();
+  });
+  const {rerender}=mount();await screen.findByRole('link',{name:'Open match: Arsenal vs Chelsea'});
+  fireEvent.change(screen.getByLabelText('News matches from'),{target:{value:'2026-10-03'}});
+  fireEvent.change(screen.getByLabelText('News matches to'),{target:{value:'2026-10-03'}});
+  fireEvent.click(screen.getByRole('button',{name:'Apply dates'}));
+  await waitFor(()=>expect(api.getJSON.mock.calls.some(c=>c[0].includes('/events?'))).toBe(true));
+  await waitFor(()=>expect(screen.getByRole('link',{name:'Open match: Arsenal vs Chelsea'}).getAttribute('href')).toContain('dated'));
+  rerender(<MemoryRouter><FootballNewsData competition={key} label="Premier League" view="fixtures" /></MemoryRouter>);
+  expect(screen.getByText(/Selected: 2026-10-03 to 2026-10-03/)).toBeTruthy();
+});
+it('rejects reversed dates without requesting or erasing a successfully loaded result',async()=>{
+  api.getJSON.mockResolvedValue(board());mount();await screen.findByRole('link',{name:'Open match: Arsenal vs Chelsea'});
+  fireEvent.change(screen.getByLabelText('News matches from'),{target:{value:'2026-10-05'}});
+  fireEvent.change(screen.getByLabelText('News matches to'),{target:{value:'2026-10-03'}});
+  fireEvent.click(screen.getByRole('button',{name:'Apply dates'}));
+  expect(screen.getByRole('alert').textContent).toContain('must not be before');
+  expect(api.getJSON).toHaveBeenCalledTimes(1);expect(screen.getByRole('link',{name:'Open match: Arsenal vs Chelsea'})).toBeTruthy();
+});

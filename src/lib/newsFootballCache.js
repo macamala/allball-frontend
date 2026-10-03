@@ -1,3 +1,4 @@
+import { sameNewsSeason } from './newsFootballView.js';
 /** Small, News-only memory cache. Never stores or updates Live Scores state. */
 import { scopedNewsData, FOOTBALL_NEWS_TOPICS } from './newsFootballData.js';
 
@@ -8,20 +9,20 @@ const MAX_ENTRY_CHARS = 750000;
 const MAX_TOTAL_CHARS = 2000000;
 const entries = new Map();
 
-function keyFor(competition, view, season) {
+function keyFor(competition, view, season, scope = '') {
   if (!competition || FOOTBALL_NEWS_TOPICS.has(competition)) return null;
-  return JSON.stringify([competition, view === 'standings' ? 'standings' : 'matches', season || '']);
+  return JSON.stringify([competition, view === 'standings' ? 'standings' : 'matches', season || '', scope]);
 }
 
 function valid(payload, competition, view, season) {
   return scopedNewsData(payload, competition)
-    && (!season || payload.season === season)
+    && (!season || sameNewsSeason(payload.season, season))
     && Array.isArray(view === 'standings' ? payload.rows : payload.events);
 }
 
-export function rememberNewsData(competition, view, season, payload, now = Date.now()) {
-  const key = keyFor(competition, view, season);
-  if (!key || !Number.isFinite(now) || !valid(payload, competition, view, season)) return false;
+export function rememberNewsData(competition, view, season, payload, now = Date.now(), scope = '') {
+  const key = keyFor(competition, view, season, scope);
+  if (!key || !Number.isFinite(now) || !valid(payload, competition, view, season) || (scope && payload._newsRead?.rangeKey !== scope)) return false;
   try {
     const json = JSON.stringify(payload);
     if (json.length > MAX_ENTRY_CHARS) return false;
@@ -37,8 +38,8 @@ export function rememberNewsData(competition, view, season, payload, now = Date.
   } catch { return false; }
 }
 
-export function peekNewsData(competition, view, season = '', now = Date.now()) {
-  const key = keyFor(competition, view, season);
+export function peekNewsData(competition, view, season = '', now = Date.now(), scope = '') {
+  const key = keyFor(competition, view, season, scope);
   const entry = entries.get(key);
   if (!entry) return null;
   const age = now - entry.savedAt;

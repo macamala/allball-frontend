@@ -198,7 +198,7 @@ function LeagueNewsPage() {
       )}
 
       {sportSlug === "football" && !directory && tab !== "news" && (
-        <FootballNewsData key={`${league.league}:${tab}`} competition={league.league} label={league.label} view={tab} />
+        <FootballNewsData key={league.league} competition={league.league} label={league.label} view={tab} />
       )}
       {sportSlug !== "football" && tab === "fixtures" && (
         <ProviderPending title={t("provider.fixtures")} />
