@@ -1,0 +1,46 @@
+name: News remaining table source probes
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-data-last-source-probes.yml]
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Robots-aware public GET only
+        run: |
+          mkdir -p source-evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.error,urllib.robotparser,time
+          from urllib.parse import urlsplit
+          root=pathlib.Path('source-evidence');agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)'
+          pages=[('swiss2','https://sfl.ch/de/challengeleague-tabelle'),('saudi2','https://fdl.sa/yelo'),('saudi2-matches','https://fdl.sa/schedule'),('korea2','https://www.kleague.com/record/team.do?leagueId=2'),('prva-games','https://srbijasport.net/league/8626-mozzart-bet-prva-liga-srbije/games'),('prva-standings','https://srbijasport.net/league/8626-mozzart-bet-prva-liga-srbije/standings'),('croatia2','https://www.prva-nl.hr/'),('romania-fed','https://www.frf.ro/competitii/competitii-masculin/liga-2-casa-pariurilor/'),('belgium2','https://www.proleague.be/cpl-kalender')]
+          policies={}
+          def get(url,limit=4000000):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':agent}),timeout=18) as r:
+                      body=r.read(limit+1);assert len(body)<=limit
+                      charset=r.headers.get_content_charset() or 'utf-8'
+                      return {'url':url,'final_url':r.url,'status':r.status,'content_type':r.headers.get('Content-Type'),'charset':charset,'text':body.decode(charset,errors='strict')}
+              except urllib.error.HTTPError as e:return {'url':url,'status':e.code,'error':'http'}
+              except Exception as e:return {'url':url,'error':type(e).__name__}
+          for key,url in pages:
+              origin='https://'+urlsplit(url).netloc
+              if origin not in policies:policies[origin]=get(origin+'/robots.txt',100000)
+              p=policies[origin];allow=p.get('status') in [404,410]
+              if p.get('status')==200 and '<html' not in p.get('text','').lower():
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(p['text'].splitlines());allow=rp.can_fetch('NinkoSports-NewsData',url)
+                  if rp.crawl_delay('*'):time.sleep(min(rp.crawl_delay('*'),15))
+              d=get(url) if allow else {'url':url,'error':'robots_denied_or_unknown'}
+              (root/(key+'.json')).write_text(json.dumps(d,ensure_ascii=False));print(key,d.get('status'),d.get('charset'),d.get('error'),len(d.get('text','')),flush=True)
+          (root/'policies.json').write_text(json.dumps(policies,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-last-source-probes
+          path: source-evidence/
+          retention-days: 7
