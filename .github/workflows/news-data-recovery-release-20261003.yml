@@ -1,0 +1,140 @@
+name: News football data recovery release 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-recovery-release-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 78089a2455cd0f812bd8853db0688905f5017769
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Recover only tested News files on the unchanged production parent
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = '5e2d799c38d22ac709644dcbc7646bfc40f3559b'
+          mkdir -p ../gate-evidence
+          python ../bundle/audit/apply_news_data_recovery.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/newsFootballData.js');s=p.read_text()
+          s=s.replace("newsDataPath(competition, view, season, key), signal, timeoutMs", "newsDataPath(competition, view, view === 'standings' ? season : '', key), signal, timeoutMs")
+          s=s.replace("      if ((view === 'standings' ? data.rows : data.events).length) return data;", "      if (view !== 'standings' && season) {\n        const selected = newsMatches(data, competition, { season });\n        if (selected.length) return { ...data, events: selected, season };\n      } else if ((view === 'standings' ? data.rows : data.events).length) return data;")
+          s=s.replace('      empty = data;\n    } catch (error) { lastError', "      empty = view !== 'standings' && season ? { ...data, events: [], season } : data;\n    } catch (error) { lastError")
+          p.write_text(s)
+          p=Path('src/components/FootballNewsData.jsx');s=p.read_text().replace('useMemo, useState','useMemo, useState, useRef')
+          s=s.replace("  const [knownSeasons, setKnownSeasons]", "  const identityReference = useRef(null);\n  const [knownSeasons, setKnownSeasons]")
+          s=s.replace("    return decorateNewsIdentity(raw, saved?.data);", "    if (raw && Array.isArray(raw.teams) && raw.teams.length && raw.teams.length <= 128)\n      identityReference.current = { competition: raw.competition, season: raw.season, teams: raw.teams };\n    return decorateNewsIdentity(raw, saved?.data || identityReference.current);")
+          s=s.replace("? String(event.status || 'Awaiting confirmation').replaceAll('_', ' ')", "? (['live', 'in_progress', 'halftime', 'break'].includes(event.status) ? 'Awaiting confirmation' : String(event.status || 'Awaiting confirmation').replaceAll('_', ' '))")
+          p.write_text(s)
+          p=Path('src/lib/newsFootballRecovery.test.js');p.write_text(p.read_text()+'''
+          it('season filtering does not depend on the backend separator spelling',async()=>{
+           const get=vi.fn().mockResolvedValue(board({events:[event('correct',{season:'2026-2027'}),event('unknown',{season:null}),event('old',{season:'2025-2026'})]}));
+           const data=await readNewsData(get,key,'fixtures',{season:'2026/2027'});
+           expect(data.events.map(r=>r.id)).toEqual(['correct']);expect(get.mock.calls[0][0]).not.toContain('season=');
+           expect(data.season).toBe('2026/2027');
+          });
+          ''')
+          PY
+      - name: All non-App regressions and production build
+        working-directory: source
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../gate-evidence/tests.json > ../gate-evidence/tests.txt 2>&1 || { tail -100 ../gate-evidence/tests.txt; exit 1; }
+          npm run build > ../gate-evidence/build.txt 2>&1 || { cat ../gate-evidence/build.txt; exit 1; }
+          git diff --check
+      - name: Every existing App route in an isolated process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,json,re,subprocess,concurrent.futures
+          root=pathlib.Path('../gate-evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66 and len(set(cases))==66
+          def test(pair):
+              index,title=pair;output=root/f'app-{index}.json'
+              try:
+                  result=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=75)
+                  (root/f'app-{index}.txt').write_text(result.stdout)
+                  data=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':result.returncode==0 and data.get('numPassedTests')==1 and not data.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:results=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));print('App routes passed',sum(r['passed'] for r in results),len(results));assert all(r['passed'] for r in results)
+          PY
+      - name: All public football News data scopes and real selected-date requests
+        working-directory: source
+        run: |
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import {readNewsData,readNewsDateRange,FOOTBALL_NEWS_TOPICS,newsMatches} from './src/lib/newsFootballData.js';
+          import {decorateNewsIdentity,newsDateRange,newsDataNotice} from './src/lib/newsFootballView.js';
+          const root='../gate-evidence',base='https://allball-backend-production.up.railway.app';
+          const get=async(path,options={})=>{const r=await fetch(base+path,{...options,signal:options.signal||AbortSignal.timeout(18000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();};
+          const catalog=JSON.parse(fs.readFileSync('src/config/newsFootballLeagues.json','utf8')).filter(r=>!FOOTBALL_NEWS_TOPICS.has(r.league));
+          const output=[];const remaining=[...catalog];
+          async function check(row){const out={league:row.league,label:row.label,path:row.path};
+            try{const table=await readNewsData(get,row.league,'standings');const hub=await readNewsData(get,row.league,'fixtures');const filled=decorateNewsIdentity(hub,table);
+              const rows=hub.events||[];out.table_rows=table.rows?.length||0;out.table_season=table.season;out.table_stale=table.stale;out.events=rows.length;
+              out.results=newsMatches(filled,row.league,{view:'results'}).length;out.fixtures=newsMatches(filled,row.league,{view:'fixtures'}).length;
+              out.missing_crests_before=rows.filter(e=>!e.home?.logo||!e.away?.logo).length;out.missing_crests_after=(filled.events||[]).filter(e=>!e.home?.logo||!e.away?.logo).length;
+              out.notice=newsDataNotice(filled,'fixtures');out.table_notice=newsDataNotice(table,'standings');
+              if(['england-championship','uefa-nations-league','serbia-superliga','england-premier-league'].includes(row.league))fs.writeFileSync(`${root}/${row.league}.json`,JSON.stringify({table,hub,filled}));
+            }catch(e){out.error=String(e);} output.push(out);fs.writeFileSync(root+'/data-coverage.json',JSON.stringify(output,null,2));}
+          await Promise.all(Array.from({length:2},async()=>{while(remaining.length)await check(remaining.shift());}));
+          const selected=[];for(const league of ['england-premier-league','england-championship','serbia-superliga','uefa-nations-league']){
+            const range=newsDateRange('2026-09-01','2026-10-31');const data=await readNewsDateRange(get,league,range);
+            if(data._newsRead.partial)throw Error('Incomplete date snapshot '+league);
+            selected.push({league,events:data.events.length,range:range.key});
+          }
+          fs.writeFileSync(root+'/date-proof.json',JSON.stringify(selected,null,2));
+          const extras=[];for(const key of ['football-jpn-j-league','football-usa-usl-championship']){
+            try{const table=await get('/sports-data/standings?league='+key);const hub=await get('/sports-data/competitions/'+key+'/hub');extras.push({key,table,hub});}catch(e){extras.push({key,error:String(e)});}
+          }
+          fs.writeFileSync(root+'/alternate-key-probes.json',JSON.stringify(extras));
+          const summary={checked_at:new Date().toISOString(),menus:output.length,tables:output.filter(r=>r.table_rows>0).length,with_matches:output.filter(r=>r.events>0).length,with_fixtures:output.filter(r=>r.fixtures>0).length,with_results:output.filter(r=>r.results>0).length,
+            missing_crests_before:output.reduce((s,r)=>s+(r.missing_crests_before||0),0),missing_crests_after:output.reduce((s,r)=>s+(r.missing_crests_after||0),0),errors:output.filter(r=>r.error),all_competitions_complete:false,news_writes:0,sports_writes:0,AI_requests:0};
+          fs.writeFileSync(root+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));
+          if(output.length!==82||summary.errors.length)throw Error('Public data scope failed');
+          JS
+      - name: Persist clean tested News changes only, not the audit workflow
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,json,hashlib
+          allowed={'src/components/FootballNewsData.jsx','src/components/FootballNewsData.test.jsx','src/lib/newsFootballView.js','src/lib/newsFootballRecovery.test.js','src/lib/newsFootballCache.js','src/lib/newsFootballData.js','src/pages/LeaguePage.jsx','src/styles/newsFootballData.css'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed==allowed,changed^allowed
+          pathlib.Path('../gate-evidence/files.json').write_text(json.dumps({p:hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in sorted(allowed)},indent=2))
+          subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): recover football date filters verified season data and same-club identity assets'
+          git push origin HEAD:refs/heads/audit/news-data-recovery-release-20261003
+          git rev-parse HEAD > ../gate-evidence/tested-commit.txt
+          git diff HEAD^ --stat > ../gate-evidence/diff-stat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-recovery-release-20261003
+          path: gate-evidence/
+          retention-days: 7
