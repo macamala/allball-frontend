@@ -1,0 +1,171 @@
+name: News visible production acceptance
+on:
+  push:
+    branches: [audit/news-visible-20261003]
+    paths: [.github/workflows/news-visible-production.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e3022cfc305ecdb923539a4f29e8d2ee67eed537
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Public pages without mocked requests, injected CSS or generated articles
+        run: |
+          mkdir -p proof
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse,time
+          from concurrent.futures import ThreadPoolExecutor
+          from datetime import datetime,timezone
+          from playwright.sync_api import sync_playwright,expect
+          root=pathlib.Path('proof');base='https://allball-backend-production.up.railway.app'
+          catalog=json.loads(pathlib.Path('src/config/newsFootballLeagues.json').read_text())
+          checks=[];failures=[];directory=[]
+          def get(path):
+              with urllib.request.urlopen(base+path,timeout=25) as r:return json.loads(r.read(5000000))
+          def rows(menu):
+              try:return {'menu':menu,'articles':get('/articles?'+urllib.parse.urlencode({'sport':'football','league':menu['league'],'limit':5}))}
+              except Exception as e:return {'menu':menu,'error':str(e)[:160]}
+          with ThreadPoolExecutor(max_workers=3) as pool:inventory=list(pool.map(rows,catalog))
+          (root/'published-menus.json').write_text(json.dumps(inventory,ensure_ascii=False,indent=2))
+          reference={r['menu']['league']:r for r in inventory}
+          now=datetime.now(timezone.utc)
+          def recent(a):
+              stamp=datetime.fromisoformat(a['published_at'].replace('Z','+00:00'))
+              stamp=stamp.replace(tzinfo=timezone.utc) if stamp.tzinfo is None else stamp.astimezone(timezone.utc)
+              return 0<=(now-stamp).total_seconds()<86400
+          summary={'checked_at':now.isoformat(),'menus':len(inventory),'published_menus':sum(bool(r.get('articles')) for r in inventory),'fresh_menus':sum(any(recent(a) for a in r.get('articles',[])) for r in inventory),'empty':[r['menu']['league'] for r in inventory if r.get('articles')==[]],'api_errors':[r for r in inventory if r.get('error')],'all_leagues_populated':False,'AI_requests':0,'sporting_write_requests':0}
+          (root/'coverage-summary.json').write_text(json.dumps(summary,indent=2))
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for width in [1440,390,320]:
+                  context=browser.new_context(viewport={'width':width,'height':1000},timezone_id='Australia/Sydney')
+                  page=context.new_page();errors=[];sports_writes=[]
+                  page.on('pageerror',lambda e:errors.append(str(e)))
+                  page.on('request',lambda r:sports_writes.append(r.url) if '/sports-data/' in r.url and r.method not in ['GET','HEAD','OPTIONS'] else None)
+                  def layout():
+                      d=page.evaluate('({body:document.documentElement.scrollWidth,viewport:innerWidth})')
+                      assert d['body']<=width+3,d
+                      return d
+                  try:
+                      page.goto('https://ninkosports.com/football/other-leagues',wait_until='domcontentloaded',timeout=45000)
+                      expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_visible(timeout=25000)
+                      target=catalog if width==1440 else [r for r in catalog if r['league'] in ['england-championship','serbia-superliga','italy-serie-b']]
+                      for menu in target:
+                          league=menu['league']
+                          page.locator('#football-news-search').fill(menu['label'])
+                          preview=page.locator(f'.news-directory-preview[data-news-league="{league}"]')
+                          preview.scroll_into_view_if_needed(timeout=15000)
+                          expect(preview).not_to_contain_text('Loading latest published news',timeout=30000)
+                          if preview.get_by_role('button',name='Retry news').count():
+                              preview.get_by_role('button',name='Retry news').click()
+                              expect(preview.get_by_role('button',name='Retry news')).to_have_count(0,timeout=30000)
+                          links=preview.locator('.news-directory-story').evaluate_all('(rows)=>rows.map(r=>({href:r.getAttribute("href"),title:r.querySelector("strong").textContent,date:r.querySelector("time").getAttribute("datetime")}))')
+                          actual=reference[league].get('articles',[])
+                          known={a['slug']:a for a in actual}
+                          for link in links:
+                              slug=urllib.parse.unquote(link['href'].split('/article/')[1])
+                              if slug not in known:known[slug]=get('/articles/'+urllib.parse.quote(slug))
+                              article=known[slug]
+                              assert article['league']==league and article['sport']=='football',(league,link,article)
+                              assert article['title']==link['title'] and article.get('image_url'),(league,link)
+                          assert links or not actual,(league,'published article missing from preview')
+                          if not links:assert 'No published story yet.' in preview.inner_text(),league
+                          row={'width':width,'league':league,'published_preview_count':len(links),'matching_published_ids':[known[urllib.parse.unquote(l['href'].split('/article/')[1])]['id'] for l in links],'layout':layout()}
+                          directory.append(row)
+                          if league in ['england-championship','serbia-superliga']:
+                              page.locator('.page-heading').scroll_into_view_if_needed()
+                              page.screenshot(path=str(root/f'directory-{width}-{league}.png'))
+                      page.locator('#football-news-search').fill('England')
+                      page.locator('.page-heading').scroll_into_view_if_needed()
+                      page.screenshot(path=str(root/f'directory-{width}-england.png'))
+                      checks.append({'width':width,'name':'directory','passed':True,'leagues':len(target)})
+                  except Exception as e:
+                      failures.append({'width':width,'name':'directory','error':type(e).__name__+': '+str(e)[:600]})
+                      try:page.screenshot(path=str(root/f'directory-{width}-error.png'))
+                      except Exception:pass
+                  try:
+                      page.goto('https://ninkosports.com/football/england-championship',wait_until='domcontentloaded',timeout=45000)
+                      search=page.get_by_label('Search this league’s published news',exact=True)
+                      expect(search).to_be_visible(timeout=25000)
+                      expect(page.locator('a[href^="/article/"]').first).to_be_visible(timeout=25000)
+                      search.fill('Blackburn')
+                      expect(page.locator('.hero-stories a[href^="/article/"],.latest-feed a[href^="/article/"]').first).to_be_visible(timeout=20000)
+                      titles=page.locator('a[href^="/article/"]').all_inner_texts()
+                      assert titles and all('blackburn' in text.lower() for text in titles),titles
+                      search.fill('this-search-does-not-exist-9324')
+                      expect(page.get_by_text('No published story matches this search',exact=True)).to_be_visible()
+                      search.fill('')
+                      expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_enabled()
+                      page.get_by_role('button',name='Refresh news',exact=True).click()
+                      expect(page.locator('a[href^="/article/"]').first).to_be_visible()
+                      layout();page.screenshot(path=str(root/f'league-{width}-championship.png'))
+                      page.get_by_role('tab',name='Fixtures',exact=True).click()
+                      page.wait_for_function("document.querySelector('.news-football-data')?.getAttribute('aria-busy')==='false'",timeout=45000)
+                      assert page.locator('.news-football-data').count()==1
+                      assert not page.get_by_role('button',name='Refresh news',exact=True).count()
+                      layout();page.get_by_role('tab',name='News',exact=True).click()
+                      expect(search).to_be_visible()
+                      checks.append({'width':width,'name':'league_search_refresh_data_tabs','passed':True})
+                  except Exception as e:failures.append({'width':width,'name':'league_search_refresh_data_tabs','error':type(e).__name__+': '+str(e)[:600]})
+                  try:
+                      page.goto('https://ninkosports.com/football/other-leagues',wait_until='domcontentloaded',timeout=45000)
+                      page.locator('#football-news-search').fill('Championship')
+                      preview=page.locator('.news-directory-preview[data-news-league="england-championship"]')
+                      link=preview.locator('.news-directory-story').first
+                      expect(link).to_be_visible(timeout=25000)
+                      title=link.locator('strong').inner_text();href=link.get_attribute('href')
+                      article=get('/articles/'+urllib.parse.quote(urllib.parse.unquote(href.split('/article/')[1])))
+                      link.click()
+                      page.wait_for_function("title=>document.querySelector('.article-page h1')?.textContent.trim()===title",arg=title,timeout=25000)
+                      body=' '.join(article.get('content','').split());assert body
+                      page.wait_for_function("body=>[...document.querySelectorAll('.article-page .article-body')].some(e=>e.innerText.replace(/\\s+/g,' ').includes(body))",arg=body,timeout=25000)
+                      hero=page.locator('.article-page img').first;hero.scroll_into_view_if_needed()
+                      page.wait_for_function("()=>{const i=document.querySelector('.article-page img');return i&&i.complete&&i.naturalWidth>100}",timeout=25000)
+                      image=hero.evaluate('(i)=>({src:i.currentSrc,width:i.naturalWidth,height:i.naturalHeight})')
+                      layout();page.screenshot(path=str(root/f'published-article-{width}.png'),full_page=True)
+                      checks.append({'width':width,'name':'preview_to_full_article','passed':True,'article_id':article['id'],'title':title,'image':image,'body_words':len(body.split())})
+                  except Exception as e:failures.append({'width':width,'name':'preview_to_full_article','error':type(e).__name__+': '+str(e)[:600]})
+                  try:
+                      page.goto('https://ninkosports.com/',wait_until='domcontentloaded',timeout=45000)
+                      expect(page.get_by_role('button',name='Refresh news',exact=True)).to_be_visible(timeout=25000)
+                      expect(page.locator('a[href^="/article/"]').first).to_be_visible(timeout=25000)
+                      checks.append({'width':width,'name':'home_news_visible','passed':True,'article_links':page.locator('a[href^="/article/"]').count(),'layout':layout()})
+                      page.screenshot(path=str(root/f'home-{width}.png'))
+                      if width==390:
+                          with page.expect_response(lambda r:'/portal/home' in r.url and r.status==200,timeout=75000) as refreshed:
+                              pass
+                          assert refreshed.value.json().get('featured') is not None
+                          before=set(page.locator('a[href^="/article/"]').evaluate_all('(a)=>a.map(l=>l.getAttribute("href"))'))
+                          page.wait_for_timeout(11000)
+                          context.set_offline(True);page.get_by_role('button',name='Refresh news',exact=True).click()
+                          expect(page.get_by_role('alert')).to_contain_text('last successfully loaded stories',timeout=20000)
+                          after=set(page.locator('a[href^="/article/"]').evaluate_all('(a)=>a.map(l=>l.getAttribute("href"))'))
+                          assert before==after
+                          context.set_offline(False);page.get_by_role('button',name='Refresh news',exact=True).click()
+                          expect(page.get_by_role('alert')).to_have_count(0,timeout=25000)
+                          checks.append({'width':width,'name':'automatic_news_refresh_and_offline_recovery','passed':True,'retained_article_links':len(before)})
+                  except Exception as e:
+                      failures.append({'width':width,'name':'home_refresh','error':type(e).__name__+': '+str(e)[:600]});context.set_offline(False)
+                  if errors:failures.append({'width':width,'page_errors':errors})
+                  if sports_writes:failures.append({'width':width,'sports_writes':sports_writes})
+                  context.close()
+              browser.close()
+          (root/'directory-checks.json').write_text(json.dumps(directory,ensure_ascii=False,indent=2))
+          result={'checked_at':datetime.now(timezone.utc).isoformat(),'checks':checks,'directory_checks':len(directory),'failures':failures,'real_public_origin':True,'mocked_data':False,'injected_css':False}
+          (root/'browser-summary.json').write_text(json.dumps(result,ensure_ascii=False,indent=2));print(json.dumps(result,ensure_ascii=False,indent=2));assert not failures,failures
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-visible-production
+          path: proof/
+          retention-days: 7
