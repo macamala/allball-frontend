@@ -6,6 +6,10 @@ export const FOOTBALL_NEWS_TOPICS = new Set([
 // Explicit country-qualified equivalences from the public football registry.
 // Never resolve a league by substring: Serie B, women's and youth events overlap.
 export const NEWS_DATA_ALIASES = {
+  // Public registry, exact team identities and current seasons verified 2026-10-03.
+  // Apertura is a named phase, never merged with a different phase's table.
+  'mexico-liga-expansion': ['mexico-liga-expansion', 'football-mex-liga-de-expansion-mx-apertura'],
+  'uefa-womens-champions-league': ['uefa-womens-champions-league', 'football-women-s-champions-league'],
   'japan-j1-league': ['japan-j1'],
   'south-korea-k-league-1': ['korea-k-league-1'],
   'australia-a-league-men': ['australia-a-league'],
@@ -90,6 +94,7 @@ export function newsMatches(payload, competition, { view, season = '', team = ''
   const unique = new Map();
   for (const event of rows) {
     if (!event || event.sport !== 'football' || event.competition_key !== dataKey) continue;
+    if (competition === 'uefa-womens-champions-league' && event.football_gender && event.football_gender !== 'women') continue;
     if (!event.home?.name || !event.away?.name || !event.start_time || !Number.isFinite(Date.parse(event.start_time))) continue;
     if (season && String(event.season || '') !== season) continue;
     if (group && event.group !== group) continue;
@@ -159,4 +164,11 @@ export async function readNewsData(get, competition, view, { season = '', signal
   }
   if (empty) return empty;
   throw lastError || new Error('Competition data is unavailable');
+}
+
+/** A retained phase is clearly labelled; it is not a full-season aggregate. */
+export function newsDataPhase(payload, competition) {
+  const data = scopedNewsData(payload, competition);
+  const key = typeof data?.competition === 'string' ? data.competition : data?.competition?.id;
+  return competition === 'mexico-liga-expansion' && key === 'football-mex-liga-de-expansion-mx-apertura' ? 'Apertura' : null;
 }

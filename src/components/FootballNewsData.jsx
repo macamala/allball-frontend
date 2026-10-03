@@ -5,7 +5,7 @@ import StandingsTable from './StandingsTable.jsx';
 import CountryFlag from './scores/CountryFlag.jsx';
 import { normalizeAssetUrl } from '../lib/assetUrls.js';
 import { eventPath } from '../lib/sportsData.js';
-import { FOOTBALL_NEWS_TOPICS, newsDataPath, newsMatches, newsMatchBucket, newsScore, readNewsData } from '../lib/newsFootballData.js';
+import { FOOTBALL_NEWS_TOPICS, newsDataPath, newsMatches, newsMatchBucket, newsScore, readNewsData, newsDataPhase } from '../lib/newsFootballData.js';
 import { peekNewsData, rememberNewsData } from '../lib/newsFootballCache.js';
 import '../styles/newsFootballData.css';
 
@@ -107,6 +107,7 @@ export default function FootballNewsData({ competition, label, view }) {
       <div className="news-data-tools">{seasons.length > 1 ? <label>Season<select aria-label="News data season" value={season} onChange={event => { setSeason(event.target.value); resetFilters(); }}><option value="">Current / available</option>{seasons.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : data?.season ? <span>Season {data.season}</span> : null}
       <button className="btn btn-ghost" type="button" disabled={loading || resource.refreshing} onClick={() => setRetry(value => value + 1)}>Refresh data</button></div>
     </header>
+    {newsDataPhase(data, competition) ? <p className="news-data-note">Competition phase: {newsDataPhase(data, competition)}</p> : null}
     {loading ? <p role="status">Loading {view}…</p> : resource.refreshing ? <p role="status">Refreshing {view}…</p> : null}
     {resource.path === path && resource.error ? <p role="alert">{resource.error} {data ? 'Showing the last successfully loaded records.' : ''}</p> : null}
     {!loading && view === 'standings' && table.length > 0 ? <StandingsTable key={`${competition}:${season}:${group}`} sport="football" competition={competition} competitionCountry={meta.country_id} rows={table} event={{ group }} strictGroup onGroupChange={setGroup} /> : null}
