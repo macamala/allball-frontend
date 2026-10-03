@@ -84,3 +84,17 @@ it('offers manual news refresh without reloading the page or starting a writer',
   fireEvent.click(screen.getByRole('button', { name: 'Refresh news' })); expect(load).toHaveBeenCalledTimes(1);
   expect(document.querySelector('time').getAttribute('datetime')).toBe('2026-10-03T01:00:00Z');
 });
+
+it('labels disconnected saved pages even when the browser has a cached success response',()=>{
+  vi.useFakeTimers();const connected=vi.spyOn(navigator,'onLine','get').mockReturnValue(true);
+  const load=vi.fn();const view=render(<NewsRefreshBar onRefresh={load} checkedAt="2026-10-03T01:00:00Z" />);
+  connected.mockReturnValue(false);act(()=>window.dispatchEvent(new Event('offline')));
+  expect(screen.getByRole('status').textContent).toContain('Offline — showing saved news');
+  expect(screen.getByRole('button',{name:'Refresh news'}).disabled).toBe(true);
+  expect(document.querySelector('time')).toBeNull();
+  act(()=>vi.advanceTimersByTime(60000));expect(load).not.toHaveBeenCalled();
+  connected.mockReturnValue(true);act(()=>window.dispatchEvent(new Event('online')));
+  expect(screen.getByRole('button',{name:'Refresh news'}).disabled).toBe(false);
+  expect(load).toHaveBeenCalledTimes(1);
+  view.unmount();connected.mockRestore();
+});
