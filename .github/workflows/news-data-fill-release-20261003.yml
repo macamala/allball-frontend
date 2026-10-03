@@ -1,0 +1,114 @@
+name: News full data supplement release
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-fill-release-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b3c341348401bb9323381da9c13480fc84e2da78
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Apply reviewed News-only integration to exact existing production parent
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = 'be88be88d69014c1d47da7319ae4f5c761e8cbae'
+          mkdir -p ../fill-evidence
+          python ../bundle/audit/fill/apply_fill.py
+          npm ci
+          node --check server/newsPrva.cjs
+          node --check server/newsDataServer.cjs
+      - name: All retained non-App tests, native server tests and production build
+        working-directory: source
+        run: |
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../fill-evidence/tests.json > ../fill-evidence/tests.txt 2>&1 || { tail -100 ../fill-evidence/tests.txt; exit 1; }
+          node --test tests/newsDataServer.check.cjs > ../fill-evidence/server-tests.txt 2>&1 || { cat ../fill-evidence/server-tests.txt; exit 1; }
+          npm run build > ../fill-evidence/build.txt 2>&1 || { cat ../fill-evidence/build.txt; exit 1; }
+          git diff --check
+      - name: Every existing App route test in its own process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,re,json,subprocess,concurrent.futures
+          root=pathlib.Path('../fill-evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text());assert len(cases)==66 and len(set(cases))==66
+          def run(pair):
+              i,title=pair;output=root/f'app-{i}.json'
+              try:
+                  r=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=75)
+                  (root/f'app-{i}.txt').write_text(r.stdout);d=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':r.returncode==0 and d.get('numPassedTests')==1 and not d.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:results=list(pool.map(run,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));assert all(r['passed'] for r in results),[r for r in results if not r['passed']]
+          print('All 66 App route cases passed')
+          PY
+      - name: Read real official and public data through the actual release adapter
+        working-directory: source
+        run: |
+          node server/newsDataServer.cjs > ../fill-evidence/server.log 2>&1 &
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import {readNewsData,FOOTBALL_NEWS_TOPICS,newsMatches} from './src/lib/newsFootballData.js';
+          import {loadNewsSupplement} from './src/lib/newsFootballSupplement.js';
+          const root='../fill-evidence',base='https://allball-backend-production.up.railway.app';
+          const fetcher=async(url,options={})=>fetch(url.startsWith('/')?'http://127.0.0.1:3000'+url:url,options);
+          const get=async(path,options={})=>{const r=await fetch(base+path,{...options,signal:options.signal||AbortSignal.timeout(18000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();};
+          const supplement=(competition,view,options)=>loadNewsSupplement(competition,view,{...options,fetcher});
+          const catalog=JSON.parse(fs.readFileSync('src/config/newsFootballLeagues.json','utf8')).filter(r=>!FOOTBALL_NEWS_TOPICS.has(r.league));
+          const output=[];
+          for(const menu of catalog){
+            const row={league:menu.league,label:menu.label,path:menu.path};
+            try{
+              const table=await readNewsData(get,menu.league,'standings',{supplement});
+              row.table={rows:table.rows?.length||0,season:table.season,source:table.source,edition:table._newsRead?.edition,historical:table._newsRead?.historical,stale:table.stale};
+              const hub=await readNewsData(get,menu.league,'fixtures',{supplement});
+              row.matches={rows:hub.events?.length||0,season:hub.season,source:hub.source,results:newsMatches(hub,menu.league,{view:'results'}).length,fixtures:newsMatches(hub,menu.league,{view:'fixtures'}).length};
+              if(table._newsRead?.supplementary||hub._newsRead?.supplementary)fs.writeFileSync(`${root}/${menu.league}.json`,JSON.stringify({table,hub}));
+            }catch(e){row.error=String(e);}
+            output.push(row);fs.writeFileSync(root+'/coverage.json',JSON.stringify(output,null,2));console.log(row.league,'table',row.table?.rows,'matches',row.matches?.rows,row.error||'');
+          }
+          const summary={checked_at:new Date().toISOString(),menus:output.length,tables:output.filter(r=>r.table?.rows>0).length,match_menus:output.filter(r=>r.matches?.rows>0).length,source_tables:output.filter(r=>r.table?.source==='espn-public-standings'||r.table?.source==='official-prva-liga').map(r=>({league:r.league,...r.table})),empty_tables:output.filter(r=>!r.table?.rows).map(r=>r.league),empty_matches:output.filter(r=>!r.matches?.rows).map(r=>r.league),errors:output.filter(r=>r.error),all_football_news_complete:false,AI_requests:0,explicit_sporting_write_requests:0};
+          fs.writeFileSync(root+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));
+          const prva=output.find(r=>r.league==='serbia-prva-liga'),esp=output.find(r=>r.league==='spain-la-liga-2');
+          if(prva.table?.rows!==16||prva.matches?.rows!==240||esp.table?.rows!==22||esp.matches?.rows!==462||summary.tables<68||output.length!==82||summary.errors.length)throw Error('Source coverage acceptance failed; inspect saved results');
+          JS
+      - name: Persist only the tested source changes on a clean release branch
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import subprocess,pathlib,json,hashlib
+          allowed={'package.json','package-lock.json','server/newsDataServer.cjs','server/newsPrva.cjs','src/components/FootballNewsData.jsx','src/components/StandingsTable.jsx','src/components/StandingsTable.news-supplement.test.jsx','src/lib/newsFixtureSupplement.js','src/lib/newsFixtureSupplement.test.js','src/lib/newsFootballData.js','src/lib/newsFootballSupplement.js','src/lib/newsFootballSupplement.test.js','src/lib/newsOfficialData.js','src/lib/newsOfficialData.test.js','tests/newsDataServer.check.cjs'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines());assert changed==allowed,changed^allowed
+          pathlib.Path('../fill-evidence/files.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in sorted(allowed)},indent=2));subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(news): fill missing football tables and complete official Prva and LaLiga2 schedules'
+          git push origin HEAD:refs/heads/audit/news-data-fill-release-20261003
+          git rev-parse HEAD > ../fill-evidence/tested-commit.txt
+          git archive --format=tar HEAD > ../fill-evidence/source.tar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-fill-release-20261003
+          path: fill-evidence/
+          retention-days: 7
