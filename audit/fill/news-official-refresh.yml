@@ -1,0 +1,74 @@
+name: News official data refresh
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/news-official-refresh.yml'
+      - 'scripts/refresh-news-official.cjs'
+      - 'server/newsPrva.cjs'
+      - 'server/newsRegionalTables.cjs'
+      - 'server/newsSnapshotServer.cjs'
+permissions:
+  contents: write
+concurrency:
+  group: news-official-data-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: news-official-data
+          path: data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install locked parser dependencies without running application scripts
+        working-directory: app
+        run: npm ci --ignore-scripts --omit=dev
+      - name: Refresh only allowed public datasets; preserve old timestamps on failure
+        working-directory: app
+        run: node scripts/refresh-news-official.cjs ../data "$RUNNER_TEMP/news-official-refresh-report.json"
+      - name: Commit data-only files without changing application or Live Scores
+        working-directory: data
+        run: |
+          test "$(git branch --show-current)" = news-official-data
+          python - <<'PY'
+          import subprocess
+          allowed={'serbia-prva-liga.json','czech-second-league.json','austria-second-league.json'}
+          paths=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert paths <= allowed,paths-allowed
+          for path in sorted(paths):subprocess.run(['git','add','--',path],check=True)
+          PY
+          if ! git diff --cached --quiet; then
+            git config user.name 'NinkoSports News data'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'data(news): refresh validated official football records'
+            git push origin HEAD:refs/heads/news-official-data
+          fi
+      - name: Flag any unavailable source after retaining independently successful datasets
+        run: |
+          python - <<'PY'
+          import json,os
+          r=json.load(open(os.environ['RUNNER_TEMP']+'/news-official-refresh-report.json'))
+          failed=[s for s in r['sources'] if s['status']!='updated']
+          assert not failed,failed
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-official-refresh-report
+          path: ${{ runner.temp }}/news-official-refresh-report.json
+          retention-days: 3
