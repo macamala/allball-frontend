@@ -1,0 +1,124 @@
+name: Football News missing data release 20261003
+on:
+  push:
+    branches: [audit/news-football-20261003]
+    paths: [.github/workflows/news-football-alias-release-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Extend only exact News data equivalences
+        run: |
+          test "$(git rev-parse HEAD)" = '43fbf23e08f46ebfd6a2d1a5b11078ba78999e9f'
+          mkdir -p alias-evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/newsFootballData.js');s=p.read_text()
+          old='export const NEWS_DATA_ALIASES = {';assert s.count(old)==1
+          new="""export const NEWS_DATA_ALIASES = {
+            // Public registry, exact team identities and current seasons verified 2026-10-03.
+            // Apertura is a named phase, never merged with a different phase's table.
+            'mexico-liga-expansion': ['mexico-liga-expansion', 'football-mex-liga-de-expansion-mx-apertura'],
+            'uefa-womens-champions-league': ['uefa-womens-champions-league', 'football-women-s-champions-league'],"""
+          s=s.replace(old,new)
+          old="    if (!event || event.sport !== 'football' || event.competition_key !== dataKey) continue;";assert s.count(old)==1
+          s=s.replace(old,old+"\n    if (competition === 'uefa-womens-champions-league' && event.football_gender && event.football_gender !== 'women') continue;")
+          s+='''\n/** A retained phase is clearly labelled; it is not a full-season aggregate. */
+          export function newsDataPhase(payload, competition) {
+            const data = scopedNewsData(payload, competition);
+            const key = typeof data?.competition === 'string' ? data.competition : data?.competition?.id;
+            return competition === 'mexico-liga-expansion' && key === 'football-mex-liga-de-expansion-mx-apertura' ? 'Apertura' : null;
+          }
+          '''
+          p.write_text(s)
+          p=Path('src/components/FootballNewsData.jsx');s=p.read_text()
+          old='newsScore, readNewsData }';assert s.count(old)==1;s=s.replace(old,'newsScore, readNewsData, newsDataPhase }')
+          old='    </header>\n    {loading ?';assert s.count(old)==1
+          s=s.replace(old,'    </header>\n    {newsDataPhase(data, competition) ? <p className="news-data-note">Competition phase: {newsDataPhase(data, competition)}</p> : null}\n    {loading ?')
+          p.write_text(s)
+          Path('src/lib/newsFootballAliases.test.js').write_text('''import {it,expect,vi} from 'vitest';
+          import {newsDataKeys,scopedNewsData,readNewsData,newsMatches,newsDataPhase} from './newsFootballData.js';
+          const mex='mexico-liga-expansion',women='uefa-womens-champions-league';
+          const mk='football-mex-liga-de-expansion-mx-apertura',wk='football-women-s-champions-league';
+          const payload=(id,extra={})=>({competition:{id,sport:'football'},season:'2026/2027',rows:[],events:[],...extra});
+          it('keeps the canonical menu first and allows only its explicitly verified fallback',()=>{
+            expect(newsDataKeys(mex)).toEqual([mex,mk]);expect(newsDataKeys(women)).toEqual([women,wk]);
+            for(const wrong of ['mexico-liga-mx','football-mex-liga-de-expansion-mx-clausura','uefa-champions-league','football-women-s-world-cup-u20']){
+              expect(scopedNewsData(payload(wrong),mex)).toBeNull();expect(scopedNewsData(payload(wrong),women)).toBeNull();
+            }
+          });
+          it('uses a real retained table, preserves season and does not zero-fill missing statistics',async()=>{
+            const saved=payload(mk,{rows:[{team:'Atletico Morelia',points:21}]});
+            const get=vi.fn().mockResolvedValueOnce(payload(mex)).mockResolvedValueOnce(saved);
+            const result=await readNewsData(get,mex,'standings');expect(result).toBe(saved);
+            expect(result.rows[0].goals_for).toBeUndefined();expect(result.season).toBe('2026/2027');
+            expect(get.mock.calls.map(c=>c[0])).toEqual(['/sports-data/standings?league='+mex,'/sports-data/standings?league='+mk]);
+          });
+          it('never replaces a populated canonical table with a different source phase',async()=>{
+            const saved=payload(mex,{rows:[{team:'Club',points:2}]});const get=vi.fn().mockResolvedValue(saved);
+            expect(await readNewsData(get,mex,'standings')).toBe(saved);expect(get).toHaveBeenCalledTimes(1);
+          });
+          it('retains a visible Apertura phase only on its exact accepted payload',()=>{
+            expect(newsDataPhase(payload(mk),mex)).toBe('Apertura');
+            for(const [key,menu] of [[mex,mex],[wk,women],[mk,women],['football-mex-liga-de-expansion-mx-clausura',mex]])expect(newsDataPhase(payload(key),menu)).toBeNull();
+          });
+          it('never mixes womens alias matches with men, other competitions, or another requested season',()=>{
+            const event=(id,extra={})=>({id,key:id,sport:'football',competition_key:wk,football_gender:'women',season:'2026/2027',start_time:'2026-09-22T16:45:00Z',status:'finished',home:{name:'Bayern (W)'},away:{name:'Man City (W)'},...extra});
+            const data=payload(wk,{events:[event('yes'),event('man',{football_gender:'men'}),event('old',{season:'2025/2026'}),event('other',{competition_key:'uefa-champions-league'})]});
+            expect(newsMatches(data,women,{season:'2026/2027'}).map(e=>e.id)).toEqual(['yes']);
+            expect(newsMatches(data,'uefa-champions-league')).toEqual([]);
+          });
+          it('rejects another season instead of silently returning it through the new fallback',async()=>{
+            const get=vi.fn().mockResolvedValue(payload(mk,{season:'2025/2026',rows:[{team:'Old',points:5}]}));
+            await expect(readNewsData(get,mex,'standings',{season:'2026/2027'})).rejects.toThrow();
+          });
+          ''')
+          PY
+      - name: All non-App regressions and production build
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx > alias-evidence/tests.txt 2>&1 || { tail -80 alias-evidence/tests.txt; exit 1; }
+          npm run build > alias-evidence/build.txt 2>&1 || { cat alias-evidence/build.txt; exit 1; }
+          tail -5 alias-evidence/tests.txt
+      - name: Verify live data through the actual News adapter without any writes
+        run: |
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import {readNewsData,newsMatches,newsDataPhase} from './src/lib/newsFootballData.js';
+          const get=async(path,options={})=>{const r=await fetch('https://allball-backend-production.up.railway.app'+path,options);if(!r.ok)throw Error('HTTP '+r.status);return r.json();};
+          const output=[];
+          for(const [menu,expected] of [['mexico-liga-expansion',16],['uefa-womens-champions-league',18]]){
+            const table=await readNewsData(get,menu,'standings');const hub=await readNewsData(get,menu,'fixtures');const matches=newsMatches(hub,menu);
+            if(table.rows.length!==expected||!matches.length)throw Error('Verified data missing for '+menu);
+            output.push({menu,table_rows:table.rows.length,competition:table.competition,season:table.season,matches:matches.length,fixtures:newsMatches(hub,menu,{view:'fixtures'}).length,results:newsMatches(hub,menu,{view:'results'}).length,phase:newsDataPhase(table,menu),missing_logos:matches.filter(e=>!e.home.logo||!e.away.logo).length});
+          }
+          fs.writeFileSync('alias-evidence/live-data.json',JSON.stringify(output,null,2));console.log(JSON.stringify(output,null,2));
+          JS
+      - name: Preserve only tested News code on the release branch
+        run: |
+          git add src/lib/newsFootballData.js src/components/FootballNewsData.jsx src/lib/newsFootballAliases.test.js
+          test "$(git diff --cached --name-only | wc -l)" = '3'
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): connect verified Womens Champions League and Mexico Expansion data without mixing phases'
+          git push origin HEAD:refs/heads/audit/news-football-alias-release-20261003
+          git rev-parse HEAD > alias-evidence/tested-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: football-news-alias-release-20261003
+          path: alias-evidence/
+          retention-days: 7
