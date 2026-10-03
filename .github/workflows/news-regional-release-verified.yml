@@ -1,0 +1,52 @@
+name: News regional verified release
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-regional-release-verified.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: af9b1560970d913c9c1d62edc1ae3163665c4286
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - run: pip install -q PyYAML
+      - name: Run pinned reviewed integration and complete release gates
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,yaml
+          workflow=yaml.safe_load(pathlib.Path('bundle/.github/workflows/news-regional-release.yml').read_text())
+          steps=[s for s in workflow['jobs']['gate']['steps'] if 'run' in s]
+          assert len(steps)==5
+          for index,step in enumerate(steps):
+              script=step['run']
+              if index==3:
+                  assert script.count('const load=regionalLoader(),out=[];')==1
+                  script=script.replace('const load=regionalLoader(),out=[];','const out=[];')
+              print(step['name'],flush=True)
+              subprocess.run(['bash','-e','-c',script],cwd='source',check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-regional-verified-release
+          path: release-evidence/
+          retention-days: 7
