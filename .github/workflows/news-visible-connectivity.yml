@@ -1,0 +1,79 @@
+name: News visible connectivity release
+on:
+  push:
+    branches: [audit/news-visible-20261003]
+    paths: [.github/workflows/news-visible-connectivity.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e3022cfc305ecdb923539a4f29e8d2ee67eed537
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Distinguish saved offline news without changing article content
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/components/NewsRefreshBar.jsx');s=p.read_text()
+          s=s.replace('useEffect, useRef','useEffect, useRef, useState')
+          s=s.replace('  const callback = useRef(onRefresh);', '''  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+            useEffect(() => {
+              const connected = () => setOnline(true), disconnected = () => setOnline(false);
+              window.addEventListener('online', connected); window.addEventListener('offline', disconnected);
+              return () => { window.removeEventListener('online', connected); window.removeEventListener('offline', disconnected); };
+            }, []);
+            const callback = useRef(onRefresh);''')
+          s=s.replace("if (document.visibilityState === 'hidden' || pending.current", "if (navigator.onLine === false || document.visibilityState === 'hidden' || pending.current")
+          old='<p>Published news · updates automatically{checkedAt ?'
+          new='<p role={online ? undefined : "status"}>{online ? "Published news · updates automatically" : "Offline — showing saved news. Reconnect to check for updates."}{online && checkedAt ?'
+          assert s.count(old)==1;s=s.replace(old,new).replace('disabled={busy}','disabled={busy || !online}')
+          p.write_text(s)
+          p=Path('src/components/NewsVisibility.test.jsx');s=p.read_text()+'''
+          it('labels disconnected saved pages even when the browser has a cached success response',()=>{
+            vi.useFakeTimers();const connected=vi.spyOn(navigator,'onLine','get').mockReturnValue(true);
+            const load=vi.fn();const view=render(<NewsRefreshBar onRefresh={load} checkedAt="2026-10-03T01:00:00Z" />);
+            connected.mockReturnValue(false);act(()=>window.dispatchEvent(new Event('offline')));
+            expect(screen.getByRole('status').textContent).toContain('Offline — showing saved news');
+            expect(screen.getByRole('button',{name:'Refresh news'}).disabled).toBe(true);
+            expect(document.querySelector('time')).toBeNull();
+            act(()=>vi.advanceTimersByTime(60000));expect(load).not.toHaveBeenCalled();
+            connected.mockReturnValue(true);act(()=>window.dispatchEvent(new Event('online')));
+            expect(screen.getByRole('button',{name:'Refresh news'}).disabled).toBe(false);
+            expect(load).toHaveBeenCalledTimes(1);
+            view.unmount();connected.mockRestore();
+          });
+          ''';p.write_text(s)
+          PY
+      - name: All non-App frontend tests, News server tests and build
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=evidence/tests.json > evidence/tests.txt 2>&1 || { tail -100 evidence/tests.txt; exit 1; }
+          npm run test:news-data > evidence/server-tests.txt 2>&1 || { cat evidence/server-tests.txt; exit 1; }
+          npm run build > evidence/build.txt 2>&1 || { cat evidence/build.txt; exit 1; }
+          git diff --check
+      - name: Preserve tested two-file News child release
+        run: |
+          git add src/components/NewsRefreshBar.jsx src/components/NewsVisibility.test.jsx
+          test "$(git diff --cached --name-only | wc -l)" = 2
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): label offline cached articles and resume checks when connected'
+          git push origin HEAD:refs/heads/release/news-visible-final-20261003
+          git rev-parse HEAD > evidence/tested-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-visible-connectivity
+          path: evidence/
+          retention-days: 7
