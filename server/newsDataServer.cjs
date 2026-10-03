@@ -24,14 +24,14 @@ function robotAllows(text,target){
 }
 async function boundedText(fetcher,url,limit){
  const response=await fetcher(url,{headers:{'User-Agent':AGENT,'Accept':'text/html,text/plain;q=0.9'},credentials:'omit',redirect:'error',signal:AbortSignal.timeout(12000)});
- if(!response.ok||response.status!==200||!/(?:text\/html|text\/plain)/i.test(response.headers.get('content-type')||''))throw Error('Official source unavailable');
+ if(!response.ok||response.status!==200||!/(?:text\/html|text\/plain)/i.test(response.headers.get('content-type')||''))throw Object.assign(Error('Official source unavailable'),{code:'UPSTREAM_RESPONSE',upstreamStatus:response.status,contentType:(response.headers.get('content-type')||'').split(';')[0].slice(0,60)});
  if(Number(response.headers.get('content-length')||0)>limit)throw Error('Official source size');
  const reader=response.body.getReader();let total=0;const parts=[];
  try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>limit)throw Error('Official source size');parts.push(Buffer.from(value));}}
  finally{await reader.cancel().catch(()=>{});}
  return Buffer.concat(parts).toString('utf8');
 }
-function officialLoader({fetcher=fetch,clock=Date.now}={}){
+function officialLoader({fetcher=fetch,clock=Date.now,logger=console.warn}={}){
  const cache=new Map(),pending=new Map();let robots=null,robotTask=null,blockedUntil=0;
  async function checkPolicy(){
   const now=clock();if(robots&&now-robots.at<3600000)return robots.text;
@@ -45,9 +45,13 @@ function officialLoader({fetcher=fetch,clock=Date.now}={}){
   if(now<blockedUntil){const old=retained();if(old)return old;throw Error('Official source cooldown');}
   if(pending.has(view))return pending.get(view);
   const task=(async()=>{
-   try{const policy=await checkPolicy();if(!robotAllows(policy,PATHS[view]))throw Error('Official source policy');
-    const raw=await boundedText(fetcher,ORIGIN+PATHS[view],3000000),data=(view==='standings'?parseStandings:parseMatches)(raw,clock());cache.set(view,{at:clock(),data});return data;
-   }catch(error){blockedUntil=clock()+120000;const old=retained();if(old)return old;throw error;}
+   let stage='robots';
+   try{const policy=await checkPolicy();stage='policy';if(!robotAllows(policy,PATHS[view]))throw Error('Official source policy');
+    stage='article-fetch';const raw=await boundedText(fetcher,ORIGIN+PATHS[view],3000000);stage='parse';const data=(view==='standings'?parseStandings:parseMatches)(raw,clock());cache.set(view,{at:clock(),data});return data;
+   }catch(error){
+    const code=value=>typeof value==='string'&&/^[A-Z0-9_]{1,60}$/.test(value)?value:null;
+    logger(JSON.stringify({event:'news_official_source_failure',source:'prva-liga',view,stage,name:error.name,code:code(error.code),causeCode:code(error.cause?.code),upstreamStatus:Number.isInteger(error.upstreamStatus)?error.upstreamStatus:null,contentType:error.contentType||null}));
+    blockedUntil=clock()+120000;const old=retained();if(old)return old;throw error;}
    finally{pending.delete(view);}
   })();pending.set(view,task);return task;
  };
