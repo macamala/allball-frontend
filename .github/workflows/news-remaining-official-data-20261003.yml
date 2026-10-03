@@ -1,0 +1,55 @@
+name: News remaining official league tables
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-remaining-official-data-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import urllib.request,urllib.error,urllib.parse,urllib.robotparser,json,pathlib,time
+          from html.parser import HTMLParser
+          from concurrent.futures import ThreadPoolExecutor
+          root=pathlib.Path('evidence');agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)'
+          urls=[('belgium','https://www.proleague.be/challenger-pro-league/standings'),('turkey','https://www.tff.org/default.aspx?pageID=142'),('switzerland','https://sfl.ch/de/challengeleague/tabelle'),('croatia','https://prva-nl.hr/'),('czech','https://www.fnliga.cz/tabulka'),('austria','https://www.2liga.at/de/tabelle/'),('denmark','https://1-division.dk/'),('romania','https://www.frf.ro/competitii/competitii-masculine/liga-2-casa-pariurilor/'),('korea','https://www.kleague.com/record/team.do?leagueId=2'),('saudi','https://www.fdl.sa/standings')]
+          class Structure(HTMLParser):
+              def __init__(self):super().__init__();self.links=[];self.scripts=[];self.tables=0;self.headers=[];self.inside=False;self.part=[]
+              def handle_starttag(self,t,a):
+                  d=dict(a)
+                  if t=='a' and d.get('href'):self.links.append(d['href'])
+                  if t=='script' and d.get('src'):self.scripts.append(d['src'])
+                  if t=='table':self.tables+=1
+                  if t=='th':self.inside=True;self.part=[]
+              def handle_data(self,s):
+                  if self.inside:self.part.append(s)
+              def handle_endtag(self,t):
+                  if t=='th' and self.inside:self.headers.append(' '.join(self.part).strip());self.inside=False
+          def read(url):
+              req=urllib.request.Request(url,headers={'User-Agent':agent,'Accept':'text/html,application/json;q=0.9'})
+              with urllib.request.urlopen(req,timeout=15) as r:return r.read(3000000),dict(r.headers),r.url
+          def probe(pair):
+              name,url=pair;host=urllib.parse.urlsplit(url);row={'name':name,'url':url}
+              try:
+                  try:
+                      raw,_,_=read(host.scheme+'://'+host.netloc+'/robots.txt');rp=urllib.robotparser.RobotFileParser();rp.parse(raw.decode('utf-8','replace').splitlines());assert rp.can_fetch(agent,url),'robots disallowed';(root/(name+'-robots.txt')).write_bytes(raw)
+                  except urllib.error.HTTPError as e:
+                      if e.code not in (404,410):raise
+                  raw,headers,final=read(url);parser=Structure();html=raw.decode('utf-8','replace');parser.feed(html)
+                  (root/(name+'.html')).write_bytes(raw);row.update(final_url=final,size=len(raw),tables=parser.tables,headers=parser.headers[:60],scripts=parser.scripts,related_links=list(dict.fromkeys(u for u in parser.links if any(v in u.lower() for v in ['tabel','tabulk','stand','classe','puan','rank','pored','raspored','record','result','calenda','fixture','matches'])))[:40])
+              except Exception as e:row['error']=type(e).__name__+': '+str(e)[:200]
+              return row
+          with ThreadPoolExecutor(max_workers=3) as pool:rows=list(pool.map(probe,urls))
+          (root/'summary.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2));print(json.dumps(rows,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-remaining-official-data-20261003
+          path: evidence/
+          retention-days: 7
