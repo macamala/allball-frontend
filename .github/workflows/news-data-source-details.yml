@@ -1,0 +1,71 @@
+name: News data source details
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-data-source-details.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 559f6f0b08bb6d837e4056d0381b258b045ab5a8
+          persist-credentials: false
+      - run: pip install -q PyYAML playwright && python -m playwright install --with-deps chromium
+      - name: Correctly resolve each public News menu path
+        run: |
+          python - <<'PY'
+          import pathlib,yaml,subprocess
+          w=yaml.safe_load(pathlib.Path('.github/workflows/news-data-regional-inspect.yml').read_text())
+          script=next(s['run'] for s in w['jobs']['browser']['steps'] if s.get('name','').startswith('Check rendered'))
+          script=script.replace("'https://ninkosports.com'+cfg['path']", "'https://ninkosports.com/football/'+cfg['path']")
+          script=script.replace("print(json.dumps(summary,indent=2))", "print(json.dumps(summary,indent=2));assert len(out)==82 and summary['with_displayed_table']>=50")
+          subprocess.run(['bash','-e','-c',script],check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-current-verified-menu-tables
+          path: browser-evidence/
+          retention-days: 7
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read declared encodings and selected official category pages
+        run: |
+          mkdir -p source-evidence
+          python - <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,json,pathlib,re,time
+          from urllib.parse import urlsplit
+          root=pathlib.Path('source-evidence');agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)'
+          pages=[('turkey2','https://www.tff.org/default.aspx?pageID=142'),('denmark2','https://1-division.dk/stilling'),('denmark2-matches','https://1-division.dk/kampprogram'),('czech2-all','https://www.chnliga.cz/zapasy/2026?id_round=0'),('austria2-matches','https://www.2liga.at/spielplan'),('belgium2','https://www.proleague.be/cpl'),('swiss2','https://sfl.ch/de/challenge-league')]
+          policies={}
+          def get(url,limit=4000000):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':agent}),timeout=20) as r:
+                      body=r.read(limit+1);assert len(body)<=limit
+                      charset=r.headers.get_content_charset() or 'utf-8'
+                      return {'url':url,'final_url':r.url,'status':r.status,'content_type':r.headers.get('Content-Type'),'charset':charset,'text':body.decode(charset,errors='strict')}
+              except urllib.error.HTTPError as e:return {'url':url,'status':e.code,'error':'http'}
+              except Exception as e:return {'url':url,'error':type(e).__name__}
+          for key,url in pages:
+              origin='https://'+urlsplit(url).netloc
+              if origin not in policies:policies[origin]=get(origin+'/robots.txt',100000)
+              p=policies[origin];allow=p.get('status') in [404,410]
+              if p.get('status')==200 and '<html' not in p.get('text','').lower():
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(p['text'].splitlines());allow=rp.can_fetch('NinkoSports-NewsData',url)
+                  if rp.crawl_delay('*'):time.sleep(min(rp.crawl_delay('*'),15))
+              d=get(url) if allow else {'url':url,'error':'robots_denied_or_unknown'}
+              (root/(key+'.json')).write_text(json.dumps(d,ensure_ascii=False));print(key,d.get('status'),d.get('charset'),d.get('error'),flush=True)
+          (root/'policies.json').write_text(json.dumps(policies,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-regional-source-details
+          path: source-evidence/
+          retention-days: 7
