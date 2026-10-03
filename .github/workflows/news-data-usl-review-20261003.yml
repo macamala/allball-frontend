@@ -1,0 +1,29 @@
+name: News USL response identity review 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-usl-review-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read only the two already identified public table records
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import urllib.request,json,pathlib,collections
+          out=[]
+          for key in ['usa-usl-championship','football-usa-usl-championship']:
+              with urllib.request.urlopen('https://allball-backend-production.up.railway.app/sports-data/standings?league='+key,timeout=20) as r:d=json.loads(r.read())
+              pathlib.Path('evidence/'+key+'.json').write_text(json.dumps(d,indent=2))
+              out.append({'requested':key,'competition':d.get('competition'),'season':d.get('season'),'stale':d.get('stale'),'rows':len(d.get('rows',[])),'groups':dict(collections.Counter(str(r.get('group')) for r in d.get('rows',[])))})
+          pathlib.Path('evidence/summary.json').write_text(json.dumps(out,indent=2));print(json.dumps(out,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: news-data-usl-review-20261003
+          path: evidence/
+          retention-days: 7
