@@ -1,0 +1,62 @@
+name: News regional source and match proof
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-regional-code-and-matches.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f5d32f79a3453e997a47863a4b03973241bbb707
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Preserve readable source and normal public all-results navigation
+        run: |
+          mkdir -p evidence
+          cp audit/newsRegional.cjs audit/newsRegionalTransport.cjs evidence/
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.robotparser
+          from urllib.parse import urlsplit
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('evidence');url='https://srbijasport.net/league/8626-mozzart-bet-prva-liga-srbije/table';agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)'
+          with urllib.request.urlopen(urllib.request.Request('https://srbijasport.net/robots.txt',headers={'User-Agent':agent}),timeout=20) as r:policy=r.read(100000).decode()
+          rp=urllib.robotparser.RobotFileParser();rp.parse(policy.splitlines());assert rp.can_fetch('NinkoSports-NewsData',url)
+          out={'source':url,'responses':[]}
+          with sync_playwright() as p:
+              b=p.chromium.launch();page=b.new_page()
+              def response(r):
+                  if urlsplit(r.url).hostname!='srbijasport.net' or r.request.resource_type not in ['xhr','fetch']:return
+                  row={'url':r.url,'method':r.request.method,'status':r.status,'type':r.headers.get('content-type')}
+                  # Inspect only normal sports-data interactions, never account or authentication flows.
+                  if r.status==200 and not any(t in r.url.lower() for t in ['login','auth','account','session','user','token']):
+                      try:
+                          text=r.text()
+                          if len(text)<3000000 and any(v in text for v in ['game-row','gameId','team-host','8649']):
+                              filename='prva-all-response-'+str(len(out['responses']))+'.txt';(root/filename).write_text(text);row['body_file']=filename
+                              body=r.request.post_data
+                              if body and len(body)<10000 and not any(s in body.lower() for s in ['password','csrf','token','secret']):row['query_body']=body
+                      except Exception:pass
+                  out['responses'].append(row)
+              page.on('response',response)
+              page.goto(url,wait_until='domcontentloaded',timeout=40000)
+              page.get_by_text('Svi rezultati',exact=True).click(timeout=10000)
+              page.wait_for_timeout(5000)
+              html=page.content();(root/'prva-all.html').write_text(html)
+              out['visible_games']=page.locator('.game-row:visible').count();out['all_game_rows']=page.locator('.game-row').count();out['page_text']=page.locator('body').inner_text()[-12000:]
+              b.close()
+          (root/'prva-summary.json').write_text(json.dumps(out,ensure_ascii=False,indent=2));print(json.dumps({k:v for k,v in out.items() if k!='page_text'},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-regional-code-and-match-proof
+          path: evidence/
+          retention-days: 7
