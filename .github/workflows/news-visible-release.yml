@@ -1,0 +1,84 @@
+name: News visible release gate
+on:
+  push:
+    branches: [audit/news-visible-20261003]
+    paths: [.github/workflows/news-visible-release.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+      TZ: Australia/Sydney
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0be86d28686cfc3d5fb67c5d02217def2754ba10
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Integrate only on the reviewed deployed parent
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = '0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d'
+          mkdir -p ../evidence
+          python ../bundle/audit/apply_news_visible.py
+          git diff --check
+      - name: News server and all non-App frontend regressions
+        working-directory: source
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../evidence/tests.json > ../evidence/tests.txt 2>&1 || { tail -100 ../evidence/tests.txt; exit 1; }
+          npm run test:news-data > ../evidence/server-tests.txt 2>&1 || { tail -80 ../evidence/server-tests.txt; exit 1; }
+          npm run build > ../evidence/build.txt 2>&1 || { cat ../evidence/build.txt; exit 1; }
+      - name: Retain every App route test in isolated processes
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,re,json,subprocess,concurrent.futures
+          root=pathlib.Path('../evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert cases and len(cases)==len(set(cases))
+          def test(pair):
+              i,title=pair;output=root/f'app-{i}.json'
+              try:
+                  p=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=90)
+                  (root/f'app-{i}.txt').write_text(p.stdout)
+                  d=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':p.returncode==0 and d.get('numPassedTests')==1 and not d.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:rows=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(rows,indent=2));print('Routes passed',sum(r['passed'] for r in rows),'of',len(rows));assert all(r['passed'] for r in rows)
+          PY
+      - name: Save only tested visitor-facing News changes
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,json,hashlib
+          allowed={'src/components/NewsRefreshBar.jsx','src/components/NewsRefreshBar.css','src/components/LeagueNewsPreview.jsx','src/components/NewsVisibility.test.jsx','src/components/FootballNewsMenu.jsx','src/components/FootballNewsMenu.css','src/pages/LeaguePage.jsx','src/pages/LeaguePage.news.test.jsx','src/pages/SportPage.jsx','src/pages/HomePage.jsx'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed==allowed,changed^allowed
+          pathlib.Path('../evidence/files.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in sorted(allowed)},indent=2))
+          subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(news): display published stories in all-league directory and refresh open news pages'
+          git push origin HEAD:refs/heads/release/news-visible-20261003
+          git rev-parse HEAD > ../evidence/tested-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-visible-release
+          path: evidence/
+          retention-days: 7
