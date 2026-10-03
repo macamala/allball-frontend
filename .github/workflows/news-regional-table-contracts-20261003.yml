@@ -1,0 +1,48 @@
+name: News regional table contracts
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-regional-table-contracts-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import urllib.request,urllib.error,urllib.robotparser,json,pathlib,time
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('evidence');agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)';rows=[]
+          urls=[('czech','https://www.chnliga.cz','/tabulka'),('austria','https://www.2liga.at','/de/tabelle'),('korea','https://www.kleague.com','/record/teamRank.do?leagueId=2&year=2026&stadium=all&recordType=rank')]
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':agent}),timeout=18) as r:return r.read(3000000),r.status,r.headers.get('content-type'),r.headers.get('Access-Control-Allow-Origin')
+          for name,origin,path in urls:
+              row={'name':name,'url':origin+path}
+              try:
+                  raw,_,_,_=get(origin+'/robots.txt');(root/(name+'-robots.txt')).write_bytes(raw)
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(raw.decode('utf-8','replace').splitlines());assert rp.can_fetch(agent,origin+path),'robots_disallowed'
+                  delay=rp.crawl_delay(agent) or rp.crawl_delay('*') or 0
+                  if delay:time.sleep(min(delay,15))
+                  raw,status,typ,cors=get(origin+path);(root/(name+'.txt')).write_bytes(raw);row.update(status=status,type=typ,cors=cors,bytes=len(raw))
+                  if 'json' in (typ or ''):row['preview']=json.loads(raw)
+              except urllib.error.HTTPError as e:row.update(status=e.code,error=e.read(500).decode('utf-8','replace'))
+              except Exception as e:row['error']=str(e)[:180]
+              rows.append(row)
+          with sync_playwright() as p:
+              b=p.chromium.launch();page=b.new_page();page.goto('https://ninkosports.com',wait_until='domcontentloaded')
+              browser=page.evaluate("""async()=>{const urls=['/news-data/football/serbia-prva-liga/standings','https://www.2liga.at/de/tabelle','https://www.chnliga.cz/tabulka'];const out=[];for(const url of urls){try{const r=await fetch(url,{credentials:'omit',signal:AbortSignal.timeout(18000)});const text=await r.text();out.push({url,status:r.status,type:r.headers.get('content-type'),size:text.length,preview:url.startsWith('/')?text.slice(0,200):null});}catch(e){out.push({url,error:String(e)})}}return out;}""");b.close()
+          (root/'summary.json').write_text(json.dumps({'sources':rows,'browser':browser},ensure_ascii=False,indent=2));print(json.dumps({'sources':[{k:v for k,v in r.items() if k!='preview'} for r in rows],'browser':browser},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-regional-table-contracts-20261003
+          path: evidence/
+          retention-days: 7
