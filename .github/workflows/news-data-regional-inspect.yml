@@ -1,0 +1,97 @@
+name: News regional data inspection
+on:
+  push:
+    branches: [audit/news-data-fill-20261003]
+    paths: [.github/workflows/news-data-regional-inspect.yml]
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - name: Inspect allowed official pages with exact response bodies
+        run: |
+          mkdir -p regional-evidence
+          tar -czf regional-evidence/node_modules.tar.gz node_modules
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.error,urllib.robotparser
+          from urllib.parse import urlsplit,urljoin
+          from concurrent.futures import ThreadPoolExecutor
+          root=pathlib.Path('regional-evidence');agent='NinkoSports-NewsData/1.0 (+https://ninkosports.com)'
+          pages=[('czech2','https://www.chnliga.cz/tabulka'),('czech2-matches','https://www.chnliga.cz/zapasy'),('turkey2','https://www.tff.org/default.aspx?pageID=142'),('austria2','https://www.2liga.at/de/tabelle/saison-2026-2027'),('croatia2','https://prva-nl.hr/'),('denmark2','https://1-division.dk/'),('romania2','https://liga2.prosport.ro/clasament'),('swiss2','https://sfl.ch/de/challenge-league/table'),('belgium2','https://www.proleague.be/challenger-pro-league/standings'),('prva-secondary','https://srbijasport.net/league/8626-mozzart-bet-prva-liga-srbije/table'),('efl','https://www.efl.com/competitions/efl-championship')]
+          def get(url,limit=5000000):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':agent}),timeout=18) as r:
+                      body=r.read(limit+1);assert len(body)<=limit
+                      return {'url':url,'final_url':r.url,'status':r.status,'type':r.headers.get('Content-Type',''),'text':body.decode('utf-8','replace')}
+              except urllib.error.HTTPError as e:return {'url':url,'status':e.code,'error':'http'}
+              except Exception as e:return {'url':url,'error':type(e).__name__}
+          policies={}
+          for origin in sorted({'https://'+urlsplit(u).netloc for _,u in pages}):policies[origin]=get(origin+'/robots.txt',100000)
+          (root/'policies.json').write_text(json.dumps(policies,indent=2))
+          def probe(pair):
+              key,url=pair;p=policies['https://'+urlsplit(url).netloc];allow=False
+              if p.get('status') in [404,410]:allow=True
+              if p.get('status')==200 and '<html' not in p.get('text','').lower():
+                  rp=urllib.robotparser.RobotFileParser();rp.parse(p['text'].splitlines());allow=rp.can_fetch('NinkoSports-NewsData',url)
+              data=get(url) if allow else {'url':url,'error':'robots_unavailable_or_denied'}
+              (root/(key+'.json')).write_text(json.dumps(data,ensure_ascii=False));print(key,data.get('status'),data.get('error'),len(data.get('text','')),flush=True)
+          with ThreadPoolExecutor(max_workers=2) as pool:list(pool.map(probe,pages))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-regional-source-inspection
+          path: regional-evidence/
+          retention-days: 7
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Check rendered public News standings for every competition
+        run: |
+          mkdir -p browser-evidence
+          python - <<'PY'
+          import json,pathlib
+          from datetime import datetime,timezone
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('browser-evidence');catalog=json.loads(pathlib.Path('src/config/newsFootballLeagues.json').read_text());out=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch();page=browser.new_page();page.set_default_timeout(35000)
+              for cfg in catalog:
+                  if cfg['league'] in ['football-international','football-women','football-youth','football-national-teams']:continue
+                  row={'league':cfg['league'],'path':cfg['path'],'label':cfg['label']}
+                  try:
+                      page.goto('https://ninkosports.com'+cfg['path'],wait_until='domcontentloaded')
+                      page.get_by_role('tab',name='Standings',exact=True).click()
+                      page.wait_for_function("document.querySelector('.news-football-data')?.getAttribute('aria-busy')==='false'",timeout=45000)
+                      panel=page.locator('.news-football-data');row.update(rows=panel.locator('tbody tr').count(),alerts=panel.locator('[role=alert]').all_inner_texts(),text=panel.inner_text()[:3000])
+                  except Exception as e:row['error']=type(e).__name__+': '+str(e)[:200]
+                  out.append(row);(root/'tables.json').write_text(json.dumps(out,ensure_ascii=False,indent=2));print(row['league'],row.get('rows'),row.get('error'),flush=True)
+              browser.close()
+          summary={'at':datetime.now(timezone.utc).isoformat(),'menus':len(out),'with_displayed_table':sum(bool(r.get('rows')) for r in out),'empty_or_failed':[r['league'] for r in out if not r.get('rows')],'AI_requests':0,'sports_writes':0}
+          (root/'summary.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-current-rendered-tables
+          path: browser-evidence/
+          retention-days: 7
