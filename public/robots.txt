@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://ninkosports.com/sitemap.xml
-Sitemap: https://allball-backend-production.up.railway.app/sitemap.xml
