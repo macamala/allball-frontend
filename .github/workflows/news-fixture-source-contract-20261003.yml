@@ -1,0 +1,57 @@
+name: News fixtures source contract
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-fixture-source-contract-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import urllib.request,urllib.error,pathlib,json
+          from playwright.sync_api import sync_playwright
+          urls={
+          'score-day':'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=20261003&limit=100',
+          'score-month':'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=20260901-20260930&limit=100',
+          'score-web':'https://site.web.api.espn.com/apis/site/v2/sports/soccer/esp.2/scoreboard?dates=20260901-20261031&limit=100',
+          'score-v2':'https://site.web.api.espn.com/apis/v2/sports/soccer/esp.2/scoreboard?dates=20260901-20261031&limit=100',
+          'caf-previous':'https://site.web.api.espn.com/apis/v2/sports/soccer/caf.champions/standings?season=2025',
+          'prva-page':'https://www.prvaliga.rs/sezona/raspored-i-rezultati/',
+          'prva-table':'https://www.prvaliga.rs/sezona/tabela-takmicenja/'
+          }
+          root=pathlib.Path('evidence');rows=[];blocked=set()
+          for name,url in urls.items():
+              host=url.split('/')[2]
+              if host in blocked:continue
+              row={'name':name,'url':url}
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'Origin':'https://ninkosports.com','User-Agent':'NinkoSports-NewsData/1.0'}),timeout=15) as r:
+                      data=r.read(4000000);row.update(status=r.status,cors=r.headers.get('Access-Control-Allow-Origin'),type=r.headers.get('content-type'))
+                      (root/(name+'.txt')).write_bytes(data)
+                      if 'json' in row['type']:
+                          d=json.loads(data);row['keys']=list(d);row['events']=len(d.get('events',[]));row['leagues']=d.get('leagues');row['season']=d.get('season')
+              except urllib.error.HTTPError as e:
+                  row['status']=e.code;row['error_body']=e.read(2000).decode('utf-8','replace')
+                  if e.code in (401,403,429):blocked.add(host)
+              except Exception as e:row['error']=str(e)
+              rows.append(row)
+          with sync_playwright() as p:
+              b=p.chromium.launch();page=b.new_page();page.goto('https://ninkosports.com/',wait_until='domcontentloaded')
+              cors=page.evaluate("""async(urls)=>{const out=[];for(const url of urls){try{const r=await fetch(url,{credentials:'omit',signal:AbortSignal.timeout(12000)});out.push({url,status:r.status,size:(await r.text()).length});}catch(e){out.push({url,error:String(e)})}}return out;}""",[urls['score-day'],urls['score-web'],urls['prva-page'],urls['prva-table']]);b.close()
+          (root/'summary.json').write_text(json.dumps(rows,indent=2));(root/'cors.json').write_text(json.dumps(cors,indent=2));print(json.dumps(rows,indent=2));print(json.dumps(cors,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-fixture-source-contract-20261003
+          path: evidence/
+          retention-days: 7
