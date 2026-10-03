@@ -1,0 +1,93 @@
+name: News filled data production acceptance
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-fill-production-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Australia/Sydney
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4420cb54602f3cc35197c6ece824bf20d1af305b
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 5342c372a35449ace26d23262c1310e1cc5d5124
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Read deployed official routes and independent expected table records
+        working-directory: source
+        run: |
+          mkdir -p production-proof
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';import {readNewsData,newsMatches} from './src/lib/newsFootballData.js';import {loadNewsSupplement} from './src/lib/newsFootballSupplement.js';
+          const base='https://allball-backend-production.up.railway.app',site='https://ninkosports.com';
+          const get=async(path,options={})=>{const r=await fetch(base+path,{...options,signal:options.signal||AbortSignal.timeout(18000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();};
+          const fetcher=(url,options)=>fetch(url.startsWith('/')?site+url:url,options);
+          const supplement=(key,view,options)=>loadNewsSupplement(key,view,{...options,fetcher});
+          const wanted=['england-championship','spain-la-liga-2','italy-serie-b','serbia-prva-liga','greece-super-league','japan-j1-league','uefa-europa-league','uefa-conference-league','fifa-world-cup','fifa-womens-world-cup','caf-champions-league'];
+          const catalog=JSON.parse(fs.readFileSync('src/config/newsFootballLeagues.json','utf8'));const cases=[];
+          for(const league of wanted){const menu=catalog.find(r=>r.league===league);const table=await readNewsData(get,league,'standings',{supplement});if(!table.rows?.length)throw Error('Expected supplied table '+league);const row={league,path:menu.path,table};if(['england-championship','spain-la-liga-2','serbia-prva-liga'].includes(league)){const data=await readNewsData(get,league,'fixtures',{supplement});row.hub={fixtures:newsMatches(data,league,{view:'fixtures'}),results:newsMatches(data,league,{view:'results'})};}
+            cases.push(row);fs.writeFileSync('production-proof/references.json',JSON.stringify({checked_at:new Date().toISOString(),cases},null,2));}
+          const routeProof=[];for(const suffix of ['standings','matches']){const r=await fetch(site+'/news-data/football/serbia-prva-liga/'+suffix,{signal:AbortSignal.timeout(22000)}),d=await r.json();if(r.status!==200||d.competition?.id!=='serbia-prva-liga'||d.stale)throw Error('Official production route failed');routeProof.push({suffix,status:r.status,source:d.source,season:d.season,rows:d.rows?.length,events:d.events?.length,cache_control:r.headers.get('cache-control'),cookie:r.headers.get('set-cookie')});}
+          fs.writeFileSync('production-proof/official-routes.json',JSON.stringify(routeProof,null,2));console.log(JSON.stringify(routeProof,null,2));
+          JS
+      - name: Source-matched actual browser acceptance
+        working-directory: source
+        run: python ../bundle/audit/fill/verify_production.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-fill-production-20261003
+          path: source/production-proof/
+          retention-days: 7
+  article_coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5342c372a35449ace26d23262c1310e1cc5d5124
+          persist-credentials: false
+      - run: |
+          mkdir -p article-proof
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse
+          from datetime import datetime,timezone
+          from concurrent.futures import ThreadPoolExecutor
+          now=datetime.now(timezone.utc);root=pathlib.Path('article-proof');catalog=json.loads(pathlib.Path('src/config/newsFootballLeagues.json').read_text())
+          def recent(row):
+              d=datetime.fromisoformat(row['published_at'].replace('Z','+00:00'));d=d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc)
+              return 0<=(now-d).total_seconds()<86400
+          def read(menu):
+              out={'league':menu['league'],'label':menu['label']}
+              try:
+                  q=urllib.parse.urlencode({'sport':'football','league':menu['league'],'limit':3})
+                  with urllib.request.urlopen('https://allball-backend-production.up.railway.app/articles?'+q,timeout=20) as r:rows=json.loads(r.read())
+                  out.update(articles=[{k:a.get(k) for k in ['id','title','league','sport','published_at','image_url']} for a in rows],recent=any(recent(a) for a in rows),wrong_fields=sum(a['league']!=menu['league'] or a['sport']!='football' for a in rows))
+              except Exception as e:out['error']=str(e)[:120]
+              return out
+          with ThreadPoolExecutor(max_workers=3) as pool:rows=list(pool.map(read,catalog))
+          summary={'checked_at':now.isoformat(),'menus':len(rows),'populated':sum(bool(r.get('articles')) for r in rows),'recent_24h':sum(r.get('recent',False) for r in rows),'empty':[r['league'] for r in rows if r.get('articles')==[]],'errors':[r for r in rows if r.get('error')],'wrong_fields':sum(r.get('wrong_fields',0) for r in rows),'all_news_complete':False,'AI_requests':0,'publication_writes':0}
+          (root/'coverage.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2));(root/'summary.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary,indent=2));assert len(rows)==86 and not summary['errors'] and not summary['wrong_fields']
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-fill-article-coverage-20261003
+          path: article-proof/
+          retention-days: 7
