@@ -1,0 +1,42 @@
+name: News football data baseline 20261003
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-data-baseline-20261003.yml]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5e2d799c38d22ac709644dcbc7646bfc40f3559b
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve source and inspect public football data
+        run: |
+          mkdir -p evidence/boards
+          git archive --format=tar HEAD > evidence/frontend.tar
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import {readNewsData,FOOTBALL_NEWS_TOPICS,newsMatches} from './src/lib/newsFootballData.js';
+          const base='https://allball-backend-production.up.railway.app';
+          const catalog=JSON.parse(fs.readFileSync('src/config/newsFootballLeagues.json','utf8'));
+          const requests=[];async function get(path,opts={}){const start=Date.now();const r=await fetch(base+path,{...opts,signal:opts.signal||AbortSignal.timeout(20000)});requests.push({path,status:r.status,ms:Date.now()-start});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
+          for(const [name,path] of [['registry','/sports-data/competitions?sport=football'],['openapi','/openapi.json']]){try{fs.writeFileSync('evidence/'+name+'.json',JSON.stringify(await get(path)));}catch(e){console.log(name,String(e));}}
+          const rows=[];const pending=catalog.filter(c=>!FOOTBALL_NEWS_TOPICS.has(c.league));
+          await Promise.all(Array.from({length:2},async()=>{while(pending.length){const menu=pending.shift();const out={league:menu.league,label:menu.label};
+            for(const view of ['standings','fixtures']){try{const data=await readNewsData(get,menu.league,view,{timeoutMs:10000});fs.writeFileSync('evidence/boards/'+menu.league+'-'+view+'.json',JSON.stringify(data));out[view]={rows:data.rows?.length,events:data.events?.length,season:data.season,seasons:data.seasons,available:data.available,coverage:data.coverage,competition:data.competition,updated_at:data.updated_at,checked_at:data.checked_at};if(view==='fixtures'){out.results=newsMatches(data,menu.league,{view:'results'}).length;out.upcoming=newsMatches(data,menu.league,{view:'fixtures'}).length;out.event_seasons=[...new Set((data.events||[]).map(e=>e.season))];}}catch(e){out[view]={error:String(e)};}}
+            rows.push(out);console.log(menu.league,out.standings.rows,out.fixtures.events,out.results,out.upcoming);fs.writeFileSync('evidence/summary.json',JSON.stringify({checked_at:new Date().toISOString(),menus:rows.length,rows},null,2));
+          }}));fs.writeFileSync('evidence/requests.json',JSON.stringify(requests,null,2));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-data-baseline-20261003
+          path: evidence/
+          retention-days: 7
