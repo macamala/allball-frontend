@@ -1,0 +1,140 @@
+name: News official snapshot recovery release
+on:
+  push:
+    branches: [audit/news-data-completion-20261003]
+    paths: [.github/workflows/news-snapshots-release-20261003.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8ddad268a4d1821d4f40fa297c441d5e7008ec1d
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          ref: news-official-data
+          path: data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Integrate only fixed News sources and isolated snapshot delivery
+        working-directory: source
+        run: |
+          mkdir -p ../snapshot-evidence scripts
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          bundle=Path('../bundle/audit/fill')
+          for name in ['newsRegionalTables.cjs','newsSnapshotServer.cjs']:shutil.copyfile(bundle/name,Path('server')/name)
+          shutil.copyfile(bundle/'refresh-news-official.cjs','scripts/refresh-news-official.cjs')
+          shutil.copyfile(bundle/'newsSnapshots.check.cjs','tests/newsSnapshots.check.cjs')
+          shutil.copyfile(bundle/'news-official-refresh.yml','.github/workflows/news-official-refresh.yml')
+          def edit(path,old,new):
+              p=Path(path);s=p.read_text();assert s.count(old)==1,(path,s.count(old),old);p.write_text(s.replace(old,new))
+          edit('server/newsDataServer.cjs',"const AGENT=", "const {snapshotLoader}=require('./newsSnapshotServer.cjs');\nconst AGENT=")
+          edit('server/newsDataServer.cjs',"loader=officialLoader()}={}","snapshot=snapshotLoader(),loader=view=>snapshot('serbia-prva-liga',view)}={}")
+          edit('server/newsDataServer.cjs',"const match=/^\\/news-data\\/football\\/serbia-prva-liga\\/(standings|matches)$/.exec(req.url);", "const match=/^\\/news-data\\/football\\/(serbia-prva-liga|czech-second-league|austria-second-league)\\/(standings|matches)$/.exec(req.url);")
+          edit('server/newsDataServer.cjs','   if(!match){res.statusCode=404;',"   if(!match||(match[1]!=='serbia-prva-liga'&&match[2]!=='standings')){res.statusCode=404;")
+          edit('server/newsDataServer.cjs','const data=await loader(match[1]);',"const data=await (match[1]==='serbia-prva-liga'?loader(match[2]):snapshot(match[1],match[2]));")
+          edit('server/newsDataServer.cjs','module.exports={createNewsServer,officialLoader,robotAllows};','module.exports={createNewsServer,officialLoader,robotAllows,boundedText};')
+          edit('src/lib/newsOfficialData.js',"const cache=new Map();", "const cache=new Map();\nconst sources={'serbia-prva-liga':'official-prva-liga','czech-second-league':'official-chnliga','austria-second-league':'official-2liga'};")
+          edit('src/lib/newsOfficialData.js',"if(competition!=='serbia-prva-liga'||!['fixtures','results','standings'].includes(view))return null;", "if(!sources[competition]||!['fixtures','results','standings'].includes(view)||(competition!=='serbia-prva-liga'&&view!=='standings'))return null;")
+          edit('src/lib/newsOfficialData.js',"url='/news-data/football/serbia-prva-liga/'+type;", "url='/news-data/football/'+competition+'/'+type,cacheKey=competition+':'+type;")
+          edit('src/lib/newsOfficialData.js',"let data=cache.get(type)?.until>now?cache.get(type).data:null;", "let data=cache.get(cacheKey)?.until>now?cache.get(cacheKey).data:null;")
+          edit('src/lib/newsOfficialData.js',"d.source!=='official-prva-liga'", "d.source!==sources[competition]")
+          edit('src/lib/newsOfficialData.js',"cache.set(type,", "cache.set(cacheKey,")
+          edit('src/lib/newsFootballSupplement.js',"if(competition==='serbia-prva-liga')return loadOfficialNewsData", "if(competition==='serbia-prva-liga'||(['czech-second-league','austria-second-league'].includes(competition)&&view==='standings'))return loadOfficialNewsData")
+          edit('src/components/FootballNewsData.jsx','    {notice ? <p', "    {data?._newsRead?.snapshot ? <p className=\"news-data-note\">Official source snapshot: {new Date(data._newsRead.sourceCheckedAt).toLocaleString('en-GB')}. Refreshed hourly; not a live score feed.</p> : null}\n    {notice ? <p")
+          p=Path('src/lib/newsOfficialData.test.js');p.write_text(p.read_text()+'''
+          it('keeps each official league cache separate and does not assume a regional fixture source',async()=>{
+            const sources={'czech-second-league':'official-chnliga','austria-second-league':'official-2liga'};
+            const fetcher=vi.fn(async url=>{const k=url.split('/')[3];return response({...data(),competition:{id:k,sport:'football'},source:sources[k]});});
+            for(const k of Object.keys(sources)){const d=await loadOfficialNewsData(k,'standings',{fetcher,now});expect(d.competition.id).toBe(k);}
+            expect(fetcher).toHaveBeenCalledTimes(2);
+            expect(await loadOfficialNewsData('czech-second-league','fixtures',{fetcher,now})).toBeNull();
+            expect(fetcher).toHaveBeenCalledTimes(2);
+          });
+          ''')
+          PY
+      - name: All retained non-App and native server regressions plus production build
+        working-directory: source
+        run: |
+          npm ci
+          node --test tests/newsDataServer.check.cjs tests/newsSnapshots.check.cjs > ../snapshot-evidence/server-tests.txt 2>&1 || { tail -130 ../snapshot-evidence/server-tests.txt; exit 1; }
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../snapshot-evidence/tests.json > ../snapshot-evidence/tests.txt 2>&1 || { tail -100 ../snapshot-evidence/tests.txt; exit 1; }
+          npm run build > ../snapshot-evidence/build.txt 2>&1
+          git diff --check
+      - name: Every retained App route in an isolated process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,re,json,subprocess,concurrent.futures
+          root=pathlib.Path('../snapshot-evidence');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text());assert len(cases)==66 and len(set(cases))==66
+          def run(pair):
+              i,title=pair;output=root/f'app-{i}.json'
+              try:
+                  r=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=75)
+                  d=json.loads(output.read_text()) if output.exists() else {};return {'title':title,'passed':r.returncode==0 and d.get('numPassedTests')==1 and not d.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:results=list(pool.map(run,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));assert all(r['passed'] for r in results),[r for r in results if not r['passed']]
+          PY
+      - name: Refresh and validate actual public datasets with original source timestamps
+        working-directory: source
+        run: |
+          node scripts/refresh-news-official.cjs ../data ../snapshot-evidence/refresh-report.json
+          python - <<'PY'
+          import json
+          report=json.load(open('../snapshot-evidence/refresh-report.json'));assert all(r['status']=='updated' for r in report['sources']),report
+          PY
+      - name: Publish verified data only to the isolated data branch
+        working-directory: data
+        run: |
+          test "$(git branch --show-current)" = news-official-data
+          python - <<'PY'
+          import subprocess
+          allowed={'serbia-prva-liga.json','czech-second-league.json','austria-second-league.json'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines());assert changed<=allowed,changed
+          subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News data'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'data(news): initialize verified official league snapshots'
+          git push origin HEAD:refs/heads/news-official-data
+          git rev-parse HEAD > ../snapshot-evidence/data-commit.txt
+      - name: Persist clean tested source child without staging files
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import subprocess,pathlib,json,hashlib
+          allowed={'.github/workflows/news-official-refresh.yml','scripts/refresh-news-official.cjs','server/newsRegionalTables.cjs','server/newsSnapshotServer.cjs','server/newsDataServer.cjs','src/lib/newsOfficialData.js','src/lib/newsOfficialData.test.js','src/lib/newsFootballSupplement.js','src/components/FootballNewsData.jsx','tests/newsSnapshots.check.cjs'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines());assert changed==allowed,changed^allowed
+          pathlib.Path('../snapshot-evidence/files.json').write_text(json.dumps({p:hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in sorted(allowed)},indent=2));subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): deliver validated official snapshots and add Czech Austrian full tables'
+          git push origin HEAD:refs/heads/audit/news-snapshot-release-20261003
+          git rev-parse HEAD > ../snapshot-evidence/tested-commit.txt
+          git archive --format=tar HEAD > ../snapshot-evidence/source.tar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-snapshot-release-20261003
+          path: snapshot-evidence/
+          retention-days: 7
