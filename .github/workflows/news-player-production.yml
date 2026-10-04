@@ -1,0 +1,28 @@
+name: News player production acceptance
+on:
+  push:
+    branches: [fix/news-player-resolution-20261004]
+    paths: [.github/workflows/news-player-production.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 94b33a5c5bad4b5bac5a1ba70a2b2ad111b726ce
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Actual deployed article links portraits source-matched facts and original pages
+        run: python audit/verify_news_players.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-player-production-20261004
+          path: player-public-proof/
+          retention-days: 7
