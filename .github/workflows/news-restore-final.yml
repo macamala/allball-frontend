@@ -1,0 +1,58 @@
+name: News restored layout and verified links final gate
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-restore-final.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 99578f42595e27860c412d596ac2033f731891a7
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+          fetch-depth: 4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - run: pip install -q PyYAML
+      - name: Apply pinned restoration and recovery, then run every original release gate
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,hashlib,yaml
+          workflow=yaml.safe_load(pathlib.Path('bundle/.github/workflows/news-restore-release.yml').read_text())
+          steps=[s for s in workflow['jobs']['gate']['steps'] if 'run' in s]
+          assert len(steps)==5
+          for index,step in enumerate(steps):
+              print('GATE:',step['name'],flush=True)
+              script=step['run']
+              if index==3:
+                  script=script.replace("const load=contextLoader(),base=", "const {createPublicReader}=require('./server/newsArticleContext.cjs');const reader=createPublicReader();const load=contextLoader({read:async path=>{const start=Date.now();try{const result=await reader(path);console.log('READ',path,Date.now()-start);return result;}catch(error){console.error('FAILED_READ',path,error.name);throw error;}}}),base=")
+              subprocess.run(['bash','-e','-c',script],cwd='source',check=True)
+              if index==0:
+                  path=pathlib.Path('bundle/audit/news-context-resilience.patch')
+                  assert hashlib.sha256(path.read_bytes()).hexdigest()=='70f65e9c5b0752983b408fb11c6a3740426b999df51b9bf6b7ed9bb246fc8ef8'
+                  subprocess.run(['git','apply','--check','../'+str(path)],cwd='source',check=True)
+                  subprocess.run(['git','apply','../'+str(path)],cwd='source',check=True)
+                  pathlib.Path('proof/context-recovery.patch').write_bytes(path.read_bytes())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-restore-final-20261004
+          path: proof/
+          retention-days: 7
