@@ -1,0 +1,209 @@
+--- a/server/newsArticleContext.cjs
++++ b/server/newsArticleContext.cjs
+@@ -3,6 +3,9 @@
+  * No model, writer, database credentials, sporting mutations or arbitrary URL proxy.
+  */
+ const API='https://allball-backend-production.up.railway.app';
++const {createNativeIdentityReader,qualifyNewsEvents,categoryOf,identityName}=require('./newsEntityIdentity.cjs');
++const {teamMentioned,SHORT}=require('./newsEntityMention.cjs');
++const nativeSpecs=require('./newsEntitySources.json').specs;
+ const DAY=86400000;
+ const SLUG=/^[a-z0-9][a-z0-9-]{0,220}$/;
+ const ID=/^[a-zA-Z0-9_.:-]{1,120}$/;
+@@ -12,7 +15,10 @@
+  'paris saint germain':['PSG'], 'bayern munchen':['Bayern Munich'],
+  'brighton hove albion':['Brighton & Hove Albion'], 'wolverhampton wanderers':['Wolves'],
+  'tottenham hotspur':['Tottenham'], 'internazionale':['Inter Milan'], 'inter':['Inter Milan'],
+- 'crvena zvezda':['Crvena Zvezda','Red Star Belgrade'], 'partizan beograd':['Partizan Belgrade'],
++ 'bayer 04 leverkusen':['Bayer Leverkusen','Leverkusen'], 'bayer leverkusen':['Bayer 04 Leverkusen','Leverkusen'],
++ 'ilves':['Tampereen Ilves'], 'tampereen ilves':['Ilves'],
++ 'ogc nice':['Nice'], 'nice':['OGC Nice'], 'inter milan':['AC Internazionale'],
++ 'crvena zvezda':['Crvena Zvezda','Red Star Belgrade'], 'partizan beograd':['Partizan','Partizan Belgrade'],
+ };
+ function normalize(text){return String(text||'').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase()
+  .replace(/[øđßæł]/g,c=>({'ø':'o','đ':'dj','ß':'ss','æ':'ae','ł':'l'}[c])).replace(/[^\p{L}\p{N}]+/gu,' ').trim();}
+@@ -23,33 +29,33 @@
+  const name=String(side?.name||side?.display_name||'').trim();
+  if(!name)return [];
+  const trimmed=name.replace(/^(?:FC|AFC|FK|CF)\s+/i,'').replace(/\s+(?:FC|AFC|FK|CF)$/i,'').trim();
+- return [...new Set([name,trimmed,side.display_name,side.source_name,...(NAMES[normalize(trimmed)]||[])].filter(v=>typeof v==='string'&&v.trim()&&normalize(v).length>=4&&!GENERIC.has(normalize(v))))];
++ return [...new Set([name,trimmed,side.display_name,side.source_name,...(NAMES[normalize(trimmed)]||[])].filter(v=>typeof v==='string'&&v.trim()&&(normalize(v).length>=4||SHORT.has(v))&&(!GENERIC.has(normalize(v))||normalize(v)==='nice')))];
+ }
+ function dateOf(value){const input=typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)?value+'Z':value;const n=Date.parse(input);return Number.isFinite(n)?n:null;}
+ function genderFor(article){
+  const key=String(article?.league||'');const lead=normalize(String(article?.title||'')+' '+String(article?.summary||''));
+  if(/women|womens|female|ladies|frauen|femminile|zfk|женск/.test(lead)||/women|nwsl/.test(key))return 'women';
+- if(/\b(?:u\s?\d{1,2}|under \d{1,2}|youth|academy)\b/.test(lead)||/youth|under-\d/.test(key))return 'youth';
++ if(/\b(?:u\s?\d{1,2}|under \d{1,2})\b/.test(lead)||/youth|under-\d/.test(key)||/\b(?:youth team|academy team|youth squad)\b/.test(normalize(article?.title)))return 'youth';
+  // News taxonomy keeps the women's/youth lanes distinct. Require explicit
+  // event category; never let unknown-category fixtures supply identity.
+  return 'men';
+ }
+ function compatibleEvent(event,gender){
+  if(!event||event.sport!=='football'||!ID.test(String(event.id||''))||!event.competition_key||!dateOf(event.start_time))return false;
+- if(event.football_gender!==gender)return false;
++ if(categoryOf(event)!==gender)return false;
+  if(gender==='men'&&/\b(?:women|womens|female|ladies|u ?\d{1,2}|under \d{1,2})\b/.test(normalize(event.home?.name)+' '+normalize(event.away?.name)))return false;
+  return [event.home,event.away].every(side=>side&&ID.test(String(side.id||''))&&typeof side.name==='string'&&side.name.trim());
+ }
+ function findTeams(article,events){
+- const text=normalize([article.title,article.summary,article.content].filter(Boolean).join('\n').slice(0,80000));
+- const primary=normalize(String(article.title||'')+' '+String(article.summary||''));
++ const raw=[article.title,article.summary,article.content].filter(Boolean).join('\n').slice(0,80000);
++ const primary=String(article.title||'')+' '+String(article.summary||'');
+  const gender=genderFor(article),stamp=dateOf(article.published_at)||dateOf(article.created_at)||Date.now();
+  const byIdentity=new Map(),aliasCache=new Map();
+  for(const event of events){
+   if(!compatibleEvent(event,gender))continue;
+   for(const side of [event.home,event.away]){
+    const cacheKey=String(side.id)+':'+side.name;
+-   if(!aliasCache.has(cacheKey))aliasCache.set(cacheKey,teamAliases(side).filter(alias=>inText(text,alias)));
++   if(!aliasCache.has(cacheKey))aliasCache.set(cacheKey,teamAliases(side).filter(alias=>teamMentioned(raw,alias)));
+    const aliases=aliasCache.get(cacheKey);if(!aliases.length)continue;
+    const id=String(side.id),key=gender+':'+id;
+    const distance=Math.abs(dateOf(event.start_time)-stamp);
+@@ -59,7 +65,7 @@
+    const name=String(side.name);const params=new URLSearchParams({sport:'football',competition:event.competition_key,name});
+    byIdentity.set(key,{kind:'team',id,name,aliases:[...new Set([...(prior?.aliases||[]),...aliases])],
+     href:'/teams/'+encodeURIComponent(id)+'?'+params,logo:safeImage(side.logo),competition:event.competition_key,
+-    gender,event_id:event.id,primary:aliases.some(a=>inText(primary,a)),score});
++    gender,event_id:event.id,primary:aliases.some(a=>teamMentioned(primary,a)),score});
+   }
+  }
+  // Different canonical IDs bearing the same label are not interchangeable.
+@@ -121,6 +127,12 @@
+  if(/^\/articles\/[a-z0-9][a-z0-9-]{0,220}$/.test(path))return true;
+  if(/^\/sports-data\/matches\/[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$/.test(path))return true;
+  if(/^\/sports-data\/competitions\/[a-z][a-z0-9-]{2,100}\/hub$/.test(path))return true;
++ const team=/^\/sports-data\/teams\/([a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119})\?(.+)$/.exec(path);
++ if(team){
++  const q=new URLSearchParams(team[2]);
++  if(q.get('sport')!=='football'||!q.get('name')||!Object.hasOwn(nativeSpecs,q.get('competition')||''))return false;
++  return [...q.keys()].every(k=>['sport','name','competition'].includes(k)&&q.getAll(k).length===1);
++ }
+  if(!path.startsWith('/sports-data/events?'))return false;
+  const query=new URLSearchParams(path.split('?')[1]);
+  if(query.get('sport')!=='football')return false;
+@@ -137,8 +149,8 @@
+   (error instanceof TypeError&&/fetch|network|terminated/i.test(error.message));
+  async function slot(fn){
+   if(active>=4){if(waiting.length>=64)throw Error('News context busy');await new Promise(resolve=>waiting.push(resolve));}
+-  active++;
+-  try{return await fn();}finally{active--;waiting.shift()?.();}
++  else active++;
++  try{return await fn();}finally{if(waiting.length)waiting.shift()();else active--;}
+  }
+  async function once(path){
+   const controller=new AbortController();let timer,reader;
+@@ -177,7 +189,17 @@
+   inflight.set(path,task);return task;
+  };
+ }
+-function contextLoader({read=createPublicReader(),clock=Date.now}={}){
++function identityKeys(article,events){
++ const raw=[article.title,article.summary,article.content].filter(Boolean).join('\n').slice(0,80000);
++ const ranked=new Map();
++ if(Object.hasOwn(nativeSpecs,article.league||''))ranked.set(article.league,1000);
++ for(const event of events){
++  const key=event?.competition_key;if(event?.sport!=='football'||!Object.hasOwn(nativeSpecs,key||''))continue;
++  if([event.home,event.away].some(side=>teamAliases(side).some(alias=>teamMentioned(raw,alias))))ranked.set(key,(ranked.get(key)||0)+1);
++ }
++ return [...ranked].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([key])=>key);
++}
++function contextLoader({read=createPublicReader(),nativeRead=createNativeIdentityReader(),clock=Date.now}={}){
+  const cached=new Map(),inflight=new Map();
+  return async function load(slug){
+   if(!SLUG.test(slug))throw Error('Invalid article slug');
+@@ -200,7 +222,39 @@
+     }catch{partial=true;}
+    }
+    const unique=new Map();for(const e of events)if(e?.id&&!unique.has(e.id))unique.set(e.id,e);events=[...unique.values()];
+-   const teams=findTeams(article,events),related=relatedEvents(article,events,teams);
++   const books=new Map();
++   await Promise.all(identityKeys(article,events).map(async key=>{
++    try{const book=await nativeRead(key);if(book)books.set(key,book);else partial=true;}catch{partial=true;}
++   }));
++   events=qualifyNewsEvents(events,books);
++   let teams=findTeams(article,events);
++   const nativeCandidates=[];const lead=String(article.title||'')+' '+String(article.summary||'');
++   for(const book of books.values()){
++    if(book.gender!==genderFor(article))continue;
++    for(const side of book.teams.values()){
++     const aliases=teamAliases(side).filter(alias=>teamMentioned(lead,alias));
++     if(aliases.length&&!teams.some(t=>t.id===side.id)&&nativeCandidates.length<4)
++      nativeCandidates.push({side,aliases,book});
++    }
++   }
++   const repaired=await Promise.all(nativeCandidates.map(async({side,aliases,book})=>{
++    const query=new URLSearchParams({sport:'football',competition:book.key,name:side.name});
++    try{
++     const profile=await read('/sports-data/teams/'+encodeURIComponent(side.id)+'?'+query);
++     if(!profile?.available||profile.sport!=='football'||String(profile.entity_key)!==side.id||
++       String(profile.team?.id)!==side.id||identityName(profile.team?.name||profile.name)!==identityName(side.name)||
++       (['men','women'].includes(profile.football_gender)&&profile.football_gender!==book.gender))return null;
++     const records=[...(Array.isArray(profile.results)?profile.results:[]),...(Array.isArray(profile.fixtures)?profile.fixtures:[])];
++     const valid=qualifyNewsEvents(records,books).filter(e=>compatibleEvent(e,book.gender)&&e.competition_key===book.key&&
++       [e.home,e.away].some(s=>String(s.id)===side.id));
++     if(!records.length)return null;
++     return {team:{kind:'team',id:side.id,name:profile.team.name||profile.name||side.name,aliases,
++      href:'/teams/'+encodeURIComponent(side.id)+'?'+query,logo:safeImage(profile.team.logo),competition:book.key,
++      gender:book.gender,event_id:valid[0]?.id||null,primary:true,score:0},events:valid};
++    }catch{partial=true;return null;}
++   }));
++   for(const row of repaired.filter(Boolean)){teams.push(row.team);for(const e of row.events)if(!events.some(x=>x.id===e.id))events.push(e);}
++   const related=relatedEvents(article,events,teams);
+    const past=related.filter(e=>dateOf(e.start_time)<=published&&dateOf(e.start_time)>=published-21*DAY);
+    const selected=[];const used=new Set();
+    // Give each named team a match first rather than probing only one club.
+@@ -219,4 +273,4 @@
+   })().finally(()=>inflight.delete(slug));inflight.set(slug,task);return task;
+  };
+ }
+-module.exports={contextLoader,createPublicReader,validReadPath,normalize,mentioned,teamAliases,genderFor,compatibleEvent,findTeams,lineupPlayers,findPlayers,relatedEvents,SLUG};
++module.exports={contextLoader,createPublicReader,validReadPath,normalize,mentioned,teamAliases,genderFor,compatibleEvent,findTeams,lineupPlayers,findPlayers,relatedEvents,identityKeys,SLUG};
+--- a/src/lib/newsEntityLinks.js
++++ b/src/lib/newsEntityLinks.js
+@@ -1,4 +1,5 @@
+ /** Preserve the original article text, link only identities verified for this article. */
++const SHORT_CLUB_NAMES = new Set(['PSG','PSV','SJK','HJK','QPR','AIK']);
+ export function safeEntityPath(value) {
+   return typeof value === 'string' && /^\/(?:teams\/|players\/|scores\/event\/)[A-Za-z0-9_.:%-]+(?:\?[^#\r\n]*)?$/.test(value)
+     && !value.includes('\\');
+@@ -30,7 +31,7 @@
+     for (const alias of (Array.isArray(entity.aliases) ? entity.aliases : [entity.name]).slice(0,8)) {
+       if (typeof alias !== 'string') continue;
+       const term = foldedText(alias).folded.trim();
+-      if (term.length < 4) continue;
++      if (term.length < 4 && !(entity.kind === 'team' && SHORT_CLUB_NAMES.has(alias))) continue;
+       const existing = aliases.get(term);
+       if (existing === null || (existing && (existing.id !== entity.id || existing.kind !== entity.kind))) aliases.set(term, null);
+       else aliases.set(term, entity);
+@@ -42,7 +43,8 @@
+     let at = folded.indexOf(term);
+     while (at !== -1) {
+       const end = at + term.length;
+-      if ((at === 0 || folded[at-1] === ' ') && (end === folded.length || folded[end] === ' '))
++      if ((at === 0 || folded[at-1] === ' ') && (end === folded.length || folded[end] === ' ')
++          && (term.length >= 4 || raw.slice(starts[at], ends[end-1]) === term.toUpperCase()))
+         hits.push({ start: starts[at], end: ends[end-1], entity });
+       at = folded.indexOf(term, at + term.length);
+     }
+--- a/src/lib/newsEntityLinks.test.js
++++ b/src/lib/newsEntityLinks.test.js
+@@ -27,3 +27,16 @@
+ it('empty and malformed registries leave text intact',()=>{
+  expect(entityTextParts('Original words',null)).toEqual([{text:'Original words'}]);expect(entityTextParts('Portugal',[{}])).toEqual([{text:'Portugal'}]);
+ });
++
++it.each(['PSG','PSV','SJK','HJK','QPR','AIK'])('links the verified exact uppercase club name %s, never another casing',name=>{
++ const entity={kind:'team',id:'162162',name,aliases:[name],href:'/teams/162162?sport=football'};
++ const text=`${name} prepares. ${name.toLowerCase()} ${name}Extra ${name}.`;
++ const parts=entityTextParts(text,[entity]);expect(parts.map(p=>p.text).join('')).toBe(text);
++ expect(parts.filter(p=>p.entity).map(p=>p.text)).toEqual([name,name]);
++});
++it('an unverified short term and a player abbreviation are not clickable club identities',()=>{
++ for(const entity of [{kind:'team',id:'1',aliases:['ABC'],href:'/teams/1'},
++   {kind:'player',id:'2',aliases:['SJK'],href:'/players/2'},
++   {kind:'team',id:'3',aliases:['sjk'],href:'/teams/3'}])
++  expect(entityTextParts('SJK ABC sjk',[entity]).some(p=>p.entity)).toBe(false);
++});
