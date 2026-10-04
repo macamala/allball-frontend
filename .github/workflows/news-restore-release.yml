@@ -1,0 +1,126 @@
+name: News appearance and linked entities release
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-restore-release.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 72a39a34e254828dc0f2c3640bbebc22bd738523
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+          fetch-depth: 4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Verify complete reviewed patch and unchanged parent
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = '06a6c116ada23aa233e49776c4545ada4d193c87'
+          mkdir -p ../proof
+          python - <<'PY'
+          import pathlib,base64,gzip,hashlib,subprocess,json
+          text=''.join(pathlib.Path(f'../bundle/audit/news-restore-{i}.b64').read_text().strip() for i in range(7))
+          pathlib.Path('../proof/received.b64').write_text(text)
+          patch=gzip.decompress(base64.b64decode(text,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='b547e34154dc56141ed7c8c6e2315eb5f00126deb67bf913031a7042b5352ccc'
+          path=pathlib.Path('../proof/reviewed.patch');path.write_bytes(patch)
+          subprocess.run(['git','apply','--check',str(path)],check=True)
+          subprocess.run(['git','apply',str(path)],check=True)
+          for name in ['src/components/FootballNewsMenu.jsx','src/components/FootballNewsMenu.css']:
+              original=subprocess.check_output(['git','show','0180f4b9aee08b4835e3eb7b207a9ecc4dabe12d:'+name])
+              assert pathlib.Path(name).read_bytes()==original,name
+          for name in ['src/pages/HomePage.jsx','src/pages/SportPage.jsx','src/pages/LeaguePage.jsx']:
+              source=pathlib.Path(name).read_text()
+              assert 'NewsRefreshBar' not in source,name
+          PY
+      - name: Retained frontend regressions and News server tests
+        working-directory: source
+        run: |
+          npm ci
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../proof/tests.json > ../proof/tests.txt 2>&1 || { tail -100 ../proof/tests.txt; exit 1; }
+          node --test tests/newsArticleContext.check.cjs tests/newsDataServer.check.cjs > ../proof/server-tests.txt 2>&1 || { cat ../proof/server-tests.txt; exit 1; }
+          npm run build > ../proof/build.txt 2>&1 || { cat ../proof/build.txt; exit 1; }
+          git diff --check
+      - name: Every existing App route in an isolated process
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,json,re,subprocess,concurrent.futures
+          root=pathlib.Path('../proof');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66 and len(set(cases))==66
+          def test(pair):
+              index,title=pair;output=root/f'app-{index}.json'
+              try:
+                  result=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=90)
+                  (root/f'app-{index}.txt').write_text(result.stdout)
+                  data=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':result.returncode==0 and data.get('numPassedTests')==1 and not data.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:results=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));print('App routes',sum(r['passed'] for r in results),len(results));assert all(r['passed'] for r in results)
+          PY
+      - name: Actual article identities and event-scoped player profiles without writes
+        working-directory: source
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs');const {contextLoader}=require('./server/newsArticleContext.cjs');
+          const load=contextLoader(),base='https://allball-backend-production.up.railway.app';
+          const slugs=['bruno-fernandes-urges-portugal-unity-amid-ronaldo-and-jesus-disagreement','canada-coach-jesse-marsch-cites-2-0-win-over-peru-ahead-of-usa-football-friendly'];
+          (async()=>{
+            const contexts=[];
+            for(const slug of slugs){const context=await load(slug);contexts.push(context);fs.writeFileSync('../proof/'+slug+'.json',JSON.stringify(context,null,2));}
+            const context=contexts[0],profiles=[];
+            if(!context.teams.some(t=>t.name==='Portugal'))throw Error('Verified Portugal identity not linked');
+            for(const name of ['Bruno Fernandes','Cristiano Ronaldo']){
+              const player=context.players.find(p=>p.name===name);if(!player)throw Error('Verified player missing: '+name);
+              const link=new URL(player.href,'https://ninkosports.com');
+              const response=await fetch(base+'/sports-data'+link.pathname+link.search,{signal:AbortSignal.timeout(25000)});
+              const data=await response.json();profiles.push({player,data});
+              if(!response.ok||!data.available)throw Error('Existing player profile unavailable: '+name);
+            }
+            fs.writeFileSync('../proof/verified-player-profiles.json',JSON.stringify(profiles,null,2));
+            const articles=[];for(const slug of slugs){const r=await fetch(base+'/articles/'+slug,{signal:AbortSignal.timeout(20000)});const a=await r.json();articles.push({id:a.id,slug:a.slug,title:a.title,image_url:a.image_url,published_at:a.published_at});if(!a.image_url||a.image_url.includes('/og/og-image.'))throw Error('Existing article photograph still unrepaired');}
+            const summary={checked_at:new Date().toISOString(),article_photos:articles,contexts:contexts.map(c=>({article_id:c.article_id,teams:c.teams.length,players:c.players.length,matches:c.matches.length,partial:c.partial})),verified_players:profiles.map(p=>({id:p.player.id,name:p.player.name,event_id:p.player.event_id,available:p.data.available})),AI_requests:0,client_writes:0};
+            fs.writeFileSync('../proof/source-proof.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));
+          })().catch(error=>{console.error(error);process.exit(1)});
+          JS
+      - name: Preserve clean tested release with no Live Scores file changes
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,json,hashlib
+          allowed={'server/newsArticleContext.cjs','server/newsDataServer.cjs','src/components/ArticleImage.jsx','src/components/FootballNewsData.jsx','src/components/FootballNewsData.test.jsx','src/components/FootballNewsMenu.css','src/components/FootballNewsMenu.jsx','src/components/NewsAutoRefresh.jsx','src/components/NewsRestore.test.jsx','src/components/article/ArticleBody.jsx','src/components/article/ArticleHeader.jsx','src/components/article/ArticleParagraph.jsx','src/components/article/ArticleQuote.jsx','src/components/article/NewsEntityContext.jsx','src/components/article/NewsEntityContext.test.jsx','src/lib/newsEntityLinks.js','src/lib/newsEntityLinks.test.js','src/lib/newsFreshness.js','src/lib/newsMedia.js','src/lib/quality.js','src/pages/ArticlePage.jsx','src/pages/HomePage.jsx','src/pages/LeaguePage.jsx','src/pages/LeaguePage.news.test.jsx','src/pages/SportPage.jsx','src/styles/newsEntityLinks.css','tests/newsArticleContext.check.cjs'}
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed==allowed,changed^allowed
+          pathlib.Path('../proof/files.json').write_text(json.dumps({p:hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in sorted(allowed)},indent=2))
+          subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): restore approved layout and connect verified article teams players and matches'
+          git push origin HEAD:refs/heads/release/news-restore-entities-20261004
+          git rev-parse HEAD > ../proof/tested-commit.txt
+          git diff HEAD^ --stat > ../proof/changed-files.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-restore-release-20261004
+          path: proof/
+          retention-days: 7
