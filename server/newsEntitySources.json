@@ -1,0 +1,315 @@
+{
+  "source": "existing collector.adapters_fotmob.FOTMOB_LEAGUES; exact response identity must be reverified at read time",
+  "specs": {
+    "albania-superliga": {
+      "id": "260",
+      "country": "ALB",
+      "name": "Kategoria Superiore"
+    },
+    "australia-a-league-women": {
+      "id": "9495",
+      "country": "AUS",
+      "name": "A-League Women"
+    },
+    "argentina-primera": {
+      "id": "112",
+      "country": "ARG",
+      "name": "Liga Profesional"
+    },
+    "austria-bundesliga": {
+      "id": "38",
+      "country": "AUT",
+      "name": "Bundesliga"
+    },
+    "brazil-serie-a": {
+      "id": "268",
+      "country": "BRA",
+      "name": "Serie A"
+    },
+    "denmark-superliga": {
+      "id": "46",
+      "country": "DEN",
+      "name": "Superligaen"
+    },
+    "football-friendlies-women": {
+      "id": "293",
+      "country": "INT",
+      "name": "Women's Friendlies"
+    },
+    "germany-2-bundesliga": {
+      "id": "146",
+      "country": "GER",
+      "name": "2. Bundesliga"
+    },
+    "germany-3-liga": {
+      "id": "208",
+      "country": "GER",
+      "name": "3. Liga"
+    },
+    "fa-cup": {
+      "id": "132",
+      "country": "ENG",
+      "name": "FA Cup"
+    },
+    "ireland-premier-division": {
+      "id": "126",
+      "country": "IRL",
+      "name": "Premier Division"
+    },
+    "scotland-premiership": {
+      "id": "64",
+      "country": "SCO",
+      "name": "Premiership"
+    },
+    "mls": {
+      "id": "130",
+      "country": "USA",
+      "name": "MLS"
+    },
+    "spain-copa-del-rey": {
+      "id": "138",
+      "country": "ESP",
+      "name": "Copa del Rey"
+    },
+    "sweden-allsvenskan": {
+      "id": "67",
+      "country": "SWE",
+      "name": "Allsvenskan"
+    },
+    "switzerland-super-league": {
+      "id": "69",
+      "country": "SUI",
+      "name": "Super League"
+    },
+    "thai-league-1": {
+      "id": "8984",
+      "country": "THA",
+      "name": "Thai League"
+    },
+    "ukraine-premier-league": {
+      "id": "441",
+      "country": "UKR",
+      "name": "Premier League"
+    },
+    "uzbekistan-super-league": {
+      "id": "540",
+      "country": "UZB",
+      "name": "Superliga"
+    },
+    "womens-super-league": {
+      "id": "9227",
+      "country": "ENG",
+      "name": "Women's Super League"
+    },
+    "bosnia-premier-liga": {
+      "id": "267",
+      "country": "BIH",
+      "name": "Premier League"
+    },
+    "bulgaria-first-league": {
+      "id": "270",
+      "country": "BUL",
+      "name": "First Professional League"
+    },
+    "china-super-league": {
+      "id": "120",
+      "country": "CHN",
+      "name": "Super League"
+    },
+    "colombia-primera-a": {
+      "id": "274",
+      "country": "COL",
+      "name": "Primera A"
+    },
+    "copa-sudamericana": {
+      "id": "299",
+      "country": "INT",
+      "name": "Copa Sudamericana"
+    },
+    "costa-rica-liga-fpd": {
+      "id": "121",
+      "country": "CRC",
+      "name": "Primera Division"
+    },
+    "croatia-hnl": {
+      "id": "252",
+      "country": "CRO",
+      "name": "HNL"
+    },
+    "czech-first-league": {
+      "id": "122",
+      "country": "CZE",
+      "name": "1. Liga"
+    },
+    "ecuador-serie-a": {
+      "id": "246",
+      "country": "ECU",
+      "name": "Serie A"
+    },
+    "egypt-premier-league": {
+      "id": "519",
+      "country": "EGY",
+      "name": "Premier League"
+    },
+    "finland-veikkausliiga": {
+      "id": "51",
+      "country": "FIN",
+      "name": "Veikkausliiga"
+    },
+    "france-ligue-1": {
+      "id": "53",
+      "country": "FRA",
+      "name": "Ligue 1"
+    },
+    "hungary-nb-i": {
+      "id": "212",
+      "country": "HUN",
+      "name": "Nemzeti Bajnokság I"
+    },
+    "iceland-urvalsdeild": {
+      "id": "215",
+      "country": "ISL",
+      "name": "Besta deildin"
+    },
+    "indonesia-liga-1": {
+      "id": "8983",
+      "country": "IDN",
+      "name": "Super League"
+    },
+    "italy-serie-a": {
+      "id": "55",
+      "country": "ITA",
+      "name": "Serie A"
+    },
+    "korea-k-league-1": {
+      "id": "9080",
+      "country": "KOR",
+      "name": "K League 1"
+    },
+    "malaysia-super-league": {
+      "id": "8985",
+      "country": "MAS",
+      "name": "Liga Super"
+    },
+    "morocco-botola": {
+      "id": "530",
+      "country": "MAR",
+      "name": "Botola Pro"
+    },
+    "netherlands-eredivisie": {
+      "id": "57",
+      "country": "NED",
+      "name": "Eredivisie"
+    },
+    "norway-eliteserien": {
+      "id": "59",
+      "country": "NOR",
+      "name": "Eliteserien"
+    },
+    "paraguay-primera": {
+      "id": "199",
+      "country": "PAR",
+      "name": "Division Profesional"
+    },
+    "poland-ekstraklasa": {
+      "id": "196",
+      "country": "POL",
+      "name": "Ekstraklasa"
+    },
+    "portugal-primeira-liga": {
+      "id": "61",
+      "country": "POR",
+      "name": "Liga Portugal"
+    },
+    "romania-superliga": {
+      "id": "189",
+      "country": "ROU",
+      "name": "Liga I"
+    },
+    "saudi-pro-league": {
+      "id": "536",
+      "country": "KSA",
+      "name": "Saudi Pro League"
+    },
+    "serbia-superliga": {
+      "id": "182",
+      "country": "SRB",
+      "name": "Super Liga"
+    },
+    "slovakia-super-liga": {
+      "id": "176",
+      "country": "SVK",
+      "name": "1. liga"
+    },
+    "slovenia-1-snl": {
+      "id": "173",
+      "country": "SVN",
+      "name": "Prva Liga"
+    },
+    "tunisia-ligue-1": {
+      "id": "544",
+      "country": "TUN",
+      "name": "Ligue I"
+    },
+    "uruguay-primera": {
+      "id": "161",
+      "country": "URU",
+      "name": "Liga AUF Uruguaya"
+    },
+    "vietnam-v-league-1": {
+      "id": "9088",
+      "country": "VIE",
+      "name": "V-League"
+    },
+    "england-premier-league": {
+      "id": "47",
+      "country": "ENG",
+      "name": "Premier League"
+    },
+    "spain-la-liga": {
+      "id": "87",
+      "country": "ESP",
+      "name": "LaLiga"
+    },
+    "germany-bundesliga": {
+      "id": "54",
+      "country": "GER",
+      "name": "Bundesliga"
+    },
+    "belgium-pro-league": {
+      "id": "40",
+      "country": "BEL",
+      "name": "Pro League"
+    },
+    "usa-mls": {
+      "id": "130",
+      "country": "USA",
+      "name": "MLS"
+    },
+    "argentina-liga-profesional": {
+      "id": "112",
+      "country": "ARG",
+      "name": "Liga Profesional"
+    },
+    "south-korea-k-league-1": {
+      "id": "9080",
+      "country": "KOR",
+      "name": "K League 1"
+    },
+    "romania-liga-1": {
+      "id": "189",
+      "country": "ROU",
+      "name": "Liga I"
+    },
+    "england-womens-super-league": {
+      "id": "9227",
+      "country": "ENG",
+      "name": "Women's Super League"
+    },
+    "conmebol-sudamericana": {
+      "id": "299",
+      "country": "INT",
+      "name": "Copa Sudamericana"
+    }
+  }
+}

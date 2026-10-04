@@ -27,3 +27,16 @@ it('handles diacritics without modifying text or surrounding punctuation',()=>{
 it('empty and malformed registries leave text intact',()=>{
  expect(entityTextParts('Original words',null)).toEqual([{text:'Original words'}]);expect(entityTextParts('Portugal',[{}])).toEqual([{text:'Portugal'}]);
 });
+
+it.each(['PSG','PSV','SJK','HJK','QPR','AIK'])('links the verified exact uppercase club name %s, never another casing',name=>{
+ const entity={kind:'team',id:'162162',name,aliases:[name],href:'/teams/162162?sport=football'};
+ const text=`${name} prepares. ${name.toLowerCase()} ${name}Extra ${name}.`;
+ const parts=entityTextParts(text,[entity]);expect(parts.map(p=>p.text).join('')).toBe(text);
+ expect(parts.filter(p=>p.entity).map(p=>p.text)).toEqual([name,name]);
+});
+it('an unverified short term and a player abbreviation are not clickable club identities',()=>{
+ for(const entity of [{kind:'team',id:'1',aliases:['ABC'],href:'/teams/1'},
+   {kind:'player',id:'2',aliases:['SJK'],href:'/players/2'},
+   {kind:'team',id:'3',aliases:['sjk'],href:'/teams/3'}])
+  expect(entityTextParts('SJK ABC sjk',[entity]).some(p=>p.entity)).toBe(false);
+});
