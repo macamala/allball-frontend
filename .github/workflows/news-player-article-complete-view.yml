@@ -1,0 +1,62 @@
+name: News complete article and player view
+on:
+  push:
+    branches: [fix/news-player-resolution-20261004]
+    paths: [.github/workflows/news-player-article-complete-view.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Actual fully loaded article photographs with verified links on all viewports
+        run: |
+          mkdir -p complete-article-proof
+          python - <<'PY'
+          import json,pathlib
+          from datetime import datetime,timezone
+          from playwright.sync_api import sync_playwright,expect
+          root=pathlib.Path('complete-article-proof');rows=[];errors=[]
+          cases=[('rade-kruni-returns-to-training-for-crvena-zvezda','Rade Krunić'),('samuel-lino-offers-to-fill-flamengos-midfield-role-during-arrascaetas-absence','Giorgian de Arrascaeta')]
+          with sync_playwright() as p:
+              b=p.chromium.launch()
+              for width in [1440,390,320]:
+                  page=b.new_page(viewport={'width':width,'height':1100},timezone_id='Australia/Sydney')
+                  for slug,name in cases:
+                      row={'width':width,'slug':slug}
+                      try:
+                          page.goto('https://ninkosports.com/article/'+slug,wait_until='domcontentloaded',timeout=45000)
+                          photo=page.locator('.article-hero img').first;photo.wait_for(timeout=25000)
+                          photo.scroll_into_view_if_needed();photo.evaluate('i=>i.decode()')
+                          link=page.get_by_role('link',name='View player: '+name,exact=True);expect(link).to_be_visible(timeout=75000)
+                          page.locator('.article-header').scroll_into_view_if_needed()
+                          photo=page.locator('.article-hero img').first;photo.wait_for(timeout=25000);photo.evaluate('i=>i.decode()')
+                          row['photo']=photo.evaluate('i=>({src:i.currentSrc,width:i.naturalWidth,height:i.naturalHeight,displayHeight:i.getBoundingClientRect().height})')
+                          assert row['photo']['width']>=200 and row['photo']['displayHeight']>100,row
+                          assert 'soccernews.com/og/og-image.' not in row['photo']['src']
+                          row['player_link']=link.get_attribute('href');assert row['player_link'].startswith('/football/players/')
+                          assert page.locator('.article-body .news-entity-link').count()>0
+                          dims=page.evaluate('({page:document.documentElement.scrollWidth,viewport:innerWidth})');assert dims['page']<=width+3,dims
+                          expect(page.get_by_role('button',name='Refresh news',exact=True)).to_have_count(0)
+                          page.screenshot(path=str(root/f'{width}-{name.replace(" ","-")}-article.png'))
+                          row['passed']=True
+                      except Exception as e:
+                          row['error']=type(e).__name__+': '+str(e)[:800];errors.append(row.copy())
+                          page.screenshot(path=str(root/f'{width}-error.png'));row['hero_html']=page.locator('.article-hero').evaluate_all('(els)=>els.map(e=>e.outerHTML)')
+                      rows.append(row)
+                  page.close()
+              b.close()
+          result={'checked_at':datetime.now(timezone.utc).isoformat(),'actual_production':True,'checks':rows,'failures':errors,'AI_requests':0,'content_writes':0}
+          (root/'summary.json').write_text(json.dumps(result,ensure_ascii=False,indent=2));print(json.dumps(result,ensure_ascii=False,indent=2));assert not errors
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-player-article-complete-view-20261004
+          path: complete-article-proof/
+          retention-days: 7
