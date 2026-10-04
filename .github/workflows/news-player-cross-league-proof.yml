@@ -1,0 +1,56 @@
+name: News player cross-league proof
+on:
+  push:
+    branches: [fix/news-player-resolution-20261004]
+    paths: [.github/workflows/news-player-cross-league-proof.yml]
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read actual article-scoped links and verify their original player identities
+        run: |
+          mkdir -p player-cross-league
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse
+          from datetime import datetime,timezone
+          from concurrent.futures import ThreadPoolExecutor
+          root=pathlib.Path('player-cross-league');site='https://ninkosports.com';api='https://allball-backend-production.up.railway.app'
+          cases=[('rade-kruni-returns-to-training-for-crvena-zvezda',['438456']),('samuel-lino-offers-to-fill-flamengos-midfield-role-during-arrascaetas-absence',['1082941','438647']),('axel-witsel-joins-nice-to-mentor-young-players-after-leaving-girona',['39591']),('roope-paunio-reported-to-join-tampereen-ilves-next-season',['942536']),('bruno-fernandes-urges-portugal-unity-amid-ronaldo-and-jesus-disagreement',['422685','30893']),('martin-terriers-limited-role-at-bayer-leverkusen-leaves-his-future-uncertain',[])]
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'NinkoSports-News-PlayerAcceptance/1.0','Accept':'application/json'}),timeout=75) as r:return json.loads(r.read(4000000))
+          def check(pair):
+              slug,expected=pair;out={'slug':slug,'expected_player_ids':expected,'players':[]}
+              try:
+                  article=get(api+'/articles/'+slug);data=get(site+'/news-data/football/articles/'+slug+'/context')
+                  assert article['id']==data['article_id'] and data['slug']==slug and data['sport']=='football'
+                  out.update(article_id=data['article_id'],partial=data.get('partial'),team_links=len(data['teams']),related_match_links=len(data['matches']))
+                  for p in data['players']:
+                      row={'id':p['id'],'name':p['name'],'href':p['href']}
+                      if p.get('profile'):
+                          f=p['profile'];assert f['id']==p['id'] and f['name']==p['name'] and f['fields']
+                          assert p['href']=='/football/players/'+p['id']+'?article='+slug
+                          row.update(verified=True,origin='article_scoped_profile',photo=bool(f.get('photo')),fields=len(f['fields']),career_rows=len(f['career']))
+                      else:
+                          path=urllib.parse.urlsplit(p['href']);assert path.path=='/players/'+p['id']
+                          assert urllib.parse.parse_qs(path.query).get('event_id')==[p['event_id']]
+                          profile=get(api+'/sports-data'+path.path+'?'+path.query)
+                          assert profile.get('available') and str(profile.get('player',{}).get('id'))==p['id']
+                          row.update(verified=True,origin='existing_match_scoped_profile',event_id=p['event_id'])
+                      out['players'].append(row)
+                  out['missing_expected_ids']=[pid for pid in expected if not any(p['id']==pid for p in out['players'])]
+                  assert not out['missing_expected_ids'],out['missing_expected_ids']
+              except Exception as e:out['error']=type(e).__name__+': '+str(e)[:250]
+              return out
+          with ThreadPoolExecutor(max_workers=2) as pool:rows=list(pool.map(check,cases))
+          data={'checked_at':datetime.now(timezone.utc).isoformat(),'stories':rows,'verified_player_links':sum(len(r['players']) for r in rows),'errors':[{'slug':r['slug'],'error':r['error']} for r in rows if r.get('error')],'AI_requests':0,'sports_write_requests':0,'all_article_entities_complete':False}
+          (root/'summary.json').write_text(json.dumps(data,ensure_ascii=False,indent=2));print(json.dumps(data,ensure_ascii=False,indent=2));assert not data['errors']
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-player-cross-league-proof-20261004
+          path: player-cross-league/
+          retention-days: 7
