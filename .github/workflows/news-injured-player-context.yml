@@ -1,0 +1,53 @@
+name: News historical player context proof
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-injured-player-context.yml]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read four identified existing match records and the scoped player profile
+        run: |
+          mkdir -p historical-player
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse
+          from concurrent.futures import ThreadPoolExecutor
+          from datetime import datetime,timezone
+          root=pathlib.Path('historical-player');base='https://allball-backend-production.up.railway.app'
+          ids=['ninko-evt-dcb1fa558f6b1c33083e','ninko-evt-657e710d4f3ed39ebe80','ninko-evt-2d926a4664f0e762f19f','ninko-evt-1ff3601ccd89494bb223']
+          def get(path):
+              with urllib.request.urlopen(base+path,timeout=25) as r:return json.loads(r.read(8000000))
+          def check(event):
+              row={'event_id':event}
+              try:
+                  match=get('/sports-data/matches/'+event)
+                  (root/(event+'.json')).write_text(json.dumps(match,ensure_ascii=False))
+                  found=[]
+                  def visit(obj):
+                      if isinstance(obj,dict):
+                          if 'krunic' in str(obj.get('name','')).casefold() or str(obj.get('id',''))=='438456':found.append(obj)
+                          for child in obj.values():visit(child)
+                      elif isinstance(obj,list):
+                          for child in obj:visit(child)
+                  visit(match.get('lineups') or match.get('details') or match)
+                  row['player_records']=found
+                  if found:
+                      path='/sports-data/players/438456?'+urllib.parse.urlencode({'name':'Rade Krunic','event_id':event})
+                      profile=get(path);(root/('profile-'+event+'.json')).write_text(json.dumps(profile,ensure_ascii=False))
+                      row['profile_available']=profile.get('available');row['profile_player']=profile.get('player');row['profile_event_id']=profile.get('event_id')
+              except Exception as e:row['error']=type(e).__name__+': '+str(e)[:150]
+              return row
+          with ThreadPoolExecutor(max_workers=2) as pool:rows=list(pool.map(check,ids))
+          (root/'summary.json').write_text(json.dumps({'checked_at':datetime.now(timezone.utc).isoformat(),'rows':rows,'AI_requests':0,'client_writes':0},ensure_ascii=False,indent=2))
+          print(json.dumps([{k:r.get(k) for k in ['event_id','profile_available','error']} for r in rows],indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-historical-player-context-20261004
+          path: historical-player/
+          retention-days: 7
