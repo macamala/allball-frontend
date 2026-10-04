@@ -1,3 +1,4 @@
+import { isPublisherBranding } from './newsMedia.js';
 const EDITORIAL_TIME_ZONE = "Australia/Sydney";
 
 // The News API stores UTC and currently serializes SQL timestamps without an
@@ -76,6 +77,7 @@ export function filterPortalHomeToday(payload, now = new Date()) {
 export function publishedNewsRows(rows, now = new Date()) {
   return (Array.isArray(rows) ? rows : [])
     .filter((row) => {
+      if (isPublisherBranding(row?.image_url)) return false;
       const stamp = row?.published_at || row?.created_at;
       const millis = stamp ? new Date(newsTimestamp(stamp)).getTime() : NaN;
       return Number.isFinite(millis) && millis <= now.getTime();

@@ -1,3 +1,4 @@
+import { isPublisherBranding } from '../lib/newsMedia.js';
 import React, { useEffect, useState } from "react";
 import { isCrestMedia, MEDIA_KINDS } from "../lib/mediaKind.js";
 import { imageUrlForDisplay } from "../lib/mediaUrl.js";
@@ -33,7 +34,7 @@ function sourceCandidates(src, fallbackSrc, variant, mediaKind, fallbackMediaKin
 
   const seen = new Set();
   return rows.filter((row) => {
-    if (!row.url || row.kind === MEDIA_KINDS.MISSING || seen.has(row.url)) return false;
+    if (!row.url || isPublisherBranding(row.url) || row.kind === MEDIA_KINDS.MISSING || seen.has(row.url)) return false;
     seen.add(row.url);
     return true;
   });

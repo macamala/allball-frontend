@@ -5,7 +5,7 @@ import { getJSON } from '../api.js';
 import StandingsTable from './StandingsTable.jsx';
 import CountryFlag from './scores/CountryFlag.jsx';
 import { normalizeAssetUrl } from '../lib/assetUrls.js';
-import { eventPath } from '../lib/sportsData.js';
+import { eventPath, teamProfilePath } from '../lib/sportsData.js';
 import { FOOTBALL_NEWS_TOPICS, newsDataPath, newsMatches, newsMatchBucket, newsScore, readNewsData, newsDataPhase } from '../lib/newsFootballData.js';
 import { peekNewsData, rememberNewsData } from '../lib/newsFootballCache.js';
 import { decorateNewsIdentity, newsDateRange, localNewsDate, newsDataNotice, sameNewsSeason, seasonIdentity, newsTeamName } from '../lib/newsFootballView.js';
@@ -19,7 +19,7 @@ function Team({ event, side }) {
   return <span className="news-data-team">
     {logo && !failed ? <img src={logo} width="24" height="24" loading="lazy" decoding="async" alt="" onError={() => setFailed(true)} />
       : <span className="news-data-crest-space" data-asset-missing="team-logo" aria-hidden="true" />}
-    <span>{team.name}</span><b>{newsScore(event, side)}</b>
+    {team.id && event.competition_key ? <Link to={teamProfilePath(team,event)} title={`View team: ${team.name}`}>{team.name}</Link> : <span>{team.name}</span>}<b>{newsScore(event, side)}</b>
   </span>;
 }
 
@@ -31,10 +31,12 @@ function Match({ event }) {
     : event.start_precision && event.start_precision !== 'EXACT_TIME' ? 'Time TBC'
     : at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const teams = <><Team event={event} side="home" /><Team event={event} side="away" /></>;
+  const detailAvailable = event.id && event.details_available !== false;
+  const meta = <><time dateTime={event.start_time}>{displayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</time><strong>{label}</strong></>;
   return <li className="news-data-match" data-match-key={event.key || event.id}>
-    <div className="news-data-match-time"><time dateTime={event.start_time}>{displayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</time><strong>{label}</strong>{event.round ? <small>{/^(?:round|matchday|week|leg)\b/i.test(String(event.round)) ? event.round : `Round ${event.round}`}</small> : null}{event.group ? <small>{event.group}</small> : null}</div>
-    {event.id && event.details_available !== false ? <Link className="news-data-pair" to={eventPath(event.id)} state={{ event }} aria-label={`Open match: ${event.home.name} vs ${event.away.name}`}>{teams}</Link>
-      : <div className="news-data-pair">{teams}</div>}
+    <div className="news-data-match-time">{detailAvailable ? <Link to={eventPath(event.id)} state={{ event }} aria-label={`Open match: ${event.home.name} vs ${event.away.name}`}>{meta}</Link> : meta}
+      {event.round ? <small>{/^(?:round|matchday|week|leg)\b/i.test(String(event.round)) ? event.round : `Round ${event.round}`}</small> : null}{event.group ? <small>{event.group}</small> : null}</div>
+    <div className="news-data-pair">{teams}</div>
   </li>;
 }
 

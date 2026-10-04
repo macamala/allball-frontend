@@ -1,3 +1,4 @@
+import { NewsEntityProvider, NewsArticleLinks } from '../components/article/NewsEntityContext.jsx';
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { articlePath, getArticle, getArticleTranslation, getJSON, getRelated, peekArticle, recordView } from "../api.js";
@@ -77,6 +78,7 @@ function ArticleInner({ article, related, pending, error, onRetry }) {
   const relatedBottom = mergeRelated(related, inlineRelated);
 
   return (
+    <NewsEntityProvider article={article} enabled={!pending && bodyAvailable}>
     <div className="article-shell">
       <div className="article-layout">
         <div className="article-column">
@@ -94,6 +96,7 @@ function ArticleInner({ article, related, pending, error, onRetry }) {
           ) : !error ? (
             <ReaderNotice message={t("empty.loadFail")} onRetry={onRetry} />
           ) : null}
+          <NewsArticleLinks />
           <Comments slug={article.slug} onCount={setCommentCount} />
           {!pending && bodyAvailable && (
             <ArticlePager previous={article.previous} next={article.next} />
@@ -103,6 +106,7 @@ function ArticleInner({ article, related, pending, error, onRetry }) {
       </div>
       <ArticleCommentBar commentCount={commentCount} />
     </div>
+    </NewsEntityProvider>
   );
 }
 

@@ -20,7 +20,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
 import SportDesk from "../components/SportDesk.jsx";
 import { CardSkeleton } from "../components/Skeleton.jsx";
-import NewsRefreshBar from "../components/NewsRefreshBar.jsx";
+import NewsAutoRefresh from "../components/NewsAutoRefresh.jsx";
 import NotFoundPage from "./NotFoundPage.jsx";
 
 function mergeDirectory(countsBySlug) {
@@ -163,7 +163,7 @@ export default function SportPage() {
         </div>
       )}
 
-      {apiSport === "football" && <NewsRefreshBar checkedAt={checkedAt} busy={loading} onRefresh={() => setRefreshTick(value => value + 1)} />}
+      {apiSport === "football" && <NewsAutoRefresh checkedAt={checkedAt} busy={loading} onRefresh={() => setRefreshTick(value => value + 1)} />}
       <p><Link className="btn btn-ghost" to={`/search?sport=${encodeURIComponent(apiSport)}`}>
         {t("news.archive")}
       </Link></p>

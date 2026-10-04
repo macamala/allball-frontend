@@ -100,3 +100,10 @@ it('rejects reversed dates without requesting or erasing a successfully loaded r
   expect(screen.getByRole('alert').textContent).toContain('must not be before');
   expect(api.getJSON).toHaveBeenCalledTimes(1);expect(screen.getByRole('link',{name:'Open match: Arsenal vs Chelsea'})).toBeTruthy();
 });
+it('gives verified teams and the match separate usable links without nested anchors',async()=>{
+  api.getJSON.mockResolvedValue(board({events:[game('linked','finished',{home:{id:'100',name:'Arsenal'},away:{id:'200',name:'Chelsea'}})]}));mount();
+  const match=await screen.findByRole('link',{name:'Open match: Arsenal vs Chelsea'});
+  expect(match.getAttribute('href')).toContain('linked');
+  const team=screen.getByRole('link',{name:'Arsenal'});expect(team.getAttribute('href')).toContain('/teams/100?');expect(team.getAttribute('href')).toContain('competition=england-premier-league');
+  expect(document.querySelector('a a')).toBeNull();
+});

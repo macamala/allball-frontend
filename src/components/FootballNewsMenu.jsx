@@ -3,15 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { footballNewsGroups, footballNewsPath } from "../config/newsFootball.js";
 import { useI18n } from "../context/I18nContext.jsx";
 import "./FootballNewsMenu.css";
-import LeagueNewsPreview from "./LeagueNewsPreview.jsx";
-import NewsRefreshBar from "./NewsRefreshBar.jsx";
 
 const normalize = (value) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 export default function FootballNewsMenu({ directory = false, current = "" }) {
   const { lang, t } = useI18n();
   const navigate = useNavigate();
-  const [revision, setRevision] = useState(0);
   const [query, setQuery] = useState("");
   const groups = useMemo(() => footballNewsGroups(lang), [lang]);
   if (!directory) return (
@@ -35,8 +32,7 @@ export default function FootballNewsMenu({ directory = false, current = "" }) {
   })).filter((group) => group.leagues.length);
   return (
     <section className="news-league-directory" aria-label={t("news.allLeagues")}>
-      <p>Browse leagues and their latest published NinkoSports stories. Each story stays with its own competition.</p>
-      <NewsRefreshBar onRefresh={() => { setRevision(value => value + 1); }} />
+      <p>{t("news.leagueDirectoryBody")}</p>
       <label htmlFor="football-news-search">{t("news.findLeague")}</label>
       <input id="football-news-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)}
         placeholder={t("news.findLeague")} />
@@ -45,8 +41,7 @@ export default function FootballNewsMenu({ directory = false, current = "" }) {
         {visible.map((group) => <section key={group.country}>
           <h2>{group.label || t("international")}</h2>
           <ul>{group.leagues.map((row) => <li key={row.league}>
-            <Link className="news-directory-league-link" to={footballNewsPath(row)}>{row.label}<span aria-hidden="true"> →</span></Link>
-            <LeagueNewsPreview league={row.league} revision={revision} />
+            <Link to={footballNewsPath(row)}>{row.label}<span aria-hidden="true"> →</span></Link>
           </li>)}</ul>
         </section>)}
       </div>

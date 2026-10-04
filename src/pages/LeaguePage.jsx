@@ -19,7 +19,7 @@ import { sportI18nKey } from "../i18n/index.js";
 import { isPremiumArticle, premiumFirst } from "../lib/quality.js";
 import { publishedNewsRows } from "../lib/newsFreshness.js";
 import FootballNewsMenu from "../components/FootballNewsMenu.jsx";
-import NewsRefreshBar from "../components/NewsRefreshBar.jsx";
+import NewsAutoRefresh from "../components/NewsAutoRefresh.jsx";
 import { leagueNewsRows } from "../config/newsFootball.js";
 
 export default function LeaguePage() {
@@ -33,7 +33,6 @@ function LeagueNewsPage() {
   const league = resolveLeague(sportSlug, leagueSlug);
   const [refreshTick, setRefreshTick] = useState(0);
   const [checkedAt, setCheckedAt] = useState(null);
-  const [newsQuery, setNewsQuery] = useState("");
   const loadedPages = useRef(1);
   const firstRead = useRef(true);
   const [tab, setTab] = useState("news");
@@ -145,9 +144,8 @@ function LeagueNewsPage() {
   if (!sport) return <NotFoundPage />;
 
   const normalizeSearch = value => String(value || "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
-  const needle = normalizeSearch(newsQuery).trim();
   const approved = articles.filter(isPremiumArticle);
-  const isolated = approved.filter(row => !needle || normalizeSearch(`${row.title || ""} ${row.summary || ""}`).includes(needle));
+  const isolated = approved;
   const { premium, rest } = premiumFirst(isolated);
 
   return (
@@ -188,12 +186,7 @@ function LeagueNewsPage() {
 
       {tab === "news" && !directory && (
         <>
-          <NewsRefreshBar enabled={tab === "news"} busy={loading || loadingMore} checkedAt={checkedAt} onRefresh={() => setRefreshTick(value => value + 1)} />
-          <div className="news-league-search">
-            <label htmlFor="league-story-search">Search this league’s published news</label>
-            <input id="league-story-search" type="search" placeholder="Club, player or headline" value={newsQuery} onChange={event => setNewsQuery(event.target.value)} />
-            <p>{isolated.length} {hasMore ? "loaded " : ""}published {isolated.length === 1 ? "story" : "stories"}{needle ? ` matching “${newsQuery}”` : ""}.</p>
-          </div>
+          <NewsAutoRefresh enabled={tab === "news"} busy={loading || loadingMore} checkedAt={checkedAt} onRefresh={() => setRefreshTick(value => value + 1)} />
           <p><Link className="btn btn-ghost"
             to={`/search?sport=${encodeURIComponent(sportSlug)}${!league.catchAll && league.league ? `&league=${encodeURIComponent(league.league)}` : ""}`}>
             {t("news.archive")}
@@ -203,8 +196,8 @@ function LeagueNewsPage() {
           {!loading && !error && isolated.length === 0 && (
             <EmptyState
               compact
-              title={needle ? "No published story matches this search" : t("empty.competitionNone", { competition: league.label })}
-              body={needle ? "Try a club name, player surname or another headline term." : t("empty.competitionNoneBody")}
+              title={t("empty.competitionNone", { competition: league.label })}
+              body={t("empty.competitionNoneBody")}
             />
           )}
           {!loading && isolated.length > 0 && (

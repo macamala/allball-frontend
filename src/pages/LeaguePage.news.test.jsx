@@ -12,7 +12,7 @@ vi.mock('../context/AuthContext.jsx',()=>({useAuth:()=>({favorites:{leagues:[]},
 const article=(id,league,title)=>({id,slug:`story-${id}`,sport:'football',league,title,published_at:'2026-09-29T01:00:00Z',quality_ok:true,sport_match_ok:true});
 function page(path){return render(<I18nProvider><MemoryRouter initialEntries={[path]}><Link to='/football/serie-a'>Switch to Italy</Link><Routes><Route path='/:sportSlug/:leagueSlug' element={<LeaguePage/>}/></Routes></MemoryRouter></I18nProvider>);}
 beforeEach(()=>{api.getArticles.mockReset();localStorage.clear();});
-afterEach(cleanup);
+afterEach(()=>{cleanup();vi.restoreAllMocks();});
 it('Other leagues is a searchable directory, not a mixed article feed',async()=>{
   page('/football/other-leagues');
   expect(screen.getByRole('status').textContent).toBe(`${FOOTBALL_NEWS_LEAGUES.length} competitions`);
@@ -56,22 +56,22 @@ it('loads further pages from the same league and deduplicates overlapping rows',
   expect(screen.queryByText('Wrong page story')).toBeNull();
 });
 
-it('refreshes the current league and permits searching already published club stories',async()=>{
-  api.getArticles.mockResolvedValueOnce([article(1,'serbia-superliga','Vojvodina appoints manager'),article(2,'serbia-superliga','Partizan prepares for match')])
-    .mockResolvedValueOnce([article(3,'serbia-superliga','Cukaricki announces squad'),article(1,'serbia-superliga','Vojvodina appoints manager')]);
+it('updates an open league quietly without the unrequested refresh panel',async()=>{
+  let now=Date.now();vi.spyOn(Date,'now').mockImplementation(()=>now);
+  api.getArticles.mockResolvedValueOnce([article(1,'serbia-superliga','Vojvodina appoints manager')])
+    .mockResolvedValueOnce([article(2,'serbia-superliga','Cukaricki announces squad')]);
   page('/football/superliga');await screen.findByText('Vojvodina appoints manager');
-  fireEvent.change(screen.getByLabelText('Search this league’s published news'),{target:{value:'Vojvodina'}});
-  expect(screen.queryByText('Partizan prepares for match')).toBeNull();
-  fireEvent.change(screen.getByLabelText('Search this league’s published news'),{target:{value:''}});
-  fireEvent.click(screen.getByRole('button',{name:'Refresh news'}));
+  expect(screen.queryByRole('button',{name:'Refresh news'})).toBeNull();
+  expect(screen.queryByLabelText('Published news updates')).toBeNull();
+  now+=16000;fireEvent.focus(window);
   await screen.findByText('Cukaricki announces squad');
   expect(api.getArticles).toHaveBeenCalledTimes(2);
-  expect(screen.queryByText('Partizan prepares for match')).toBeNull();
 });
-it('does not erase visible published news when its refresh fails',async()=>{
+it('retains published news when a quiet background read fails',async()=>{
+  let now=Date.now();vi.spyOn(Date,'now').mockImplementation(()=>now);
   api.getArticles.mockResolvedValueOnce([article(1,'serbia-superliga','Vojvodina appoints manager')]).mockRejectedValueOnce(new Error('offline'));
   page('/football/superliga');await screen.findByText('Vojvodina appoints manager');
-  fireEvent.click(screen.getByRole('button',{name:'Refresh news'}));
+  now+=16000;fireEvent.focus(window);
   await waitFor(()=>expect(api.getArticles).toHaveBeenCalledTimes(2));
   expect(screen.getByText('Vojvodina appoints manager')).toBeTruthy();
 });

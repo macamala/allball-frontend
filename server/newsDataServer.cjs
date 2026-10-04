@@ -3,6 +3,7 @@
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const serve=require('serve-handler'),compress=require('node:util').promisify(require('compression')());
 const {ORIGIN,PATHS,parseStandings,parseMatches}=require('./newsPrva.cjs');
+const {contextLoader}=require('./newsArticleContext.cjs');
 const AGENT='NinkoSports-NewsData/1.0 (+https://ninkosports.com)';
 function robotAllows(text,target){
  const groups=[];let agents=[],rules=[],sawRule=false;
@@ -56,7 +57,7 @@ function officialLoader({fetcher=fetch,clock=Date.now,logger=console.warn}={}){
   })();pending.set(view,task);return task;
  };
 }
-function createNewsServer({root=path.resolve(__dirname,'../dist'),loader=officialLoader()}={}){
+function createNewsServer({root=path.resolve(__dirname,'../dist'),loader=officialLoader(),articleContext=contextLoader()}={}){
  let configured={};const file=path.resolve(__dirname,'../serve.json');if(fs.existsSync(file))configured=JSON.parse(fs.readFileSync(file,'utf8'));
  const config={...configured,public:root,rewrites:[{source:'**',destination:'/index.html'},...(configured.rewrites||[])]};
  return http.createServer(async(req,res)=>{
@@ -64,6 +65,11 @@ function createNewsServer({root=path.resolve(__dirname,'../dist'),loader=officia
   if((req.url||'').startsWith('/news-data/')){
    res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-store');
    if(!['GET','HEAD'].includes(req.method)){res.statusCode=405;res.setHeader('Allow','GET, HEAD');return res.end(JSON.stringify({error:'method_not_allowed'}));}
+   const article=/^\/news-data\/football\/articles\/([a-z0-9][a-z0-9-]{0,220})\/context$/.exec(req.url);
+   if(article){
+    try{const data=await articleContext(article[1]);res.statusCode=200;res.setHeader('Cache-Control','public, max-age=60');return res.end(req.method==='HEAD'?'':JSON.stringify(data));}
+    catch{res.statusCode=503;res.setHeader('Retry-After','60');return res.end(req.method==='HEAD'?'':JSON.stringify({error:'news_article_context_unavailable'}));}
+   }
    const match=/^\/news-data\/football\/serbia-prva-liga\/(standings|matches)$/.exec(req.url);
    if(!match){res.statusCode=404;return res.end(req.method==='HEAD'?'':JSON.stringify({error:'unknown_news_data_route'}));}
    try{const data=await loader(match[1]);res.statusCode=200;res.setHeader('Cache-Control','public, max-age=60');return res.end(req.method==='HEAD'?'':JSON.stringify(data));}

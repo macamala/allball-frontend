@@ -1,3 +1,4 @@
+import { NewsEntityText } from './NewsEntityContext.jsx';
 import React from "react";
 import { useI18n } from "../../context/I18nContext.jsx";
 import { sanitizeText } from "../../lib/sanitize.js";
@@ -42,7 +43,7 @@ export default function ArticleBody({ blocks = [], title }) {
           const heading = sanitizeText(block.text, title);
           return heading ? (
             <h2 key={`heading-${idx}`} className="article-subhead">
-              {heading}
+              <NewsEntityText text={heading} />
             </h2>
           ) : null;
         }
@@ -54,7 +55,7 @@ export default function ArticleBody({ blocks = [], title }) {
           return (
             <ul key={`list-${idx}`} className="article-list">
               {items.map((item, itemIdx) => (
-                <li key={`${idx}-${itemIdx}`}>{item}</li>
+                <li key={`${idx}-${itemIdx}`}><NewsEntityText text={item} /></li>
               ))}
             </ul>
           );

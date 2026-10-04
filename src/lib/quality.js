@@ -1,5 +1,6 @@
+import { isPublisherBranding } from './newsMedia.js';
 export function isPremiumArticle(article) {
-  return article?.quality_ok !== false && article?.sport_match_ok !== false;
+  return !isPublisherBranding(article?.image_url) && article?.quality_ok !== false && article?.sport_match_ok !== false;
 }
 
 export function premiumFirst(articles = []) {

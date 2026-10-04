@@ -8,7 +8,7 @@ import { sportI18nKey } from "../i18n/index.js";
 import { composeHomeModules } from "../lib/editorial.js";
 import { preparePortalHomeNews } from "../lib/newsFreshness.js";
 import { setPageSeo, websiteJsonLd } from "../lib/seo.js";
-import NewsRefreshBar from "../components/NewsRefreshBar.jsx";
+import NewsAutoRefresh from "../components/NewsAutoRefresh.jsx";
 import BreakingBar from "../components/BreakingBar.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import HeroStories from "../components/HeroStories.jsx";
@@ -83,14 +83,14 @@ export default function HomePage() {
   }
 
   if (error && !data) {
-    return <><NewsRefreshBar onRefresh={() => setRefreshTick(value => value + 1)} /><EmptyState title={t("empty.loadFail")} body={error} compact /></>;
+    return <><NewsAutoRefresh onRefresh={() => setRefreshTick(value => value + 1)} /><EmptyState title={t("empty.loadFail")} body={error} compact /></>;
   }
 
   const modules = composeHomeModules(data || {});
 
   return (
     <div className="page-home">
-      <NewsRefreshBar checkedAt={checkedAt} busy={loading} onRefresh={() => setRefreshTick(value => value + 1)} />
+      <NewsAutoRefresh checkedAt={checkedAt} busy={loading} onRefresh={() => setRefreshTick(value => value + 1)} />
       {error ? <p role="alert">News could not be refreshed. Showing the last successfully loaded stories.</p> : null}
       <BreakingBar articles={modules.breaking} />
       <PortalLayout>

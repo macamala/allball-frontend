@@ -1,3 +1,4 @@
+import { NewsEntityText } from './NewsEntityContext.jsx';
 import React from "react";
 import { leaguePath, sportPath } from "../../config/sports.js";
 import { articleDate, competitionLabel } from "../../labels.js";
@@ -37,8 +38,8 @@ export default function ArticleHeader({ article, commentCount = 0, onComments })
         {league}
         {article.is_breaking ? ` · ${t("breaking")}` : ""}
       </p>
-      <h1 className="article-headline">{article.title}</h1>
-      {showDeck ? <p className="article-deck">{deck}</p> : null}
+      <h1 className="article-headline"><NewsEntityText text={article.title} /></h1>
+      {showDeck ? <p className="article-deck"><NewsEntityText text={deck} /></p> : null}
       <div className="article-meta-row">
         <div className="article-byline">
           {articleDate(article, dateLocale) && (
