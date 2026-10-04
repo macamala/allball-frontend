@@ -1,0 +1,43 @@
+name: News mobile image geometry proof
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-mobile-photo-geometry.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - run: |
+          mkdir -p geometry
+          python - <<'PY'
+          import pathlib,json
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('geometry');rows=[]
+          with sync_playwright() as p:
+              b=p.chromium.launch()
+              for width in [1440,390,320]:
+                  page=b.new_page(viewport={'width':width,'height':1000})
+                  page.goto('https://ninkosports.com/football',wait_until='domcontentloaded',timeout=45000)
+                  hero=page.locator('.hero-lead img').first;hero.wait_for(timeout=30000);hero.scroll_into_view_if_needed()
+                  page.wait_for_function('i=>i.complete&&i.naturalWidth>100',arg=hero.element_handle(),timeout=25000)
+                  page.locator('.hero-grid img').evaluate_all('(imgs)=>Promise.all(imgs.map(i=>i.decode().catch(()=>{})))')
+                  data=page.evaluate('''()=>Object.fromEntries(['.hero-lead','.hero-lead-link','.hero-lead-media','.hero-lead img','.hero-lead-copy','.hero-side-media','.hero-side img'].map(s=>{
+                    const el=document.querySelector(s);if(!el)return [s,null];const c=getComputedStyle(el),r=el.getBoundingClientRect();
+                    return [s,{width:r.width,height:r.height,x:r.x,y:r.y,display:c.display,visibility:c.visibility,opacity:c.opacity,position:c.position,gridArea:c.gridArea,cssWidth:c.width,cssHeight:c.height,minHeight:c.minHeight,maxHeight:c.maxHeight,objectFit:c.objectFit,zIndex:c.zIndex,html:el.outerHTML.slice(0,1500)}];}));''')
+                  rows.append({'width':width,'data':data});page.screenshot(path=str(root/f'{width}-decoded.png'));page.close()
+              b.close()
+          (root/'data.json').write_text(json.dumps(rows,indent=2));print(json.dumps(rows,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-mobile-image-geometry-20261004
+          path: geometry/
+          retention-days: 7
