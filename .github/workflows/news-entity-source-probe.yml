@@ -1,0 +1,68 @@
+name: News entity and image source verification
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-entity-source-probe.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      DATABASE_URL: 'sqlite:///:memory:'
+      NINKO_SKIP_STARTUP_INDEX: '1'
+      NINKO_SKIP_INTEGRITY_BACKFILL: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: f1199604bbbb0085c744ca3530db0c92996c7030
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -q -r requirements.txt
+      - name: Read bounded existing profiles, event identities and source-owned images
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse,logging
+          from concurrent.futures import ThreadPoolExecutor
+          from datetime import datetime,timezone,timedelta
+          root=pathlib.Path('evidence');base='https://allball-backend-production.up.railway.app';logging.basicConfig(level=logging.WARNING)
+          def get(path):
+              try:
+                  with urllib.request.urlopen(base+path,timeout=18) as r:return json.loads(r.read(10000000))
+              except Exception as e:return {'error':str(e)[:150]}
+          requests={}
+          for name in ['Portugal','Norway','Canada','Manchester United','Real Sociedad','Osasuna','Arsenal']:
+              requests['team-'+name]='/sports-data/teams/'+urllib.parse.quote(name)+'?'+urllib.parse.urlencode({'sport':'football','name':name})
+          for name in ['Bruno Fernandes','Cristiano Ronaldo','Pablo Marin','Rasmus Hojlund','Iñigo Arguibide','Gabriel Martinelli']:
+              requests['player-'+name]='/sports-data/players/'+urllib.parse.quote(name)+'?'+urllib.parse.urlencode({'name':name})
+          now=datetime.now(timezone.utc)
+          requests['events']='/sports-data/events?'+urllib.parse.urlencode({'sport':'football','date_from':(now-timedelta(days=10)).date().isoformat(),'date_to':(now+timedelta(days=30)).date().isoformat()})
+          requests['epl-hub']='/sports-data/competitions/england-premier-league/hub'
+          requests['epl-scorers']='/sports-data/competitions/england-premier-league/scorers'
+          with ThreadPoolExecutor(max_workers=2) as pool:results=dict(pool.map(lambda pair:(pair[0],get(pair[1])),requests.items()))
+          (root/'api.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
+          from bot.feeds import enabled_feeds
+          from bot.fetch_sources import _fetch_feed_entries
+          from bot.extract import extract_image_candidates_from_url
+          configs=[f for f in enabled_feeds() if 'soccernews.com' in f['url']]
+          sources=[]
+          for cfg in configs:
+              for item in _fetch_feed_entries(cfg,20):
+                  if any(t in item['title'].lower() for t in ['fernandes','marsch','ronaldo']):
+                      try:images=extract_image_candidates_from_url(item['url'])
+                      except Exception as e:images=[{'error':str(e)[:100]}]
+                      sources.append({'title':item['title'],'url':item['url'],'published_at':str(item['published_at']),'images':images})
+          (root/'publisher-images.json').write_text(json.dumps(sources,ensure_ascii=False,indent=2))
+          print(json.dumps({'profiles':{k:v.get('available') for k,v in results.items() if k.startswith(('team-','player-'))},'events':len(results['events'].get('events',[])),'sources_checked':len(sources),'AI_requests':0,'client_writes':0},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-entity-source-probe-20261004
+          path: evidence/
+          retention-days: 7
