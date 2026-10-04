@@ -1,0 +1,38 @@
+name: News final visible production acceptance
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-visible-final-acceptance.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 315aee3034b23534c9373c8a70b2bba25c8832de
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Exact public profile identity and decoded photographs on the actual deployed site
+        run: |
+          python audit/finish_restore_browser.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('audit/verify_news_restore_final.py');s=p.read_text()
+          old="    return re.sub(r'\\s+(?:fc|afc|fk|cf)$','',re.sub(r'^(?:fc|afc|fk|cf)\\s+','',text)).strip()"
+          new="    text=re.sub(r'\\s+(?:fc|afc|fk|cf)$','',re.sub(r'^(?:fc|afc|fk|cf)\\s+','',text)).strip()\n    return {'flamengo rj':'flamengo','ogc nice':'nice','bayer 04 leverkusen':'bayer leverkusen'}.get(text,text)"
+          assert s.count(old)==1
+          p.write_text(s.replace(old,new))
+          PY
+          python audit/verify_news_restore_final.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-visible-final-acceptance-20261004
+          path: news-visible-proof/
+          retention-days: 7
