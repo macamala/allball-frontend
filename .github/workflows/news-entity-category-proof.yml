@@ -1,0 +1,70 @@
+name: News exact competition category evidence
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-entity-category-proof.yml]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      DATABASE_URL: 'sqlite:///:memory:'
+      NINKO_SKIP_STARTUP_INDEX: '1'
+      NINKO_SKIP_INTEGRITY_BACKFILL: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: b62ecd517f0e6b6373145c4a745aa7ff4a669748
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q -r requirements.txt
+      - name: Existing public source transport and public API only, no database or writer actions
+        run: |
+          mkdir -p category-evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse,logging
+          from datetime import datetime,timezone,timedelta
+          from concurrent.futures import ThreadPoolExecutor
+          from collector.adapters_fotmob import FOTMOB_LEAGUES
+          from collector.standings_enrich import FOTMOB_LEAGUE
+          from collector.http import fetch_url
+          root=pathlib.Path('category-evidence');logging.basicConfig(level=logging.WARNING)
+          base='https://allball-backend-production.up.railway.app'
+          keys=['serbia-superliga','brazil-serie-a','germany-bundesliga','france-ligue-1','finland-veikkausliiga','england-premier-league','spain-la-liga','italy-serie-a']
+          now=datetime.now(timezone.utc)
+          def api(path):
+              with urllib.request.urlopen(base+path,timeout=25) as r:return json.loads(r.read(8000000))
+          rows=[]
+          for key in keys:
+              cfg=FOTMOB_LEAGUES.get(key);out={'key':key,'spec':cfg}
+              try:
+                  sid=str((cfg or {}).get('id') or '')
+                  assert sid.isdigit(),cfg
+                  url=FOTMOB_LEAGUE.format(league_id=sid)
+                  response=fetch_url(url,timeout=8)
+                  out['ok']=getattr(response,'ok',False);out['source']=url
+                  if out['ok']:
+                      data=response.payload
+                      (root/(key+'-native.json')).write_text(json.dumps(data,ensure_ascii=False))
+                      out['details']=data.get('details');out['match_count']=len((data.get('fixtures') or {}).get('allMatches') or [])
+                  hub=api('/sports-data/competitions/'+key+'/hub')
+                  (root/(key+'-public.json')).write_text(json.dumps(hub,ensure_ascii=False))
+                  out['public_competition']=hub.get('competition');out['public_events']=len(hub.get('events') or [])
+              except Exception as e:out['error']=type(e).__name__+': '+str(e)[:150]
+              rows.append(out);print(json.dumps(out,ensure_ascii=False),flush=True)
+          (root/'summary.json').write_text(json.dumps({'checked_at':now.isoformat(),'rows':rows,'sports_writes':0,'AI_requests':0},ensure_ascii=False,indent=2))
+          slugs=['rade-kruni-returns-to-training-for-crvena-zvezda','samuel-lino-offers-to-fill-flamengos-midfield-role-during-arrascaetas-absence','axel-witsel-joins-nice-to-mentor-young-players-after-leaving-girona','roope-paunio-reported-to-join-tampereen-ilves-next-season','martin-terriers-limited-role-at-bayer-leverkusen-leaves-his-future-uncertain']
+          with ThreadPoolExecutor(max_workers=2) as pool:articles=dict(pool.map(lambda slug:(slug,api('/articles/'+slug)),slugs))
+          (root/'articles.json').write_text(json.dumps(articles,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-entity-category-proof-20261004
+          path: category-evidence/
+          retention-days: 7
