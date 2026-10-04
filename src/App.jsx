@@ -14,6 +14,7 @@ import MatchPage from "./pages/MatchPage.jsx";
 import CompetitionStandingsPage from "./pages/CompetitionStandingsPage.jsx";
 import TeamPage from "./pages/TeamPage.jsx";
 import PlayerPage from "./pages/PlayerPage.jsx";
+import NewsPlayerPage from "./pages/NewsPlayerPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/match/:matchId" element={<MatchPage />} />
         <Route path="/teams/:entityKey" element={<TeamPage />} />
         <Route path="/players/:playerKey" element={<PlayerPage />} />
+        <Route path="/football/players/:playerKey" element={<NewsPlayerPage />} />
         <Route path="/sports/:sportSlug" element={<SportPage />} />
         <Route path="/:sportSlug" element={<SportPage />} />
         <Route path="/:sportSlug/:leagueSlug" element={<LeaguePage />} />

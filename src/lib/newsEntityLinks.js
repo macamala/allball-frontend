@@ -1,7 +1,7 @@
 /** Preserve the original article text, link only identities verified for this article. */
 const SHORT_CLUB_NAMES = new Set(['PSG','PSV','SJK','HJK','QPR','AIK']);
 export function safeEntityPath(value) {
-  return typeof value === 'string' && /^\/(?:teams\/|players\/|scores\/event\/)[A-Za-z0-9_.:%-]+(?:\?[^#\r\n]*)?$/.test(value)
+  return typeof value === 'string' && /^\/(?:teams\/|players\/|scores\/event\/|football\/players\/)[A-Za-z0-9_.:%-]+(?:\?[^#\r\n]*)?$/.test(value)
     && !value.includes('\\');
 }
 function foldCharacter(character) {

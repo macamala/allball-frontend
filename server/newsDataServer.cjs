@@ -4,6 +4,7 @@ const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const serve=require('serve-handler'),compress=require('node:util').promisify(require('compression')());
 const {ORIGIN,PATHS,parseStandings,parseMatches}=require('./newsPrva.cjs');
 const {contextLoader}=require('./newsArticleContext.cjs');
+const {createPlayerSourceReader}=require('./newsPlayerFacts.cjs');
 const AGENT='NinkoSports-NewsData/1.0 (+https://ninkosports.com)';
 function robotAllows(text,target){
  const groups=[];let agents=[],rules=[],sawRule=false;
@@ -57,7 +58,7 @@ function officialLoader({fetcher=fetch,clock=Date.now,logger=console.warn}={}){
   })();pending.set(view,task);return task;
  };
 }
-function createNewsServer({root=path.resolve(__dirname,'../dist'),loader=officialLoader(),articleContext=contextLoader()}={}){
+function createNewsServer({root=path.resolve(__dirname,'../dist'),loader=officialLoader(),articleContext=contextLoader({playerRead:createPlayerSourceReader()})}={}){
  let configured={};const file=path.resolve(__dirname,'../serve.json');if(fs.existsSync(file))configured=JSON.parse(fs.readFileSync(file,'utf8'));
  const config={...configured,public:root,rewrites:[{source:'**',destination:'/index.html'},...(configured.rewrites||[])]};
  return http.createServer(async(req,res)=>{

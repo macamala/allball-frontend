@@ -2,6 +2,7 @@
 /** NEWS-only, bounded read adapter. Existing public profiles/matches remain unchanged.
  * No model, writer, database credentials, sporting mutations or arbitrary URL proxy.
  */
+const {addSquadPlayerLinks}=require('./newsPlayerFacts.cjs');
 const API='https://allball-backend-production.up.railway.app';
 const {createNativeIdentityReader,qualifyNewsEvents,categoryOf,identityName}=require('./newsEntityIdentity.cjs');
 const {teamMentioned,SHORT}=require('./newsEntityMention.cjs');
@@ -199,7 +200,7 @@ function identityKeys(article,events){
  }
  return [...ranked].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([key])=>key);
 }
-function contextLoader({read=createPublicReader(),nativeRead=createNativeIdentityReader(),clock=Date.now}={}){
+function contextLoader({read=createPublicReader(),nativeRead=createNativeIdentityReader(),playerRead=null,clock=Date.now}={}){
  const cached=new Map(),inflight=new Map();
  return async function load(slug){
   if(!SLUG.test(slug))throw Error('Invalid article slug');
@@ -262,7 +263,11 @@ function contextLoader({read=createPublicReader(),nativeRead=createNativeIdentit
    for(const e of past)if(selected.length<6&&!used.has(e.id)){selected.push(e);used.add(e.id);}
    const sets=await Promise.all(selected.map(async event=>{try{return lineupPlayers(await read('/sports-data/matches/'+event.id),event);}catch{partial=true;return [];}}));
    const players=sets.flat();
-   const resolved=findPlayers(article,players);
+   let resolved=findPlayers(article,players);
+   if(playerRead){
+    const extra=await addSquadPlayerLinks(article,teams,books,resolved,{read:playerRead,clock});
+    resolved=extra.players;partial=partial||extra.partial;
+   }
    const matches=related.filter(e=>e.details_available!==false).slice(0,6).map(e=>({id:e.id,name:`${e.home.name} vs ${e.away.name}`,start_time:e.start_time,
     competition:e.competition_name||e.competition,href:'/scores/event/'+encodeURIComponent(e.id),relation:'Related match involving a named team'}));
    const data={article_id:article.id,slug,sport:'football',checked_at:new Date(clock()).toISOString(),partial,
