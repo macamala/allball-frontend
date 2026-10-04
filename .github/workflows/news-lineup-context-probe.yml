@@ -1,0 +1,49 @@
+name: News scoped football profiles
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-lineup-context-probe.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Existing football match and event-scoped player GETs only
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import json,pathlib,urllib.request,urllib.parse
+          from concurrent.futures import ThreadPoolExecutor
+          root=pathlib.Path('evidence');base='https://allball-backend-production.up.railway.app'
+          ids=['ninko-evt-cf8a87558fff427f8333','ninko-evt-933b4124896c81041337','ninko-evt-d09b453bc15c48cbae6f','ninko-evt-a44c30b85c9cb40b8eb2','ninko-evt-80805e841f780fef3513']
+          def get(path):
+              try:
+                  with urllib.request.urlopen(base+path,timeout=25) as r:return json.loads(r.read(8000000))
+              except Exception as e:return {'error':str(e)[:120]}
+          with ThreadPoolExecutor(max_workers=2) as pool:matches=dict(pool.map(lambda id:(id,get('/sports-data/matches/'+id)),ids))
+          (root/'matches.json').write_text(json.dumps(matches,ensure_ascii=False,indent=2))
+          players=[]
+          def scan(value,event):
+              if isinstance(value,dict):
+                  name=value.get('name') or value.get('display_name')
+                  if isinstance(name,str) and value.get('id') and any(n in name.casefold() for n in ['bruno fernandes','cristiano ronaldo','marin','arguibide','saka','martinelli']):
+                      players.append((str(value['id']),name,event))
+                  for child in value.values():scan(child,event)
+              elif isinstance(value,list):
+                  for child in value:scan(child,event)
+          for event,data in matches.items():scan(data,event)
+          unique=list(dict.fromkeys(players))[:12]
+          profiles={}
+          for pid,name,event in unique:
+              query=urllib.parse.urlencode({'name':name,'event_id':event})
+              profiles[pid+'@'+event]=get('/sports-data/players/'+urllib.parse.quote(pid)+'?'+query)
+          (root/'profiles.json').write_text(json.dumps(profiles,ensure_ascii=False,indent=2))
+          print(json.dumps({'players':unique,'available':{k:v.get('available') for k,v in profiles.items()},'client_writes':0,'AI_requests':0},ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: news-lineup-context-20261004
+          path: evidence/
+          retention-days: 7
