@@ -1,0 +1,129 @@
+name: News missing player release
+on:
+  push:
+    branches: [fix/news-player-resolution-20261004]
+    paths: [.github/workflows/news-player-release.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8aebf4d1c97d5ffd1cae8e19653c03eae89033f4
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Add only article-scoped News player recovery on the unchanged source
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = '12f5180c451d596ce5a13b96172a6fcdb96d1da2'
+          mkdir -p ../proof
+          python - <<'PY'
+          from pathlib import Path
+          import shutil,hashlib,json
+          for name in ['server/newsPlayerFacts.cjs','src/pages/NewsPlayerPage.jsx','src/pages/NewsPlayerPage.test.jsx','tests/newsPlayerFacts.check.cjs']:
+              shutil.copyfile('../bundle/'+name,name)
+          def edit(path,old,new):
+              p=Path(path);s=p.read_text();assert s.count(old)==1,(path,s.count(old));p.write_text(s.replace(old,new))
+          edit('server/newsArticleContext.cjs',"const API=","const {addSquadPlayerLinks}=require('./newsPlayerFacts.cjs');\nconst API=")
+          edit('server/newsArticleContext.cjs','nativeRead=createNativeIdentityReader(),clock=Date.now','nativeRead=createNativeIdentityReader(),playerRead=null,clock=Date.now')
+          edit('server/newsArticleContext.cjs','   const resolved=findPlayers(article,players);','   let resolved=findPlayers(article,players);\n   if(playerRead){\n    const extra=await addSquadPlayerLinks(article,teams,books,resolved,{read:playerRead,clock});\n    resolved=extra.players;partial=partial||extra.partial;\n   }')
+          edit('server/newsDataServer.cjs',"const {contextLoader}=require('./newsArticleContext.cjs');","const {contextLoader}=require('./newsArticleContext.cjs');\nconst {createPlayerSourceReader}=require('./newsPlayerFacts.cjs');")
+          edit('server/newsDataServer.cjs','articleContext=contextLoader()','articleContext=contextLoader({playerRead:createPlayerSourceReader()})')
+          edit('src/App.jsx','import PlayerPage from "./pages/PlayerPage.jsx";','import PlayerPage from "./pages/PlayerPage.jsx";\nimport NewsPlayerPage from "./pages/NewsPlayerPage.jsx";')
+          edit('src/App.jsx','        <Route path="/players/:playerKey" element={<PlayerPage />} />','        <Route path="/players/:playerKey" element={<PlayerPage />} />\n        <Route path="/football/players/:playerKey" element={<NewsPlayerPage />} />')
+          edit('src/lib/newsEntityLinks.js','(?:teams\\/|players\\/|scores\\/event\\/)','(?:teams\\/|players\\/|scores\\/event\\/|football\\/players\\/)')
+          expected={'server/newsPlayerFacts.cjs':'1089b6ba7f2c32ea56cc5fa485801f3c6644b09edb2cbc1353db479dc12b8d51','src/pages/NewsPlayerPage.jsx':'024712985979e923924c1a74d2dd7a16bdf9c2c60dae0626119c886731e2743f','src/pages/NewsPlayerPage.test.jsx':'bd81ac5ec773e7d53ba33cd30ef7e01ffa0d380dbee9f1b22e094a2622caafdb','tests/newsPlayerFacts.check.cjs':'c6d4728da7b3a36ffecc77b61d350ad377187ae05564b3cd45cee835d0cb610c','server/newsArticleContext.cjs':'13219a2a2adcd0ce08f5a5fdfdd9dc378192af8b8bbe6e3de648be1867cf6c26','server/newsDataServer.cjs':'779f29f5904cb3536436bd5e1573d4c63c05b598fcad19d9890b898696824647','src/App.jsx':'44218e7272ccd3fd54dcf980282431162a58d031a466ee3d0c2c6a8636d01b25','src/lib/newsEntityLinks.js':'441c2ec1ffe4c8038ba36bf334096c4c03558ff3af64ebe99577d1b622a4e6a2'}
+          for name,digest in expected.items():assert hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest,name
+          Path('../proof/files.json').write_text(json.dumps(expected,indent=2))
+          PY
+      - name: Every retained News server and frontend case and production build
+        working-directory: source
+        run: |
+          npm ci
+          node --test tests/newsArticleContext.check.cjs tests/newsDataServer.check.cjs tests/newsEntityIdentity.check.cjs tests/newsPlayerFacts.check.cjs > ../proof/server-tests.txt 2>&1 || { tail -120 ../proof/server-tests.txt; exit 1; }
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../proof/tests.json > ../proof/tests.txt 2>&1 || { tail -120 ../proof/tests.txt; exit 1; }
+          npm run build > ../proof/build.txt 2>&1 || { cat ../proof/build.txt; exit 1; }
+          git diff --check
+      - name: All existing App routes remain intact
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,json,re,subprocess,concurrent.futures
+          root=pathlib.Path('../proof');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66
+          def test(pair):
+              index,title=pair;output=root/f'app-{index}.json'
+              try:
+                  result=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=90)
+                  (root/f'app-{index}.txt').write_text(result.stdout)
+                  data=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':result.returncode==0 and data.get('numPassedTests')==1 and not data.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:results=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));assert all(r['passed'] for r in results)
+          PY
+      - name: Actual source and article evidence, no AI or sports-data writes
+        working-directory: source
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),{contextLoader}=require('./server/newsArticleContext.cjs');
+          const {createPlayerSourceReader}=require('./server/newsPlayerFacts.cjs');
+          const calls=[];const reader=createPlayerSourceReader({fetcher:async(url,opts)=>{const r=await fetch(url,opts);calls.push({url,status:r.status,method:opts.method});return r;}});
+          const load=contextLoader({playerRead:reader});
+          const cases=[['rade-kruni-returns-to-training-for-crvena-zvezda','438456'],['samuel-lino-offers-to-fill-flamengos-midfield-role-during-arrascaetas-absence','438647']];
+          (async()=>{
+            const rows=[];
+            for(const [slug,pid] of cases){
+              const start=Date.now(),data=await load(slug);fs.writeFileSync('../proof/'+slug+'.json',JSON.stringify(data,null,2));
+              const p=data.players.find(p=>p.id===pid);
+              if(!p?.profile||p.profile.id!==pid||!p.profile.photo||p.profile.fields.length<3||!p.profile.competition?.stats.length||!p.profile.career.length)throw Error('Missing verified player profile '+pid+' '+JSON.stringify(data.players));
+              if(p.event_id||!p.href.startsWith('/football/players/'+pid+'?article='+slug))throw Error('A missing match context must not be fabricated');
+              rows.push({slug,article_id:data.article_id,player_id:pid,name:p.name,photo:p.profile.photo,fields:p.profile.fields.length,season:p.profile.competition.season,stats:p.profile.competition.stats.length,career:p.profile.career.length,seconds:(Date.now()-start)/1000,partial:data.partial});
+            }
+            const existing=await load('bruno-fernandes-urges-portugal-unity-amid-ronaldo-and-jesus-disagreement');
+            for(const id of ['422685','30893'])if(!existing.players.some(p=>p.id===id&&p.href.startsWith('/players/')&&p.event_id))throw Error('Existing verified link regressed '+id);
+            fs.writeFileSync('../proof/source-proof.json',JSON.stringify({checked_at:new Date().toISOString(),rows,source_calls:calls,existing_lineup_players:existing.players.map(p=>({id:p.id,href:p.href})),AI_requests:0,sports_write_requests:0,all_entities_complete:false},null,2));
+            console.log(JSON.stringify(rows,null,2));
+          })().catch(e=>{fs.writeFileSync('../proof/source-calls.json',JSON.stringify(calls,null,2));console.error(e);process.exit(1)});
+          JS
+      - name: Preserve a clean tested release without shared profile or Live Scores changes
+        working-directory: source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,subprocess
+          expected=set(json.loads(Path('../proof/files.json').read_text()))
+          changed=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed==expected,changed^expected
+          for name in ['src/pages/PlayerPage.jsx','src/pages/TeamPage.jsx','src/pages/LiveScoresPage.jsx','src/pages/MatchPage.jsx','src/pages/HomePage.jsx','src/pages/SportPage.jsx','src/components/FootballNewsMenu.jsx','src/components/FootballNewsMenu.css','src/styles/entityProfiles.css']:
+              assert Path(name).read_bytes()==subprocess.check_output(['git','show','HEAD:'+name]),name
+          subprocess.run(['git','add',*sorted(expected)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(news): connect verified player profiles when recent match lineups are missing'
+          git push origin HEAD:refs/heads/release/news-player-resolution-20261004
+          git rev-parse HEAD > ../proof/tested-commit.txt
+          git show --stat --oneline HEAD > ../proof/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-player-release-20261004
+          path: proof/
+          retention-days: 7
