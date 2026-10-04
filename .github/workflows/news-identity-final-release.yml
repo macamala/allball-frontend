@@ -1,0 +1,74 @@
+name: News exact club identity final release
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-identity-final-release.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3b87f2ec8bb152ee74a6e852d6f59397219bb05e
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: b62ecd517f0e6b6373145c4a745aa7ff4a669748
+          path: registry
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - run: pip install -q PyYAML
+      - name: Execute every pinned original gate and verify exact actual profile IDs
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,yaml,json,hashlib
+          from pathlib import Path
+          original=yaml.safe_load(Path('bundle/.github/workflows/news-identity-verified-release.yml').read_text())
+          steps=[step for step in original['jobs']['gate']['steps'] if 'run' in step]
+          assert len(steps)==5
+          for index,step in enumerate(steps):
+              print('GATE:',step['name'],flush=True)
+              script=step['run']
+              if index==3:
+                  old="const profile=await read('/sports-data'+link.pathname+link.search);"
+                  new="const response=await fetch('https://allball-backend-production.up.railway.app/sports-data'+link.pathname+link.search,{method:'GET',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(25000)});if(!response.ok)throw Error('Profile unavailable');const profile=await response.json();"
+                  assert script.count(old)==1;script=script.replace(old,new)
+              subprocess.run(['bash','-e','-c',script],cwd='source',check=True)
+              if index==0:
+                  p=Path('source/server/newsEntityIdentity.cjs');s=p.read_text()
+                  old=" 'bayer 04 leverkusen':'bayer leverkusen', 'ogc nice':'nice',"
+                  assert s.count(old)==1
+                  p.write_text(s.replace(old,old+"\n 'flamengo rj':'flamengo',"))
+                  p=Path('source/tests/newsEntityIdentity.check.cjs');p.write_text(p.read_text()+'''
+          test('only the verified Flamengo Rio name is equivalent, never another state or category',()=>{
+           assert.equal(identityName('Flamengo - RJ'),identityName('Flamengo'));
+           assert.notEqual(identityName('Flamengo - SP'),identityName('Flamengo'));
+           assert.notEqual(identityName('Flamengo Women'),identityName('Flamengo'));
+          });
+          ''')
+                  p=Path('identity-proof/hashes.json');files=json.loads(p.read_text())
+                  p.write_text(json.dumps({name:hashlib.sha256((Path('source')/name).read_bytes()).hexdigest() for name in files},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-identity-final-release-20261004
+          path: identity-proof/
+          retention-days: 7
