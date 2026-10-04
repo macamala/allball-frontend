@@ -1,0 +1,213 @@
+--- a/server/newsArticleContext.cjs
++++ b/server/newsArticleContext.cjs
+@@ -116,28 +116,63 @@
+    return count(b)-count(a)||Math.abs(dateOf(a.start_time)-stamp)-Math.abs(dateOf(b.start_time)-stamp);
+   });
+ }
+-function createPublicReader({fetcher=fetch,clock=Date.now}={}){
++function validReadPath(path){
++ if(typeof path!=='string'||path.length>1500||/[#\\\r\n]/.test(path))return false;
++ if(/^\/articles\/[a-z0-9][a-z0-9-]{0,220}$/.test(path))return true;
++ if(/^\/sports-data\/matches\/[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$/.test(path))return true;
++ if(/^\/sports-data\/competitions\/[a-z][a-z0-9-]{2,100}\/hub$/.test(path))return true;
++ if(!path.startsWith('/sports-data/events?'))return false;
++ const query=new URLSearchParams(path.split('?')[1]);
++ if(query.get('sport')!=='football')return false;
++ for(const name of query.keys())if(!['sport','date_from','date_to'].includes(name)||query.getAll(name).length!==1)return false;
++ for(const name of ['date_from','date_to'])if(query.has(name)&&(!/^\d{4}-\d{2}-\d{2}$/.test(query.get(name))||dateOf(query.get(name))===null))return false;
++ return !query.has('date_from')||!query.has('date_to')||dateOf(query.get('date_to'))>=dateOf(query.get('date_from'));
++}
++function createPublicReader({fetcher=fetch,clock=Date.now,timeoutMs=12000,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}={}){
+  const cache=new Map(),inflight=new Map();let active=0;const waiting=[];let bytes=0;
++ // One bounded retry only for an idempotent read and a temporary failure.
++ // Invalid payloads, permission failures and rate limits must not be retried.
++ const retryable=error=>['TimeoutError','AbortError'].includes(error?.name)||
++  [408,502,503,504].includes(error?.status)||
++  (error instanceof TypeError&&/fetch|network|terminated/i.test(error.message));
+  async function slot(fn){
+   if(active>=4){if(waiting.length>=64)throw Error('News context busy');await new Promise(resolve=>waiting.push(resolve));}
+   active++;
+   try{return await fn();}finally{active--;waiting.shift()?.();}
+  }
++ async function once(path){
++  const controller=new AbortController();let timer,reader;
++  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{
++   controller.abort();reject(new DOMException('News data read timed out','TimeoutError'));
++  },Math.max(1,Math.min(timeoutMs,20000)));});
++  const operation=(async()=>{
++   const response=await fetcher(API+path,{method:'GET',credentials:'omit',redirect:'error',
++    headers:{Accept:'application/json','User-Agent':'NinkoSports-NewsContext/1.0'},signal:controller.signal});
++   if(!response.ok)throw Object.assign(Error('News data unavailable'),{status:response.status});
++   if(!/(?:application\/json)/i.test(response.headers.get('content-type')||''))throw Error('News data type');
++   if(Number(response.headers.get('content-length')||0)>8*1024*1024)throw Error('News data size');
++   const chunks=[];let total=0;reader=response.body.getReader();
++   while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;
++    if(total>8*1024*1024)throw Error('News data size');chunks.push(Buffer.from(value));}
++   return {data:JSON.parse(Buffer.concat(chunks).toString('utf8')),size:total};
++  })();
++  try{return await Promise.race([operation,timeout]);}
++  finally{clearTimeout(timer);if(reader)reader.cancel().catch(()=>{});}
++ }
+  return async function read(path,ttl=300000){
+-  if(!/^\/(?:articles\/[a-z0-9-]+|sports-data\/(?:events\?|matches\/[\w.-]+|competitions\/[\w-]+\/hub))/.test(path)||path.length>1500||path.includes('#'))throw Error('Invalid News read');
++  if(!validReadPath(path))throw Error('Invalid News read');
+   const saved=cache.get(path);if(saved&&clock()-saved.at<ttl)return saved.data;
+   if(inflight.has(path))return inflight.get(path);
+   const task=slot(async()=>{
+-   const response=await fetcher(API+path,{method:'GET',credentials:'omit',redirect:'error',headers:{Accept:'application/json','User-Agent':'NinkoSports-NewsContext/1.0'},signal:AbortSignal.timeout(10000)});
+-   if(!response.ok||!/(?:application\/json)/i.test(response.headers.get('content-type')||''))throw Error('News data unavailable');
+-   if(Number(response.headers.get('content-length')||0)>8*1024*1024)throw Error('News data size');
+-   const chunks=[];let total=0;const reader=response.body.getReader();
+-   try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>8*1024*1024)throw Error('News data size');chunks.push(Buffer.from(value));}}finally{await reader.cancel().catch(()=>{});}
+-   const raw=Buffer.concat(chunks).toString('utf8'),data=JSON.parse(raw);
+-   if(saved)bytes-=saved.size;
+-   cache.delete(path);cache.set(path,{data,at:clock(),size:total});bytes+=total;
++   let result;
++   for(let attempt=0;attempt<2;attempt++){
++    try{result=await once(path);break;}
++    catch(error){if(attempt||!retryable(error))throw error;await sleep(250);}
++   }
++   const previous=cache.get(path);if(previous)bytes-=previous.size;
++   cache.delete(path);cache.set(path,{...result,at:clock()});bytes+=result.size;
+    while(cache.size>128||bytes>32*1024*1024){const k=cache.keys().next().value;bytes-=cache.get(k).size;cache.delete(k);}
+-   return data;
++   return result.data;
+   }).finally(()=>inflight.delete(path));
+   inflight.set(path,task);return task;
+  };
+@@ -184,4 +219,4 @@
+   })().finally(()=>inflight.delete(slug));inflight.set(slug,task);return task;
+  };
+ }
+-module.exports={contextLoader,createPublicReader,normalize,mentioned,teamAliases,genderFor,compatibleEvent,findTeams,lineupPlayers,findPlayers,relatedEvents,SLUG};
++module.exports={contextLoader,createPublicReader,validReadPath,normalize,mentioned,teamAliases,genderFor,compatibleEvent,findTeams,lineupPlayers,findPlayers,relatedEvents,SLUG};
+--- a/src/components/article/NewsEntityContext.jsx
++++ b/src/components/article/NewsEntityContext.jsx
+@@ -9,15 +9,32 @@
+   const slug = article?.slug, id = article?.id;
+   useEffect(() => {
+     if (!enabled || article?.sport !== 'football' || !id || !/^[a-z0-9][a-z0-9-]{0,220}$/.test(slug || '')) return undefined;
+-    let active = true; const controller = new AbortController();
+-    const timer = setTimeout(() => controller.abort(), 35000);
+-    fetch(`/news-data/football/articles/${encodeURIComponent(slug)}/context`, { signal: controller.signal, credentials: 'omit' })
+-      .then(response => { if (!response.ok) throw new Error('Context unavailable'); return response.json(); })
+-      .then(data => {
+-        if (active && data.slug === slug && String(data.article_id) === String(id) && data.sport === 'football'
+-            && Array.isArray(data.teams) && Array.isArray(data.players) && Array.isArray(data.matches)) setLoaded(data);
+-      }).catch(() => {}).finally(() => clearTimeout(timer));
+-    return () => { active = false; controller.abort(); clearTimeout(timer); };
++    let active = true, pending = false, settled = false, attempts = 0;
++    let controller, timer, retryTimer;
++    async function load() {
++      if (!active || pending || settled || attempts >= 2 || navigator.onLine === false) return;
++      pending = true; attempts++;
++      controller = new AbortController();
++      const current = controller;
++      timer = setTimeout(() => current.abort(), 60000);
++      try {
++        const response = await fetch(`/news-data/football/articles/${encodeURIComponent(slug)}/context`,
++          { signal: current.signal, credentials: 'omit' });
++        if (!response.ok) throw Object.assign(new Error('Context unavailable'), { status: response.status });
++        const data = await response.json();
++        if (data.slug !== slug || String(data.article_id) !== String(id) || data.sport !== 'football'
++            || !Array.isArray(data.teams) || !Array.isArray(data.players) || !Array.isArray(data.matches)) {
++          settled = true; return;
++        }
++        if (active && !current.signal.aborted) { setLoaded(data); settled = true; }
++      } catch (error) {
++        if (error.status && ![408,502,503,504].includes(error.status)) settled = true;
++        if (active && !settled && attempts < 2) retryTimer = setTimeout(load, 1500);
++      } finally { clearTimeout(timer); pending = false; }
++    }
++    load();
++    window.addEventListener('online', load);
++    return () => { active = false; controller?.abort(); clearTimeout(timer); clearTimeout(retryTimer); window.removeEventListener('online', load); };
+   }, [slug, id, article?.sport, enabled]);
+   const data = loaded?.slug === slug && String(loaded?.article_id) === String(id) ? loaded : null;
+   const value = useMemo(() => data ? { ...data, entities: [...data.teams, ...data.players].slice(0,40) } : null, [data]);
+--- a/tests/newsArticleContext.check.cjs
++++ b/tests/newsArticleContext.check.cjs
+@@ -78,3 +78,44 @@
+  assert.equal(calls.length,1);assert.equal(calls[0].opts.method,'GET');assert.equal(calls[0].opts.credentials,'omit');assert.equal(calls[0].opts.redirect,'error');assert(calls[0].url.startsWith('https://allball-backend-production.up.railway.app/'));
+  await assert.rejects(()=>read('https://evil.test/'));await assert.rejects(()=>createPublicReader({fetcher:async()=>new Response('<html/>',{headers:{'Content-Type':'text/html'}})})('/articles/test'));
+ });
++
++test('a temporary upstream timeout retries once and concurrent readers share the repair',async()=>{
++ let calls=0;const read=createPublicReader({sleep:async()=>{},fetcher:async()=>{
++  if(++calls===1)throw new DOMException('timeout','TimeoutError');
++  return new Response(JSON.stringify({id:1}),{headers:{'Content-Type':'application/json'}});
++ }});
++ const [a,b]=await Promise.all([read('/articles/football-story'),read('/articles/football-story')]);
++ assert.deepEqual(a,{id:1});assert.strictEqual(a,b);assert.equal(calls,2);
++ await read('/articles/football-story');assert.equal(calls,2);
++});
++test('permanent, rate-limited, malformed and oversized responses never retry or enter cache',async()=>{
++ for(const reply of [()=>new Response('{}',{status:404}),()=>new Response('{}',{status:429}),
++   ()=>new Response('<html>',{headers:{'Content-Type':'text/html'}}),
++   ()=>new Response('{',{headers:{'Content-Type':'application/json'}}),
++   ()=>new Response('{}',{headers:{'Content-Type':'application/json','Content-Length':'9000000'}})]){
++  let calls=0;const read=createPublicReader({sleep:async()=>{},fetcher:async()=>{calls++;return reply();}});
++  await assert.rejects(()=>read('/articles/football-story'));assert.equal(calls,1);
++  await assert.rejects(()=>read('/articles/football-story'));assert.equal(calls,2);
++ }
++});
++test('one bounded retry cannot hang the reader when an upstream ignores cancellation',async()=>{
++ const signals=[];const read=createPublicReader({timeoutMs:5,sleep:async()=>{},fetcher:async(_url,opts)=>{
++  signals.push(opts.signal);return new Promise(()=>{});
++ }});
++ await assert.rejects(()=>read('/articles/football-story'),{name:'TimeoutError'});
++ assert.equal(signals.length,2);assert(signals.every(s=>s.aborted));
++});
++test('transient HTTP failure recovers without modifying the accepted response',async()=>{
++ let calls=0;const read=createPublicReader({sleep:async()=>{},fetcher:async()=>++calls===1?
++   new Response('{}',{status:503}):new Response('{"value":0}',{headers:{'Content-Type':'application/json'}})});
++ assert.deepEqual(await read('/articles/football-story'),{value:0});assert.equal(calls,2);
++});
++test('upstream allowlist rejects prefix matches, duplicate params, traversal and arbitrary query data',async()=>{
++ let calls=0;const read=createPublicReader({fetcher:async()=>{calls++;throw Error('unexpected');}});
++ for(const path of ['/articles/foo/../admin','/articles/foo?token=anything','/sports-data/events?sport=basketball',
++   '/sports-data/events?sport=football&sport=basketball','/sports-data/events?sport=football&url=https://example.test',
++   '/sports-data/events?sport=football&date_from=2026-10-05&date_to=2026-10-01',
++   '/sports-data/matches/..','/sports-data/matches/example/extra','/sports-data/competitions/foo/hub-extra'])
++  await assert.rejects(()=>read(path));
++ assert.equal(calls,0);
++});
+--- a/src/components/article/NewsEntityContext.test.jsx
++++ b/src/components/article/NewsEntityContext.test.jsx
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import {render,screen,waitFor,cleanup} from '@testing-library/react';
++import {render,screen,waitFor,cleanup,act} from '@testing-library/react';
+ import {MemoryRouter} from 'react-router-dom';
+ import {it,expect,vi,afterEach} from 'vitest';
+ import {NewsEntityProvider,NewsEntityText,NewsArticleLinks} from './NewsEntityContext.jsx';
+@@ -7,7 +7,7 @@
+ const entity={kind:'player',id:'422685',name:'Bruno Fernandes',aliases:['Bruno Fernandes'],href:'/players/422685?event_id=match-1'};
+ const data={slug:a.slug,article_id:a.id,sport:'football',teams:[],players:[entity],matches:[]};
+ const body=(article=a)=><MemoryRouter><NewsEntityProvider article={article}><p><NewsEntityText text="Bruno Fernandes made a statement."/></p><NewsArticleLinks/></NewsEntityProvider></MemoryRouter>;
+-afterEach(()=>{cleanup();vi.unstubAllGlobals();});
++afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.useRealTimers();});
+ it('the article is readable before context loads; verified links appear without rewriting it',async()=>{
+  let resolve;vi.stubGlobal('fetch',vi.fn(()=>new Promise(r=>{resolve=r;})));
+  render(body());expect(screen.getByText('Bruno Fernandes made a statement.')).toBeTruthy();expect(screen.queryByRole('link')).toBeNull();
+@@ -32,3 +32,20 @@
+ it('does not fetch profile data for other sports or a partial article',()=>{
+  vi.stubGlobal('fetch',vi.fn());render(body({...a,sport:'basketball'}));expect(fetch).not.toHaveBeenCalled();
+ });
++it('a short context outage retries without adding a refresh control or changing the article',async()=>{
++ vi.useFakeTimers();
++ const f=vi.fn().mockRejectedValueOnce(new TypeError('network')).mockResolvedValueOnce({ok:true,json:async()=>data});
++ vi.stubGlobal('fetch',f);render(body());
++ await act(async()=>{await vi.advanceTimersByTimeAsync(1600);});
++ expect(f).toHaveBeenCalledTimes(2);
++ expect(screen.getByRole('link',{name:'Bruno Fernandes'})).toBeTruthy();
++ expect(screen.queryByRole('button')).toBeNull();
++ vi.useRealTimers();
++});
++it('a permanently unavailable context never loops or produces fake profile links',async()=>{
++ vi.useFakeTimers();const f=vi.fn().mockResolvedValue({ok:false,status:404});vi.stubGlobal('fetch',f);
++ render(body());await act(async()=>{await vi.advanceTimersByTimeAsync(65000);});
++ expect(f).toHaveBeenCalledTimes(1);expect(screen.queryByRole('link')).toBeNull();
++ expect(screen.getByText('Bruno Fernandes made a statement.')).toBeTruthy();
++ vi.useRealTimers();
++});
