@@ -1,0 +1,46 @@
+name: News Serbian article photo diagnosis
+on:
+  push:
+    branches: [fix/news-player-resolution-20261004]
+    paths: [.github/workflows/news-serbian-photo-diagnostic.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Inspect real article media responses and hero geometry
+        run: |
+          mkdir -p photo-diagnostic
+          python - <<'PY'
+          import pathlib,json,urllib.request
+          from datetime import datetime,timezone
+          from playwright.sync_api import sync_playwright
+          root=pathlib.Path('photo-diagnostic');slug='rade-kruni-returns-to-training-for-crvena-zvezda';base='https://allball-backend-production.up.railway.app'
+          with urllib.request.urlopen(base+'/articles/'+slug,timeout=25) as r:a=json.loads(r.read())
+          (root/'article.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
+          with sync_playwright() as p:
+              b=p.chromium.launch();page=b.new_page(viewport={'width':390,'height':1000});responses=[];failures=[];messages=[]
+              page.on('response',lambda r:responses.append({'url':r.url,'status':r.status,'type':r.headers.get('content-type'),'resource':r.request.resource_type}) if r.request.resource_type=='image' else None)
+              page.on('requestfailed',lambda r:failures.append({'url':r.url,'error':r.failure}) if r.resource_type=='image' else None)
+              page.on('console',lambda m:messages.append(m.text) if m.type=='error' else None)
+              page.goto('https://ninkosports.com/article/'+slug,wait_until='domcontentloaded',timeout=45000)
+              page.locator('.article-page .article-body').first.wait_for(timeout=30000)
+              page.locator('.article-header').scroll_into_view_if_needed()
+              page.wait_for_timeout(5000)
+              dom=page.locator('.article-hero').evaluate_all('(els)=>els.map(e=>({html:e.outerHTML,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,display:getComputedStyle(e).display,visibility:getComputedStyle(e).visibility}))')
+              page.screenshot(path=str(root/'390-article.png'),full_page=True)
+              summary={'checked_at':datetime.now(timezone.utc).isoformat(),'article_id':a['id'],'image_url':a.get('image_url'),'media':a.get('media'),'hero_dom':dom,'image_responses':responses,'image_failures':failures,'console_errors':messages,'writes':0}
+              (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2));print(json.dumps(summary,ensure_ascii=False,indent=2));b.close()
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-serbian-photo-diagnostic-20261004
+          path: photo-diagnostic/
+          retention-days: 7
