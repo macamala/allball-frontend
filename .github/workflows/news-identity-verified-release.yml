@@ -1,0 +1,141 @@
+name: News verified club identity release
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-identity-verified-release.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TZ: Australia/Sydney
+      VITE_API_URL: https://allball-backend-production.up.railway.app
+      VITE_SITE_LANGUAGES_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0217163706585f9df3d1bc264b1f856fd2fe1884
+          path: bundle
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          repository: macamala/allball-backend
+          ref: b62ecd517f0e6b6373145c4a745aa7ff4a669748
+          path: registry
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Apply exact reviewed News identity patch on the unchanged parent
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = '1b98219db207c7d7240ea024e60cbe972129afc6'
+          mkdir -p ../identity-proof
+          python - <<'PY'
+          import pathlib,ast,json,hashlib,shutil,subprocess
+          from pathlib import Path
+          for name in ['newsEntityIdentity.cjs','newsEntityMention.cjs']:shutil.copyfile('../bundle/audit/'+name,'server/'+name)
+          shutil.copyfile('../bundle/audit/newsEntityIdentity.check.cjs','tests/newsEntityIdentity.check.cjs')
+          tree=ast.parse(Path('../registry/collector/adapters_fotmob.py').read_text())
+          value=next(n.value for n in tree.body if isinstance(n,ast.AnnAssign) and isinstance(n.target,ast.Name) and n.target.id=='FOTMOB_LEAGUES')
+          source=ast.literal_eval(value)
+          specs={key:{'id':str(v['id']),'country':v['ccode'].upper(),'name':v['name']} for key,v in source.items() if isinstance(v.get('id'),int)}
+          aliases={'usa-mls':'mls','argentina-liga-profesional':'argentina-primera','south-korea-k-league-1':'korea-k-league-1','romania-liga-1':'romania-superliga','england-womens-super-league':'womens-super-league','conmebol-sudamericana':'copa-sudamericana'}
+          for alias,key in aliases.items():specs[alias]=specs[key]
+          Path('server/newsEntitySources.json').write_text(json.dumps({'source':'existing collector.adapters_fotmob.FOTMOB_LEAGUES; exact response identity must be reverified at read time','specs':specs},indent=2,ensure_ascii=False)+'\n')
+          patch=Path('../bundle/audit/news-identity-child.patch')
+          assert hashlib.sha256(patch.read_bytes()).hexdigest()=='07d7def2b7ebdbb23b4cd5865af568b27b677a02b52df95fdf5ddca487498f73'
+          subprocess.run(['git','apply','--check',str(patch)],check=True);subprocess.run(['git','apply',str(patch)],check=True)
+          expected={'server/newsEntityIdentity.cjs':'b730f5bffe5b0937dd42532ec8e393930186e2112cf244e642a8f591b070a42a','server/newsEntityMention.cjs':'d1354795a318546a84a2264d72ce40eb634438b97ab2e7da601b0e26e0f1b6bb','server/newsEntitySources.json':'08c716811bb69905a6a45c9282d7f8a110a0e896acc126daaa518678a91da90f','tests/newsEntityIdentity.check.cjs':'523c92124ab00333243fd1a588ff36a217d907c91930f9dd7d0bb1a8091bf9d4','server/newsArticleContext.cjs':'d256b3647b2a9cd468d320b4ee251db3e914b81ac663c0b501b4adaa0aa60697','src/lib/newsEntityLinks.js':'f9f4c6193cb8f46333e7ee6356b7051d5c39fdee1d15ffe9ce15c2d7494fb449','src/lib/newsEntityLinks.test.js':'426a9cdf87ff0fb33b7aaeb2deb31a3d2c5841ae33275d45dd4e5f2e6d7a6968'}
+          for name,digest in expected.items():assert hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest,name
+          Path('../identity-proof/hashes.json').write_text(json.dumps(expected,indent=2))
+          PY
+      - name: All retained News server and frontend regressions and production build
+        working-directory: source
+        run: |
+          npm ci
+          node --test tests/newsArticleContext.check.cjs tests/newsDataServer.check.cjs tests/newsEntityIdentity.check.cjs > ../identity-proof/server-tests.txt 2>&1 || { tail -120 ../identity-proof/server-tests.txt; exit 1; }
+          node node_modules/vitest/vitest.mjs run --exclude src/App.test.jsx --reporter=json --outputFile=../identity-proof/tests.json > ../identity-proof/tests.txt 2>&1 || { tail -100 ../identity-proof/tests.txt; exit 1; }
+          npm run build > ../identity-proof/build.txt 2>&1 || { cat ../identity-proof/build.txt; exit 1; }
+          git diff --check
+      - name: All 66 existing App route cases remain unchanged and pass
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import pathlib,json,re,subprocess,concurrent.futures
+          root=pathlib.Path('../identity-proof');cases=re.findall(r'\s+it\("([^"]+)"',pathlib.Path('src/App.test.jsx').read_text())
+          assert len(cases)==66 and len(set(cases))==66
+          def test(pair):
+              index,title=pair;output=root/f'app-{index}.json'
+              try:
+                  result=subprocess.run(['node','node_modules/vitest/vitest.mjs','run','src/App.test.jsx','-t',re.escape(title)+'$','--reporter=json','--outputFile='+str(output)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=90)
+                  (root/f'app-{index}.txt').write_text(result.stdout)
+                  data=json.loads(output.read_text()) if output.exists() else {}
+                  return {'title':title,'passed':result.returncode==0 and data.get('numPassedTests')==1 and not data.get('numFailedTests')}
+              except subprocess.TimeoutExpired:return {'title':title,'passed':False,'error':'timeout'}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:results=list(pool.map(test,enumerate(cases)))
+          (root/'app-summary.json').write_text(json.dumps(results,indent=2));print('App routes',sum(r['passed'] for r in results),len(results));assert all(r['passed'] for r in results)
+          PY
+      - name: Real source category and original article entity checks without AI or writes
+        working-directory: source
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs');const {contextLoader,createPublicReader}=require('./server/newsArticleContext.cjs');
+          const {createNativeIdentityReader,identityName}=require('./server/newsEntityIdentity.cjs');
+          const records=[],sourceReads=[];
+          const native=createNativeIdentityReader({fetcher:async(url,options)=>{const r=await fetch(url,options);sourceReads.push({url,status:r.status});return r;}});
+          const read=createPublicReader(),load=contextLoader({read,nativeRead:native});
+          const cases=[
+           ['rade-kruni-returns-to-training-for-crvena-zvezda','8687'],
+           ['samuel-lino-offers-to-fill-flamengos-midfield-role-during-arrascaetas-absence','9770'],
+           ['martin-terriers-limited-role-at-bayer-leverkusen-leaves-his-future-uncertain','8178'],
+           ['axel-witsel-joins-nice-to-mentor-young-players-after-leaving-girona','9831'],
+           ['roope-paunio-reported-to-join-tampereen-ilves-next-season','162162'],
+           ['bruno-fernandes-urges-portugal-unity-amid-ronaldo-and-jesus-disagreement','8361']];
+          (async()=>{
+            for(const [slug,expected] of cases){
+              const started=Date.now(),data=await load(slug);
+              fs.writeFileSync('../identity-proof/'+slug+'.json',JSON.stringify(data,null,2));
+              const primary=data.teams.find(t=>t.id===expected);
+              if(!primary)throw Error('Verified main club missing '+slug+' '+JSON.stringify(data.teams));
+              if(data.teams.some(t=>['608816','6110'].includes(t.id)))throw Error('Common word remained linked '+slug);
+              if(slug.startsWith('martin-terrier')&&data.teams.some(t=>t.name==='France'))throw Error('Geographic reference remains linked');
+              const link=new URL(primary.href,'https://ninkosports.com');
+              const profile=await read('/sports-data'+link.pathname+link.search);
+              if(!profile.available||String(profile.team?.id)!==expected||identityName(profile.team?.name||profile.name)!==identityName(primary.name))throw Error('Wrong profile destination '+slug+' '+JSON.stringify(profile.team));
+              const row={slug,article_id:data.article_id,teams:data.teams.map(t=>({id:t.id,name:t.name})),players:data.players.map(t=>({id:t.id,name:t.name})),related_matches:data.matches.length,primary_profile:{id:profile.team.id,name:profile.name,fixtures:profile.fixtures?.length,results:profile.results?.length},seconds:(Date.now()-started)/1000,partial:data.partial};
+              records.push(row);console.log(JSON.stringify(row));
+              fs.writeFileSync('../identity-proof/live-summary.json',JSON.stringify({checked_at:new Date().toISOString(),records,sourceReads,AI_requests:0,sports_write_requests:0,all_entities_complete:false},null,2));
+            }
+          })().catch(error=>{fs.writeFileSync('../identity-proof/source-reads.json',JSON.stringify(sourceReads,null,2));console.error(error);process.exit(1)});
+          JS
+      - name: Preserve clean tested child release without shared Live Scores changes
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import subprocess,pathlib,json
+          allowed={'server/newsEntityIdentity.cjs','server/newsEntityMention.cjs','server/newsEntitySources.json','server/newsArticleContext.cjs','tests/newsEntityIdentity.check.cjs','src/lib/newsEntityLinks.js','src/lib/newsEntityLinks.test.js'}
+          changes=set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())|set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changes==allowed,changes^allowed
+          subprocess.run(['git','add',*sorted(allowed)],check=True)
+          PY
+          git config user.name 'NinkoSports News validation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(news): verify club categories and exact profile identities before linking article names'
+          git push origin HEAD:refs/heads/release/news-entities-verified-20261004
+          git rev-parse HEAD > ../identity-proof/tested-commit.txt
+          git show --stat --oneline HEAD > ../identity-proof/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-identity-verified-release-20261004
+          path: identity-proof/
+          retention-days: 7
