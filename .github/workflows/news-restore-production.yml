@@ -1,0 +1,28 @@
+name: News restored production browser acceptance
+on:
+  push:
+    branches: [fix/news-restore-entities-20261004]
+    paths: [.github/workflows/news-restore-production.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 16ce42280975bef660603e6474f9d6fca0f0ca77
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Real public article photos and team player match clicks at three viewport widths
+        run: python audit/verify_news_restore.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: news-restore-production-20261004
+          path: news-visible-proof/
+          retention-days: 7
